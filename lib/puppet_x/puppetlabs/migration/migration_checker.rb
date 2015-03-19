@@ -8,12 +8,12 @@
 # errors, warnings etc.
 #
 class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration::MigrationChecker
+  Issues = PuppetX::Puppetlabs::Migration::MigrationIssues
 
   # The MigrationChecker's severity producer makes all issues have
   # warning severity by default.
   #
   class SeverityProducer < Puppet::Pops::Validation::SeverityProducer
-    Issues = PuppetX::Puppetlabs::Migration::MigrationIssues
 
     def initialize
       super(:warning)
@@ -33,13 +33,14 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
 
     def initialize
       @reported = Set.new
+      super
     end
 
     def accept(diagnostic)
       # Only accept unique diagnostics (unique == same issue, file, line, pos and severity)
-      return unless reported.add?(diagnostic)
+      return unless @reported.add?(diagnostic)
       # Collect the diagnostic per severity and remember
-      super
+      super diagnostic
     end
   end
 
