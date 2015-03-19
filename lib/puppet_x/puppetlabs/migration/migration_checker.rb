@@ -73,6 +73,7 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   end
 
   def report_ambiguous_float(o)
+    report(Issues::MIGRATE4_AMBIGOUS_FLOAT, o, {:value => o.value })
   end
 
   def report_empty_string_true(value, o)

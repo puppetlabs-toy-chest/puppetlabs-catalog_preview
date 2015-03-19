@@ -68,6 +68,15 @@ describe 'PuppetX::Puppetlabs::MigrationChecker' do
     end
   end
 
+  it "warns about ambiguous floating point" do
+    migration_checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+    Puppet.override({:migration_checker => migration_checker}, "test-preview-migration-checker") do
+      expect(Puppet::Pops::Parser::EvaluatingParser.new.evaluate_string(scope, " 0.0000005", __FILE__)).to eql(5.0e-07)
+      expected_warning = "This value evaluates to the imprecise floating point number 5.0e-07: Quote if a String value was intended at line 1:2"
+      expect(formatted_warnings(migration_checker.acceptor)[0]).to eql(expected_warning)
+    end
+  end
+
   def formatted_warnings(acceptor)
     formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
     acceptor.warnings.map { |w| formatter.format(w) }
