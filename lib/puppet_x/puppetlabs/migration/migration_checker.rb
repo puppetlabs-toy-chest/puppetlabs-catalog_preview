@@ -66,9 +66,10 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   end
   private :report
 
-  # TODO: Add methods called from the runtime that performs a check and calls report(...) for found issues
-  #
   def report_ambiguous_integer(o)
+    radix = o.radix
+    return unless radix == 8 || radix == 16
+    report(Issues::MIGRATE4_AMBIGOUS_INTEGER, o, {:value => o.value, :radix => radix})
   end
 
   def report_ambiguous_float(o)
