@@ -20,4 +20,8 @@ module PuppetX::Puppetlabs::Migration::MigrationIssues
     "Please review the expectations of using this in-expression against the 4.x specification (3.x. evaluation is undefined for many corner cases)"
   end
 
+  MIGRATE4_EMPTY_STRING_TRUE = issue :MIGRATE4_EMPTY_STRING_TRUE do
+    "Empty string evaluated to true (3.x evaluates to false)"
+  end
+
 end

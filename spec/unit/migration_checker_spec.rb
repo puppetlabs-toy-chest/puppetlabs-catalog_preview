@@ -86,6 +86,15 @@ describe 'PuppetX::Puppetlabs::MigrationChecker' do
     end
   end
 
+  it "warns that evaluation of empty string is true" do
+    migration_checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+    Puppet.override({:migration_checker => migration_checker}, "test-preview-migration-checker") do
+      expect(Puppet::Pops::Parser::EvaluatingParser.new.evaluate_string(scope, "$a='' $a and true", __FILE__)).to eql(true)
+      expected_warning = "Empty string evaluated to true (3.x evaluates to false) at line 1:7"
+      expect(formatted_warnings(migration_checker.acceptor)[0]).to eql(expected_warning)
+    end
+  end
+
   def formatted_warnings(acceptor)
     formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
     acceptor.warnings.map { |w| formatter.format(w) }

@@ -77,6 +77,8 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   end
 
   def report_empty_string_true(value, o)
+    return unless value == ''
+    report(Issues::MIGRATE4_EMPTY_STRING_TRUE, o)
   end
 
   def report_uc_bareword_type(value, o)
