@@ -2,13 +2,15 @@
   "name": "puppetlabs-preview",
   "version": "0.0.1",
   "author": "puppetlabs",
-  "summary": "A PE only module providing catalog preview and migration features",
+  "summary": "PE only module providing catalog preview and migration features",
   "license": "Apache 2.0",
   "source": "https://github.com/puppetlabs/puppetlabs-preview",
   "project_page": "https://github.com/puppetlabs/puppetlabs-preview",
   "issues_url": "https://github.com/puppetlabs/puppetlabs-preview/issues",
   "dependencies": [
     {
+      "name": "puppetlabs-stdlib",
+      "version_range": ">= 1.0.0"
     }
   ]
 }
