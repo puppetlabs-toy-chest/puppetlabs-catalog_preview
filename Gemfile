@@ -1,24 +1,20 @@
-source ENV['GEM_SOURCE'] || "https://rubygems.org"
+source "https://rubygems.org"
 
-puppetversion = ENV['PUPPET_VERSION']
-
-if puppetversion
-  gem 'puppet', puppetversion
-else
-  gem 'puppet'
+group :test do
+  gem "rake"
+  gem "puppet", ENV['PUPPET_VERSION'] || '~> 3.6.0'
+  gem "puppet-lint"
+  gem "rspec-puppet", :git => 'https://github.com/rodjek/rspec-puppet.git'
+  gem "puppet-syntax"
+  gem "puppetlabs_spec_helper"
 end
 
-group :development, :unit_tests do
-  gem 'rspec',                   :require => false
-  gem 'rspec-core',              :require => false
-  gem 'rspec-puppet',            :require => false
-  gem 'mocha',                   :require => false
-  gem 'puppetlabs_spec_helper',  :require => false
-  gem 'rubocop',                 :require => false
-end
-
-group :system_tests do
-  gem 'beaker',        :require => false
-  gem 'beaker-rspec',  :require => false
-  gem 'serverspec',    :require => false
+group :development do
+  gem "travis"
+  gem "travis-lint"
+  gem "beaker"
+  gem "beaker-rspec"
+  gem "vagrant-wrapper"
+  gem "puppet-blacksmith"
+  gem "guard-rake"
 end
