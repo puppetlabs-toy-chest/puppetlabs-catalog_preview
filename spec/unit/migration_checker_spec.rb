@@ -131,6 +131,47 @@ describe 'PuppetX::Puppetlabs::MigrationChecker' do
     end
   end
 
+  { # source                          => expected result
+    # ------                             --------------------
+    "'1' == 1"                        => {:pos => "1:5", :left => 'String', :right => 'Fixnum', :op => '==', :result => false },
+    "'1' != 1"                        => {:pos => "1:5", :left => 'String', :right => 'Fixnum', :op => '!=', :result => true },
+    "1 == '1'"                        => {:pos => "1:3", :left => 'Fixnum', :right => 'String', :op => '==', :result => false },
+    "1 != '1'"                        => {:pos => "1:3", :left => 'Fixnum', :right => 'String', :op => '!=', :result => true },
+    "undef == ''"                     => {:pos => "1:7", :left => 'NilClass', :right => 'String', :op => '==', :result => false },
+    "undef != ''"                     => {:pos => "1:7", :left => 'NilClass', :right => 'String', :op => '!=', :result => true },
+  }.each do |source, expected|
+
+    it "warns that equality check may be different because of type mismatch for #{source} at #{expected[:pos]}" do
+      migration_checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+      Puppet.override({:migration_checker => migration_checker}, "test-preview-migration-checker") do
+        expect(Puppet::Pops::Parser::EvaluatingParser.new.evaluate_string(scope, source, __FILE__)).to eql(expected[:result])
+        expected_warning = "The '#{expected[:op]}' expression evaluates to #{expected[:result]} due to type mismatch between #{expected[:left]} and #{expected[:right]} (3.x. may evaluate differently) at line #{expected[:pos]}"
+        expect(formatted_warnings(migration_checker.acceptor)).to include(expected_warning)
+      end
+    end
+  end
+
+  { # source                          => expected result
+    # ------                             --------------------
+    "[1] == '1'"                        => {:result => false },
+    "'1' != []"                         => {:result => true },
+    "{a=>1} == [[a, 1]]"                => {:result => false },
+    "true == 'true'"                    => {:result => false },
+    "undef == false"                    => {:result => false },
+    "undef != false"                    => {:result => true },
+    "1 == 2"                            => {:result => false },
+
+  }.each do |source, expected|
+
+    it "does not warn that equality check may be different for '#{source}' (since 3.x does it right)" do
+      migration_checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+      Puppet.override({:migration_checker => migration_checker}, "test-preview-migration-checker") do
+        expect(Puppet::Pops::Parser::EvaluatingParser.new.evaluate_string(scope, source, __FILE__)).to eql(expected[:result])
+        expect(formatted_warnings(migration_checker.acceptor)).to be_empty
+      end
+    end
+  end
+
   def formatted_warnings(acceptor)
     formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
     acceptor.warnings.map { |w| formatter.format(w) }

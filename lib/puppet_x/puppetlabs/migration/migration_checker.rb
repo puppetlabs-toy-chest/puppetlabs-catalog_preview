@@ -88,6 +88,24 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   end
 
   def report_equality_type_mismatch(left, right, o)
+    l_class = left.class
+    r_class = right.class
+
+    if left.nil? && r_class == String && right.empty? || right.nil? && l_class == String && left.empty?
+      # undef vs. ''
+
+    elsif l_class <= Puppet::Pops::Types::PAnyType && r_class <= String || r_class <= Puppet::Pops::Types::PAnyType && l_class <= String
+      # Type vs. Numeric (caused by uc bare word being a type and not a string)
+
+    elsif l_class <= Numeric && r_class <= String || r_class <= Numeric && l_class <= String
+      # String vs. Numeric
+
+    else
+      # hash, array, booleans and regexp, etc are only true if compared against same type - no difference between 3x. and 4.x
+      # or this is a same type comparison (also the same in 3.x. and 4.x)
+      return
+    end
+    report(Issues::MIGRATE4_EQUALITY_TYPE_MISMATCH, o, {:left => left, :right => right })
   end
 
   def report_option_type_mismatch(test_value, option_value, option_expr, matching_expr)

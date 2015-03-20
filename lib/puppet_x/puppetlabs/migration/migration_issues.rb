@@ -28,4 +28,9 @@ module PuppetX::Puppetlabs::Migration::MigrationIssues
     "Upper cased non quoted word evaluates to the type '#{type}' (3.x evaluates to a String)"
   end
 
+  MIGRATE4_EQUALITY_TYPE_MISMATCH = issue :MIGRATE4_EQUALITY_TYPE_MISMATCH, :left, :right do
+    result = (semantic.operator == :'=='  ? 'false' : 'true')
+    "#{label.the_uc(semantic)} evaluates to #{result} due to type mismatch between #{left.class} and #{right.class} (3.x. may evaluate differently)"
+  end
+
 end
