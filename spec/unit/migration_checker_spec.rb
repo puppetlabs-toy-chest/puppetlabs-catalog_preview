@@ -95,6 +95,42 @@ describe 'PuppetX::Puppetlabs::MigrationChecker' do
     end
   end
 
+  { # source                          => expected position(s)
+    # ------                             --------------------
+    "'Integer' == Integer"            => "1:14",
+    "Integer < Integer"               => ["1:1", "1:11"],
+    "Integer > Integer"               => ["1:1", "1:11"],
+    "Integer <= Integer and false"    => ["1:1", "1:12"],
+    "Integer == Integer and false"    => ["1:1", "1:12"],
+    "Integer != Integer and false"    => ["1:1", "1:12"],
+    "Integer >= Integer and false"    => ["1:1", "1:12"],
+    "Integer =~ Integer"              => "1:1",
+    "Integer !~ Integer and false"    => "1:1",
+
+    "Integer ? { default => false }"                                => "1:1",
+    "'Integer' ? { Integer => false, default => false}"             => "1:15",
+
+    "case 'Integer' { Integer: {true} default: {false}}"            => "1:18",
+    "case 'Integer' { Integer, Integer: {true} default: {false}}"   => ["1:18", "1:27"],
+    "case Integer { 'Integer': {true} default: {false}}"            => "1:6",
+
+    "Integer in ['Integer'] and false"                              => "1:1",
+
+  }.each do |source, position|
+
+    it "warns that uc bare word is a type, not a string in #{source} at #{position}" do
+      migration_checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+      Puppet.override({:migration_checker => migration_checker}, "test-preview-migration-checker") do
+        expect(Puppet::Pops::Parser::EvaluatingParser.new.evaluate_string(scope, source, __FILE__)).to eql(false)
+        position = [position] unless position.is_a?(Array)
+        position.each_with_index do |p, index|
+          expected_warning = "Upper cased non quoted word evaluates to the type 'Integer' (3.x evaluates to a String) at line #{p}"
+          expect(formatted_warnings(migration_checker.acceptor)).to include(expected_warning)
+        end
+      end
+    end
+  end
+
   def formatted_warnings(acceptor)
     formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
     acceptor.warnings.map { |w| formatter.format(w) }

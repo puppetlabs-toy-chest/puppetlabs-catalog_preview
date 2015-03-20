@@ -24,4 +24,8 @@ module PuppetX::Puppetlabs::Migration::MigrationIssues
     "Empty string evaluated to true (3.x evaluates to false)"
   end
 
+  MIGRATE4_UC_BAREWORD_IS_TYPE = issue :MIGRATE4_UC_BAREWORD_IS_TYPE, :type do
+    "Upper cased non quoted word evaluates to the type '#{type}' (3.x evaluates to a String)"
+  end
+
 end

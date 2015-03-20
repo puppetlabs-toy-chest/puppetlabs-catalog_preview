@@ -82,6 +82,9 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   end
 
   def report_uc_bareword_type(value, o)
+    return unless value.is_a?(Puppet::Pops::Types::PAnyType)
+    return unless o.is_a?(Puppet::Pops::Model::QualifiedReference)
+    report(Issues::MIGRATE4_UC_BAREWORD_IS_TYPE, o, {:type => value.to_s })
   end
 
   def report_equality_type_mismatch(left, right, o)
