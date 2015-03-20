@@ -172,6 +172,51 @@ describe 'PuppetX::Puppetlabs::MigrationChecker' do
     end
   end
 
+  { # source                          => expected result
+    # ------                             --------------------
+    "case '1' { 1: {} }"              => {:pos => "1:12", :op => 'Case Option', :left => 'String', :right => 'Fixnum', :result => nil },
+    "case '1' { '2', 1: {} }"         => {:pos => "1:17", :op => 'Case Option', :left => 'String', :right => 'Fixnum', :result => nil },
+    "case [1,2] { /2/: {} }"          => {:pos => "1:14", :op => 'Case Option', :left => 'Array', :right => 'Regexp', :result => nil },
+    "case /2/ { 2: {} }"              => {:pos => "1:12", :op => 'Case Option', :left => 'Regexp', :right => 'Fixnum', :result => nil },
+
+    "'1' ? { 1  => true, default => undef }"    => {:pos => "1:9", :op => 'Selector Option', :left => 'String', :right => 'Fixnum', :result => nil },
+    "[1,2] ? { /2/ => true, default => undef }" => {:pos => "1:11", :op => 'Selector Option', :left => 'Array', :right => 'Regexp', :result => nil },
+    "/2/ ? { 2  => true, default => undef }"    => {:pos => "1:9", :op => 'Selector Option', :left => 'Regexp', :right => 'Fixnum', :result => nil },
+
+  }.each do |source, expected|
+
+    it "warns that case option may be different because of type mismatch for #{source} at #{expected[:pos]}" do
+      migration_checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+      Puppet.override({:migration_checker => migration_checker}, "test-preview-migration-checker") do
+        expect(Puppet::Pops::Parser::EvaluatingParser.new.evaluate_string(scope, source, __FILE__)).to eql(expected[:result])
+        expected_warning = "The #{expected[:op]} was not selected due to type mismatch between '#{expected[:left]}' and '#{expected[:right]}' (3.x. may match if values in string form match) at line #{expected[:pos]}"
+        expect(formatted_warnings(migration_checker.acceptor)).to include(expected_warning)
+      end
+    end
+  end
+
+  { # source                          => expected result
+    # ------                             --------------------
+    "case '1' { '1': {} }"            => { :result => nil },
+    "case 1 { 2, 1: {} }"             => { :result => nil },
+    "case [1,2] { [1,2]: {} }"        => { :result => nil },
+    "case /2/ { '2': {} }"            => { :result => nil },
+
+    "'1' ? { '1'  => true, default => undef }"    => { :result => true },
+    "[1,2] ? { [1,2] => true, default => undef }" => { :result => true },
+    "'2' ? { /2/  => true, default => undef }"    => { :result => true },
+
+  }.each do |source, expected|
+
+    it "Does not warn about case options that work the same way in 3.x and 4.x such as #{source}" do
+      migration_checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+      Puppet.override({:migration_checker => migration_checker}, "test-preview-migration-checker") do
+        expect(Puppet::Pops::Parser::EvaluatingParser.new.evaluate_string(scope, source, __FILE__)).to eql(expected[:result])
+        expect(formatted_warnings(migration_checker.acceptor)).to be_empty
+      end
+    end
+  end
+
   def formatted_warnings(acceptor)
     formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
     acceptor.warnings.map { |w| formatter.format(w) }

@@ -33,4 +33,10 @@ module PuppetX::Puppetlabs::Migration::MigrationIssues
     "#{label.the_uc(semantic)} evaluates to #{result} due to type mismatch between #{left.class} and #{right.class} (3.x. may evaluate differently)"
   end
 
+  MIGRATE4_OPTION_TYPE_MISMATCH = issue :MIGRATE4_OPTION_TYPE_MISMATCH, :option_expr, :left, :right do
+    # option_expr label results in Case Option, or Selector Option, the semantic is the match_expr (which is one of the value entries)
+    # since that gives the line/pos for the match value as opposed for the entire option
+    #
+    "#{label.the_uc(option_expr)} was not selected due to type mismatch between '#{left.class}' and '#{right.class}' (3.x. may match if values in string form match)"
+  end
 end

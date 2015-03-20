@@ -88,28 +88,45 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   end
 
   def report_equality_type_mismatch(left, right, o)
+    return unless is_type_diff?(left, right)
+    report(Issues::MIGRATE4_EQUALITY_TYPE_MISMATCH, o, {:left => left, :right => right })
+  end
+
+  def report_option_type_mismatch(test_value, option_value, option_expr, matching_expr)
+    return unless is_type_diff?(test_value, option_value) || is_match_diff?(test_value, option_value)
+    report(Issues::MIGRATE4_OPTION_TYPE_MISMATCH, matching_expr, {:left => test_value, :right => option_value, :option_expr => option_expr})
+  end
+
+  # Helper method used by equality and case option to determine if a diff in type may cause difference between 3.x and 4.x
+  # @return [Boolan] true if diff should be reported
+  #
+  def is_type_diff?(left, right)
     l_class = left.class
     r_class = right.class
 
     if left.nil? && r_class == String && right.empty? || right.nil? && l_class == String && left.empty?
       # undef vs. ''
-
+      true
     elsif l_class <= Puppet::Pops::Types::PAnyType && r_class <= String || r_class <= Puppet::Pops::Types::PAnyType && l_class <= String
       # Type vs. Numeric (caused by uc bare word being a type and not a string)
-
+      true
     elsif l_class <= Numeric && r_class <= String || r_class <= Numeric && l_class <= String
       # String vs. Numeric
-
+      true
     else
       # hash, array, booleans and regexp, etc are only true if compared against same type - no difference between 3x. and 4.x
       # or this is a same type comparison (also the same in 3.x. and 4.x)
-      return
+      false
     end
-    report(Issues::MIGRATE4_EQUALITY_TYPE_MISMATCH, o, {:left => left, :right => right })
   end
+  private :is_type_diff?
 
-  def report_option_type_mismatch(test_value, option_value, option_expr, matching_expr)
+  def is_match_diff?(left, right)
+    l_class = left.class
+    r_class = right.class
+    return l_class == Regexp && r_class != String || r_class == Regexp && l_class != String
   end
+  private :is_match_diff?
 
   def report_in_expression(o)
     report(Issues::MIGRATE4_REVIEW_IN_EXPRESSION, o)
