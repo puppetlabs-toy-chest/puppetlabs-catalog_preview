@@ -77,6 +77,15 @@ describe 'PuppetX::Puppetlabs::MigrationChecker' do
     end
   end
 
+  it "warns that all in-expressions should be reviewed" do
+    migration_checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+    Puppet.override({:migration_checker => migration_checker}, "test-preview-migration-checker") do
+      expect(Puppet::Pops::Parser::EvaluatingParser.new.evaluate_string(scope, " 5 in ['0x1f']", __FILE__)).to eql(false)
+      expected_warning = "Please review the expectations of using this in-expression against the 4.x specification (3.x. evaluation is undefined for many corner cases) at line 1:4"
+      expect(formatted_warnings(migration_checker.acceptor)[0]).to eql(expected_warning)
+    end
+  end
+
   def formatted_warnings(acceptor)
     formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
     acceptor.warnings.map { |w| formatter.format(w) }

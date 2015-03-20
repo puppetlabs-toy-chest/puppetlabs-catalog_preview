@@ -16,4 +16,8 @@ module PuppetX::Puppetlabs::Migration::MigrationIssues
     "This value evaluates to the imprecise floating point number #{value}: Quote if a String value was intended"
   end
 
+  MIGRATE4_REVIEW_IN_EXPRESSION = issue :MIGRATE4_REVIEW_IN_EXPRESSION do
+    "Please review the expectations of using this in-expression against the 4.x specification (3.x. evaluation is undefined for many corner cases)"
+  end
+
 end

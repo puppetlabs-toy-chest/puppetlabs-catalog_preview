@@ -89,6 +89,7 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   end
 
   def report_in_expression(o)
+    report(Issues::MIGRATE4_REVIEW_IN_EXPRESSION, o)
   end
 
   def report_array_last_in_block(o)
