@@ -208,11 +208,30 @@ describe 'PuppetX::Puppetlabs::MigrationChecker' do
 
   }.each do |source, expected|
 
-    it "Does not warn about case options that work the same way in 3.x and 4.x such as #{source}" do
+    it "does not warn about case options that work the same way in 3.x and 4.x such as #{source}" do
       migration_checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
       Puppet.override({:migration_checker => migration_checker}, "test-preview-migration-checker") do
         expect(Puppet::Pops::Parser::EvaluatingParser.new.evaluate_string(scope, source, __FILE__)).to eql(expected[:result])
         expect(formatted_warnings(migration_checker.acceptor)).to be_empty
+      end
+    end
+  end
+
+  { # source                                                  => expected result
+    # ------                                                  --------------------
+    "$a = [1,2,3] $b = $a [1]"                                => {:pos => "1:22", :result => [1] },
+    "if true { $a = [1,2,3] $b = $a [1]}"                     => {:pos => "1:32", :result => [1] },
+    "if false {} else {$a = [1,2,3] $b = $a [1]}"             => {:pos => "1:40", :result => [1] },
+    "unless false { $a = [1,2,3] $b = $a [1]}"                => {:pos => "1:37", :result => [1] },
+    "unless true {bug4278} else { $a = [1,2,3] $b = $a [1]}"  => {:pos => "1:51", :result => [1] },
+  }.each do |source, expected|
+
+    it "warns that WS before [] is Array instead of indexed access #{source} at #{expected[:pos]}" do
+      migration_checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+      Puppet.override({:migration_checker => migration_checker}, "test-preview-migration-checker") do
+        expect(Puppet::Pops::Parser::EvaluatingParser.new.evaluate_string(scope, source, __FILE__)).to eql(expected[:result])
+        expected_warning = "The expression parsed to an Array (3.x parses this as an [] operation on the preceding value even if [] is preceded by white-space) at line #{expected[:pos]}"
+        expect(formatted_warnings(migration_checker.acceptor)).to include(expected_warning)
       end
     end
   end

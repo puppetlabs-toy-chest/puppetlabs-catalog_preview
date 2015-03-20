@@ -133,5 +133,7 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   end
 
   def report_array_last_in_block(o)
+    return unless o.is_a?(Puppet::Pops::Model::LiteralList)
+    report(Issues::MIGRATE4_ARRAY_LAST_IN_BLOCK, o)
   end
 end

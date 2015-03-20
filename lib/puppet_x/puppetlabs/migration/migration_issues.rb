@@ -39,4 +39,8 @@ module PuppetX::Puppetlabs::Migration::MigrationIssues
     #
     "#{label.the_uc(option_expr)} was not selected due to type mismatch between '#{left.class}' and '#{right.class}' (3.x. may match if values in string form match)"
   end
+
+  MIGRATE4_ARRAY_LAST_IN_BLOCK = issue :MIGRATE4_ARRAY_LAST_IN_BLOCK, :type do
+    "The expression parsed to an Array (3.x parses this as an [] operation on the preceding value even if [] is preceded by white-space)"
+  end
 end
