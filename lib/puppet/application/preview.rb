@@ -1,5 +1,5 @@
 require 'puppet/application'
-require 'puppet_x/puppetlabs/migration/migration_check'
+require 'puppet_x/puppetlabs/preview'
 
 class Puppet::Application::Preview < Puppet::Application
   run_mode :master
@@ -12,6 +12,10 @@ class Puppet::Application::Preview < Puppet::Application
 
   option("--migrate host") do |arg|
     options[:node] = arg
+  end
+
+  option("--logdest DEST",  "-l DEST") do |arg|
+    handle_logdest_arg(arg)
   end
 
   #option("--compile host",  "-c host") do |arg|
@@ -54,9 +58,13 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
 
   def run_command
     if options[:node]
-      checker = PuppetX::PuppetLabs::Migration::MigrationCheck.new
-      Puppet.override { :migration_checker => checker}
-      compile
+      checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+      Puppet.override({ :migration_checker => checker}, "migration-checking") do
+        compile
+        # Just dump messages to stdout for now...
+        formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
+        checker.acceptor.warnings.each { |w| puts "WARNING #{formatter.format(w)}" }
+      end
     else
       main
     end
@@ -64,11 +72,24 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
 
   def compile
     begin
-      unless catalog = Puppet::Resource::Catalog.indirection.find(options[:node])
-        raise "Could not compile catalog for #{options[:node]}"
-      end
+      # Wrap request to compile in a context specifying a migration checker
+      #
+      checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+      Puppet.override({ :migration_checker => checker}, "migration-checking") do
 
-      puts PSON::pretty_generate(catalog.to_resource, :allow_nan => true, :max_nesting => false)
+        # Do the compilation and get the catalog
+        unless catalog = Puppet::Resource::Catalog.indirection.find(options[:node])
+          raise "Could not compile catalog for #{options[:node]}"
+        end
+
+        # Output catalog to stdout
+        puts PSON::pretty_generate(catalog.to_resource, :allow_nan => true, :max_nesting => false)
+
+        # Outputs a bit of info (this is all just for temporary manual testing/viewing of results
+        # Just dump messages to stdout for now...
+        formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
+        checker.acceptor.warnings.each { |w| puts "MIGRATION WARNING: #{formatter.format(w)}" }
+      end
     rescue => detail
       Puppet.log_exception(detail, "Failed to compile catalog for node #{options[:node]}: #{detail}")
       exit(30)
@@ -141,8 +162,10 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
     else
       Puppet::SSL::Host.ca_location = :none
     end
-    Puppet::SSL::Oids.register_puppet_oids
-    Puppet::SSL::Oids.load_custom_oid_file(Puppet[:trusted_oid_mapping_file])
+    # These lines are not on stable (seems like a copy was made from master)
+    #
+    # Puppet::SSL::Oids.register_puppet_oids
+    # Puppet::SSL::Oids.load_custom_oid_file(Puppet[:trusted_oid_mapping_file])
   end
 
   # Sets up a special node cache "write only yaml" that collects and stores node data in yaml
