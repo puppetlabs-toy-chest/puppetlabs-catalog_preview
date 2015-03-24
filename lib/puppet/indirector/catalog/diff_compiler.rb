@@ -101,7 +101,8 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
     node.merge(@server_facts)
   end
 
-  # Compile the actual catalog.
+  # Compile baseline and preview catalogs
+  #
   def compile(node, options)
     str = "Compiled baseline and preview catalogs for #{node.name}"
     str += " in environments #{node.environment} and #{options[:preview_environment]}" if node.environment
@@ -110,31 +111,48 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
     benchmark(:notice, str) do
       Puppet::Util::Profiler.profile(str, [:diff_compiler, :compile, node.environment, node.name]) do
+        baseline_dest = options[:baseline_log].to_s
+        preview_dest = options[:preview_log].to_s
         begin
           # Baseline compilation
           #
-          baseline_catalog = Puppet::Parser::Compiler.compile(node)
+          Puppet::Util::Log.newdestination(baseline_dest)
+          Puppet::Util::Log.close(:console)
+          Puppet::Util::Log.with_destination(baseline_dest) do
+            baseline_catalog = Puppet::Parser::Compiler.compile(node)
+          end
+          Puppet::Util::Log.close(baseline_dest)
 
-          # Preview compilation
-          #
-          # optional migration checking in preview
-          checker = options[:migration_checker]
-          overrides = checker ? {:migration_checker => checker } : { }
+          Puppet::Util::Log.newdestination(preview_dest)
+          Puppet::Util::Log.with_destination(preview_dest) do
+            baseline_catalog = Puppet::Parser::Compiler.compile(node)
 
-          Puppet.override(overrides, "puppet-preview-compile") do
-            # override environment with specified env for preview
-            node.environment = options[:preview_environment]
-            preview_catalog = Puppet::Parser::Compiler.compile(node)
+            # Preview compilation
+            #
+            # optional migration checking in preview
+            checker = options[:migration_checker]
+            overrides = checker ? {:migration_checker => checker } : { }
 
-            # TODO HACK: Just dump messages to stdout for now...
-            if checker
-              formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
-              checker.acceptor.warnings.each { |w| puts "WARNING #{formatter.format(w)}" }
+            Puppet.override(overrides, "puppet-preview-compile") do
+              # override environment with specified env for preview
+              node.environment = options[:preview_environment]
+              preview_catalog = Puppet::Parser::Compiler.compile(node)
+
+              if checker
+                Puppet::Pops::IssueReporter.assert_and_report(checker.acceptor,
+                  :emit_warnings => true,
+                  :max_warnings => Float::INFINITY)
+              end
             end
           end
+          Puppet::Util::Log.newdestination(:console)
+          Puppet::Util::Log.close(preview_dest)
         rescue Puppet::Error => detail
           Puppet.err(detail.to_s) if networked?
           raise
+        ensure
+          Puppet::Util::Log.close(baseline_dest)
+          Puppet::Util::Log.close(preview_dest)
         end
       end
     end

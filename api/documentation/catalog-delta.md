@@ -175,7 +175,7 @@ there is a difference in the number of attributes and/or their values.
 ### Attributes
 
 A resource contains different kinds of attributes; parameters, and information encoded
-directly in the resource (i.e. `exported`, and `tags`). The `tags` are reported as a regular parameter `( "name" : "tag" }`, but `exported` may also be a parameter value
+directly in the resource (i.e. `exported`, and `tags`). The `tags` are reported as a regular parameter `{ "name" : "tags" }`, but `exported` may also be a parameter value
 (albeit esoteric), and it is reported with the attribute name `"@@"` (since this is the syntax for an exported resource).
 
 The following attributes are treated as sets:

@@ -91,6 +91,11 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
         raise "Could not compile catalogs for #{options[:node]}"
       end
 
+      # Terminate the JSON logs (the final ] is missing, and it must be provided to produce correct JSON)
+      #
+      Puppet::FileSystem.open(options[:baseline_log], nil, 'ab') { |of| of.write("\n]") }
+      Puppet::FileSystem.open(options[:preview_log],  nil, 'ab') { |of| of.write("\n]") }
+
       # WRITE the two catalogs to output files
       baseline_as_resource = result[:baseline].to_resource
       preview_as_resource = result[:preview].to_resource
@@ -102,21 +107,26 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
         of.write(PSON::pretty_generate(preview_as_resource, :allow_nan => true, :max_nesting => false))
       end
 
+      # Make paths real/absolute
+      options[:baseline_catalog] = options[:baseline_catalog].realpath
+      options[:preview_catalog]  = options[:preview_catalog].realpath
+
       # DIFF
       #
-      # take the two catalogs and ask for their `to_data_hash` and give that to the diff utility
-      # which then produces a diff hash (which is written with PSON pretty_generate
+      # Take the two catalogs and produce pure hash (no class information).
+      # Produce a diff hash using the diff utility.
       #
       baseline_hash = JSON::parse(baseline_as_resource.to_pson)
-      preview_hash = JSON::parse(preview_as_resource.to_pson)
+      preview_hash  = JSON::parse(preview_as_resource.to_pson)
+
       catalog_delta = catalog_diff(timestamp, baseline_hash, preview_hash)
 
       Puppet::FileSystem.open(options[:catalog_diff], 0640, 'wb') do |of|
         of.write(PSON::pretty_generate(catalog_delta, :allow_nan => true, :max_nesting => false))
       end
 
-      # TODO: View summary, baseline catalog/log, preview catalog/log, or none
-      # Base the view of copying one of the outputs from where it is written to file to stdout
+      # Produce output as directed by the :view option
+      #
       case options[:view]
       when :baseline_log
         display_file(options[:baseline_log])
@@ -136,6 +146,7 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
     rescue => detail
       # TODO: Should give better error depending on what failed (when)
       Puppet.log_exception(detail, "Failed to compile catalogs for node #{options[:node]}: #{detail}")
+      # TODO: Handle detailed exit codes
       exit(30)
     end
 
@@ -153,15 +164,21 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
     node_output_dir = Puppet::FileSystem.pathname(File.join(options[:output_dir], options[:node]))
     options[:node_output_dir] = node_output_dir
     Puppet::FileSystem.mkpath(options[:node_output_dir])
+    Puppet::FileSystem.chmod(0755, options[:node_output_dir])
 
     # Construct file name for this diff
     options[:baseline_catalog] = Puppet::FileSystem.pathname(File.join(node_output_dir, "baseline_catalog.json"))
     options[:baseline_log]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "baseline_log.json"))
     options[:preview_catalog]  = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_catalog.json"))
     options[:preview_log]      = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_log.json"))
-    options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_log.json"))
+    options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "catalog_diff.json"))
 
-    # TODO: Truncate all of them to ensure mix of output is not produced on error?
+    Puppet::FileSystem.open(options[:baseline_log], 0660, 'wb') { |of| of.write('') }
+    Puppet::FileSystem.open(options[:preview_log],  0660, 'wb') { |of| of.write('') }
+
+    # make the log paths absolute (required to use them as log destinations).
+    options[:preview_log]      = options[:preview_log].realpath
+    options[:baseline_log]     = options[:baseline_log].realpath
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
@@ -172,7 +189,7 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
       :produced_by => 'puppet preview 3.8.0',
       :baseline_env => baseline_hash['data']['environment'],
       :preview_env => preview_hash['data']['environment'],
-      :assertion_count => 10, # fake
+      :assertion_count => 121,
       :passed_assertion_count => 101,
       :failed_assertion_count => 20,
       :baseline_resource_count => 50,
@@ -186,6 +203,7 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
       :missing_resources => ['fake', 'fake', 'fake', 'fake', 'fake', 'fake'],
       :added_resources => ['fake', 'fake', 'fake', 'fake']
     }
+
     # Finish result by supplying information that is not in the catalogs and not produced by the diff utility
     #
     result[:produced_by]      = 'puppet preview 3.8.0'
@@ -246,29 +264,12 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
   end
 
   def setup_logs
+    # This sets up logging based on --debug or --verbose if they are set in `options`
     set_log_level
 
-    # TODO: This uses console for everything...
-    #
+    # This uses console for everything that is not a compilation
     Puppet::Util::Log.newdestination(:console)
 
-    # # What master --compile did
-#    if !options[:setdest]
-#      if options[:node]
-#        # We are compiling a catalog for a single node with '--compile' and logging
-#        # has not already been configured via '--logdest' so log to the console.
-#        Puppet::Util::Log.newdestination(:console)
-#      elsif !(Puppet[:daemonize] or options[:rack])
-#        # We are running a webrick master which has been explicitly foregrounded
-#        # and '--logdest' has not been passed, assume users want to see logging
-#        # and log to the console.
-#        Puppet::Util::Log.newdestination(:console)
-#      else
-#        # No explicit log destination has been given with '--logdest' and we're
-#        # either a daemonized webrick master or running under rack, log to syslog.
-#        Puppet::Util::Log.newdestination(:syslog)
-#      end
-#    end
   end
 
   def setup_terminuses
