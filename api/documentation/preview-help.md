@@ -88,16 +88,14 @@ Note that all settings such as 'log_level' affects both compilations.
 * --debug:
   Enable full debugging. Debugging output is sent to the respective log outputs
   for baseline and preview compilation. This option is for both compilations.
+  Note that debugging information for the startup and end of the application itself is
+  sent to the console.
 
 * --help:
   Print this help message.
 
 * --version:
   Print the puppet version number and exit.
-
-* --baseline_env <ENV-NAME>:
-  Makes the baseline compilation take place in the given <ENV>.
-  Uses facts contained in the $vardir/yaml/ directory to compile the catalog.
 
 * --preview_env <ENV-NAME>:
   Makes the preview compilation take place in the given <ENV>.
@@ -128,13 +126,7 @@ Note that all settings such as 'log_level' affects both compilations.
   Outputs the json-schema for the puppet catalog, or for the catalog_delta. Can not be
   combined with any other option.
   
-* --max_value_size n
-  Sets the max value size to n characters. Values larger than this will be abbreviated if they
-  appear in the missing or added categories. For a conflicting attribute a value larger than this 
-  will be processed with the diff command specified by '--diff_cmd' and written to
-  a file named after the attribute's 'diff_id'
-  
-* --ignore-tags
+* --skip_tags
   Ignores comparison of tags, catalogs are considered equal if they only differ in tags.  
 
 
