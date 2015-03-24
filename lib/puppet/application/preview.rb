@@ -1,40 +1,55 @@
 require 'puppet/application'
+require 'puppet/file_system'
 require 'puppet_x/puppetlabs/preview'
 
 class Puppet::Application::Preview < Puppet::Application
   run_mode :master
 
   option("--debug", "-d")
-  option("--verbose", "-v")
-
-  # internal option, only to be used by ext/rack/config.ru
-  option("--rack")
-
-  option("--migrate") do |arg|
-    options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
-  end
-
-  option("--logdest DEST",  "-l DEST") do |arg|
-    handle_logdest_arg(arg)
-  end
 
   option("--preview_environment ENV_NAME") do |arg|
     options[:preview_environment] = arg
   end
 
-  #option("--compile host",  "-c host") do |arg|
-   #options[:node] = arg
-  #end
+  option("--view OPTION") do |arg|
+    if arg == "summary" || arg == "diff" || arg == "baseline" || arg == "preview" || arg == "baseline_log" || arg == "preview_log" || arg == "none"
+      options[:summary] = arg
+    else
+      raise "The --view option only accepts a restricted list of arguments. Run 'puppet preview --help' for more details"
+    end
+  end
+
+  option("--migrate") do |arg|
+    options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+  end
+
+  option("--assert OPTION") do |arg|
+    if arg == "equal" || arg == "compliant"
+      options[:exit] = arg
+    else
+      raise "The --assert option only accepts 'equal' or 'compliant' as arguments. Run 'puppet preview --help' for more details"
+    end
+  end
+
+  option("--preview_outputdir DIR") do |arg|
+    options[:preview_outputdir] = arg
+  end
+
+  option("--schema CATALOG") do |arg|
+    if arg == "catalog" || arg == "catalog_delta"
+      options[:schema] = arg
+    else
+      raise "The --schema option only accepts 'catalog' or 'catalog_delta' as arguments. Run 'puppet preview --help' for more details"
+    end
+  end
+
+  option("--skip_tags") do |arg|
+    options[:skip_tags] = arg
+  end
 
   def help
-    <<-'HELP'
-USAGE
------
-puppet preview [-d|--debug] [-h|--help] [--migrate]
-  [-l|--logdest syslog|<FILE>|console] [-v|--verbose] [-V|--version]
-  <node-name>
-
-    HELP
+    path = ::File.expand_path( "../../../../api/documentation/preview-help.md", __FILE__)
+    Puppet::FileSystem.read(path)
   end
 
   # Sets up the 'node_cache_terminus' default to use the Write Only Yaml terminus :write_only_yaml.
