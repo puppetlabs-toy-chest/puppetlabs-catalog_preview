@@ -10,12 +10,16 @@ class Puppet::Application::Preview < Puppet::Application
   # internal option, only to be used by ext/rack/config.ru
   option("--rack")
 
-  option("--migrate host") do |arg|
-    options[:node] = arg
+  option("--migrate") do |arg|
+    options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
   end
 
   option("--logdest DEST",  "-l DEST") do |arg|
     handle_logdest_arg(arg)
+  end
+
+  option("--preview_environment ENV_NAME") do |arg|
+    options[:preview_environment] = arg
   end
 
   #option("--compile host",  "-c host") do |arg|
@@ -28,7 +32,7 @@ USAGE
 -----
 puppet preview [-d|--debug] [-h|--help] [--migrate]
   [-l|--logdest syslog|<FILE>|console] [-v|--verbose] [-V|--version]
-  [--compile <NODE-NAME>]
+  <node-name>
 
     HELP
   end
@@ -57,90 +61,102 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
   end
 
   def run_command
-    if options[:node]
-      checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
-      Puppet.override({ :migration_checker => checker}, "migration-checking") do
-        compile
-        # Just dump messages to stdout for now...
-        formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
-        checker.acceptor.warnings.each { |w| puts "WARNING #{formatter.format(w)}" }
-      end
-    else
-      main
+    options[:node] = command_line.args.shift
+
+    unless options[:node]
+      raise "No node to perform preview compilation given"
     end
+
+    unless options[:preview_environment]
+      raise "No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known"
+    end
+
+    prepare_output
+
+    compile
   end
 
   def compile
     begin
-      # Wrap request to compile in a context specifying a migration checker
-      #
-      checker = PuppetX::Puppetlabs::Migration::MigrationChecker.new
-      Puppet.override({ :migration_checker => checker}, "migration-checking") do
-
-        # Do the compilation and get the catalog
-        unless catalog = Puppet::Resource::Catalog.indirection.find(options[:node])
-          raise "Could not compile catalog for #{options[:node]}"
-        end
-
-        # Output catalog to stdout
-        puts PSON::pretty_generate(catalog.to_resource, :allow_nan => true, :max_nesting => false)
-
-        # Outputs a bit of info (this is all just for temporary manual testing/viewing of results
-        # Just dump messages to stdout for now...
-        formatter = Puppet::Pops::Validation::DiagnosticFormatterPuppetStyle.new
-        checker.acceptor.warnings.each { |w| puts "MIGRATION WARNING: #{formatter.format(w)}" }
+      Puppet[:catalog_terminus] = :diff_compiler
+      # Do the compilations and get the catalogs
+      unless result = Puppet::Resource::Catalog.indirection.find(options[:node], options)
+        # TODO: Should always produce a result and give better error depending on what failed
+        #
+        raise "Could not compile catalogs for #{options[:node]}"
       end
+
+      # Write the two catalogs to output files
+      Puppet::FileSystem.open(options[:baseline_catalog], 0640, 'wb') do |of|
+        of.write(PSON::pretty_generate(result[:baseline].to_resource, :allow_nan => true, :max_nesting => false))
+      end
+      Puppet::FileSystem.open(options[:preview_catalog], 0640, 'wb') do |of|
+        of.write(PSON::pretty_generate(result[:preview].to_resource, :allow_nan => true, :max_nesting => false))
+      end
+
+      # TODO: Produce a diff
+      # take the two catalogs and ask for their `to_data_hash` and give that to the diff utility
+      # which then produces a diff hash (which is written with PSON pretty_generate
+      #
+      # TODO HACK: Create a fake diff to be able to write the summary output
+
+      # TODO: View summary, baseline catalog/log, preview catalog/log, or none
+      # Base the view of copying one of the outputs from where it is written to file to stdout
+
+
     rescue => detail
-      Puppet.log_exception(detail, "Failed to compile catalog for node #{options[:node]}: #{detail}")
+      # TODO: Should give better error depending on what failed (when)
+      Puppet.log_exception(detail, "Failed to compile catalogs for node #{options[:node]}: #{detail}")
       exit(30)
     end
     exit(0)
   end
 
-  def main
-    require 'etc'
-    # Make sure we've got a localhost ssl cert
-    Puppet::SSL::Host.localhost
+  def prepare_output
+    # TODO: Deal with the output directory
+    # It should come from a puppet setting which user can override - that currently does not exist
+    # while developing simply write files to CWD
+    options[:output_dir] = "./PREVIEW_OUTPUT"
 
-    # And now configure our server to *only* hit the CA for data, because that's
-    # all it will have write access to.
-    Puppet::SSL::Host.ca_location = :only if Puppet::SSL::CertificateAuthority.ca?
+    # Make sure the output directory for the node exists
+    node_output_dir = Puppet::FileSystem.pathname(File.join(options[:output_dir], options[:node]))
+    options[:node_output_dir] = node_output_dir
+    Puppet::FileSystem.mkpath(options[:node_output_dir])
 
-    if Puppet.features.root?
-      begin
-        Puppet::Util.chuser
-      rescue => detail
-        Puppet.log_exception(detail, "Could not change user to #{Puppet[:user]}: #{detail}")
-        exit(39)
-      end
-    end
+    # Construct file name for this diff
+    options[:baseline_catalog] = Puppet::FileSystem.pathname(File.join(node_output_dir, "baseline_catalog.json"))
+    options[:baseline_log]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "baseline_log.json"))
+    options[:preview_catalog]  = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_catalog.json"))
+    options[:preview_log]      = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_log.json"))
+    options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_log.json"))
 
-    if options[:rack]
-      start_rack_master
-    else
-      start_webrick_master
-    end
+    # TODO: Truncate all of them to ensure mix of output is not produced on error?
   end
 
   def setup_logs
     set_log_level
 
-    if !options[:setdest]
-      if options[:node]
-        # We are compiling a catalog for a single node with '--compile' and logging
-        # has not already been configured via '--logdest' so log to the console.
-        Puppet::Util::Log.newdestination(:console)
-      elsif !(Puppet[:daemonize] or options[:rack])
-        # We are running a webrick master which has been explicitly foregrounded
-        # and '--logdest' has not been passed, assume users want to see logging
-        # and log to the console.
-        Puppet::Util::Log.newdestination(:console)
-      else
-        # No explicit log destination has been given with '--logdest' and we're
-        # either a daemonized webrick master or running under rack, log to syslog.
-        Puppet::Util::Log.newdestination(:syslog)
-      end
-    end
+    # TODO: This uses console for everything...
+    #
+    Puppet::Util::Log.newdestination(:console)
+
+    # # What master --compile did
+#    if !options[:setdest]
+#      if options[:node]
+#        # We are compiling a catalog for a single node with '--compile' and logging
+#        # has not already been configured via '--logdest' so log to the console.
+#        Puppet::Util::Log.newdestination(:console)
+#      elsif !(Puppet[:daemonize] or options[:rack])
+#        # We are running a webrick master which has been explicitly foregrounded
+#        # and '--logdest' has not been passed, assume users want to see logging
+#        # and log to the console.
+#        Puppet::Util::Log.newdestination(:console)
+#      else
+#        # No explicit log destination has been given with '--logdest' and we're
+#        # either a daemonized webrick master or running under rack, log to syslog.
+#        Puppet::Util::Log.newdestination(:syslog)
+#      end
+#    end
   end
 
   def setup_terminuses
@@ -179,7 +195,7 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
   end
 
   def setup
-    raise Puppet::Error.new("Puppet master is not supported on Microsoft Windows") if Puppet.features.microsoft_windows?
+    raise Puppet::Error.new("Puppet preview is not supported on Microsoft Windows") if Puppet.features.microsoft_windows?
 
     setup_logs
 
@@ -189,42 +205,10 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
 
     setup_terminuses
 
+    # TODO: Do we need this in preview? It sets up a write only cache
     setup_node_cache
 
     setup_ssl
   end
 
-  private
-
-  # Start a master that will be using WeBrick.
-  #
-  # This method will block until the master exits.
-  def start_webrick_master
-    require 'puppet/network/server'
-    daemon = Puppet::Daemon.new(Puppet::Util::Pidlock.new(Puppet[:pidfile]))
-
-    daemon.argv = @argv
-    daemon.server = Puppet::Network::Server.new(Puppet[:bindaddress], Puppet[:masterport])
-    daemon.daemonize if Puppet[:daemonize]
-
-    announce_start_of_master
-
-    daemon.start
-  end
-
-  # Start a master that will be used for a Rack container.
-  #
-  # This method immediately returns the Rack handler that must be returned to
-  # the calling Rack container
-  def start_rack_master
-    require 'puppet/network/http/rack'
-
-    announce_start_of_master
-
-    return Puppet::Network::HTTP::Rack.new()
-  end
-
-  def announce_start_of_master
-    Puppet.notice "Starting Puppet master version #{Puppet.version}"
-  end
 end
