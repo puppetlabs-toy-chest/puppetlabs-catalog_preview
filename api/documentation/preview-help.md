@@ -10,17 +10,19 @@ logs from each compilation for inspection.
 USAGE
 -----
 ```
-puppet preview [-d|--debug] [-h|--help]
-  [ --preview_env <ENV-NAME>
-    [--baseline_env <ENV-NAME>]
-    [--migrate]
-    [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
+puppet preview [
     [--assert equal|compliant]
+    [--baseline_env <ENV-NAME>]
+    [-d|--debug]
+    [--migrate]
     [--preview_output_dir <PATH-TO-OUTPUT-DIR>]
     [--skip_tags]
-    [-V|--version]
-    [--node <NODE-NAME>]
+    [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
+    --preview_env <ENV-NAME>
+    <NODE-NAME>
   ]|[--schema catalog|catalog_delta]
+   |[-h|--help]
+   |[-V|--version]
 ```
 
 DESCRIPTION
@@ -118,7 +120,7 @@ Note that all settings such as 'log_level' affects both compilations.
   Defines the director to which output is produced.
   This is a puppet setting that can be overridden on the command line.
 
-* --node <NODE-NAME>
+* <NODE-NAME>
   This specifies for which node the preview should produce output. The node must
   have previously requested a catalog from the master to make its facts available.
   

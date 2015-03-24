@@ -77,7 +77,12 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
   end
 
   def compile
+    # Compilation start time
+    timestamp = Time.now.iso8601(9)
+
     begin
+      # COMPILE
+      #
       Puppet[:catalog_terminus] = :diff_compiler
       # Do the compilations and get the catalogs
       unless result = Puppet::Resource::Catalog.indirection.find(options[:node], options)
@@ -86,22 +91,46 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
         raise "Could not compile catalogs for #{options[:node]}"
       end
 
-      # Write the two catalogs to output files
+      # WRITE the two catalogs to output files
+      baseline_as_resource = result[:baseline].to_resource
+      preview_as_resource = result[:preview].to_resource
+
       Puppet::FileSystem.open(options[:baseline_catalog], 0640, 'wb') do |of|
-        of.write(PSON::pretty_generate(result[:baseline].to_resource, :allow_nan => true, :max_nesting => false))
+        of.write(PSON::pretty_generate(baseline_as_resource, :allow_nan => true, :max_nesting => false))
       end
       Puppet::FileSystem.open(options[:preview_catalog], 0640, 'wb') do |of|
-        of.write(PSON::pretty_generate(result[:preview].to_resource, :allow_nan => true, :max_nesting => false))
+        of.write(PSON::pretty_generate(preview_as_resource, :allow_nan => true, :max_nesting => false))
       end
 
-      # TODO: Produce a diff
+      # DIFF
+      #
       # take the two catalogs and ask for their `to_data_hash` and give that to the diff utility
       # which then produces a diff hash (which is written with PSON pretty_generate
       #
-      # TODO HACK: Create a fake diff to be able to write the summary output
+      baseline_hash = JSON::parse(baseline_as_resource.to_pson)
+      preview_hash = JSON::parse(preview_as_resource.to_pson)
+      catalog_delta = catalog_diff(timestamp, baseline_hash, preview_hash)
+
+      Puppet::FileSystem.open(options[:catalog_diff], 0640, 'wb') do |of|
+        of.write(PSON::pretty_generate(catalog_delta, :allow_nan => true, :max_nesting => false))
+      end
 
       # TODO: View summary, baseline catalog/log, preview catalog/log, or none
       # Base the view of copying one of the outputs from where it is written to file to stdout
+      case options[:view]
+      when :baseline_log
+        display_file(options[:baseline_log])
+      when :preview_log
+        display_file(options[:preview_log])
+      when :baseline_catalog
+        display_file(options[:baseline_catalog])
+      when :preview_catalog
+        display_file(options[:preview_catalog])
+      when :none
+        # do nothing
+      else
+        display_summary(catalog_delta)
+      end
 
 
     rescue => detail
@@ -109,6 +138,8 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
       Puppet.log_exception(detail, "Failed to compile catalogs for node #{options[:node]}: #{detail}")
       exit(30)
     end
+
+    # TODO: Handle detailed exit codes
     exit(0)
   end
 
@@ -131,6 +162,87 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
     options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_log.json"))
 
     # TODO: Truncate all of them to ensure mix of output is not produced on error?
+  end
+
+  def catalog_diff(timestamp, baseline_hash, preview_hash)
+    # TODO: Real call to produce diff
+
+    # TODO: REPLACE THIS FAKE RESULT
+    result = {
+      :produced_by => 'puppet preview 3.8.0',
+      :baseline_env => baseline_hash['data']['environment'],
+      :preview_env => preview_hash['data']['environment'],
+      :assertion_count => 10, # fake
+      :passed_assertion_count => 101,
+      :failed_assertion_count => 20,
+      :baseline_resource_count => 50,
+      :preview_resource_count => 48,
+      :baseline_edge_count => 12,
+      :preview_edge_count => 13,
+
+      :preview_equal => false,
+      :preview_compliant => true,
+      :conflicting_resources => [ {:compliant => true}, {:compliant => true}, {:compliant => false}],
+      :missing_resources => ['fake', 'fake', 'fake', 'fake', 'fake', 'fake'],
+      :added_resources => ['fake', 'fake', 'fake', 'fake']
+    }
+    # Finish result by supplying information that is not in the catalogs and not produced by the diff utility
+    #
+    result[:produced_by]      = 'puppet preview 3.8.0'
+    result[:timestamp]        = timestamp
+    result[:baseline_catalog] = options[:baseline_catalog]
+    result[:preview_catalog]  = options[:preview_catalog]
+    result[:node_name]        = options[:node]
+
+    result
+  end
+
+  def display_file(file)
+    Puppet::FileSystem.open(options[:baseline_catalog], nil, 'rb') do |source|
+      FileUtils.copy_stream(source, $stdout)
+      puts "" # ensure a new line at the end
+    end
+  end
+
+  def display_summary(delta)
+    preview_equal     = !!(delta[:preview_equal])
+    preview_compliant = !!(delta[:preview_compliant])
+    status = preview_equal ? "equal" : preview_compliant ? "compliant" : "neither equal nor compliant"
+    puts "Catalogs for node '#{options[:node]}' are #{status}."
+    puts "Passed #{delta[:passed_assertion_count]} of total #{delta[:assertion_count]} assertions"
+    unless preview_equal
+      puts "Baseline has: #{delta[:baseline_resource_count]} resources, and #{delta[:baseline_edge_count]} edges"
+      puts "Preview has: #{delta[:preview_resource_count]} resources, and #{delta[:preview_edge_count]} edges"
+
+      missing_r       = count_of(delta[:missing_resources])
+      added_r         = count_of(delta[:added_resources])
+      resource_diff = "Resource Diff: #{missing_r} missing, #{added_r} added, "
+      if preview_compliant
+        conflicting_r   = count_of(delta[:conflicting_resources])
+        if conflicting_r > 0
+          compliant_r = delta[:conflicting_resources].count {|r| r[:compliant] }
+          conflicting_r -= compliant_r
+          if compliant_r > 0
+            resource_diff << "#{compliant_r} compliant, and #{conflicting_r} conflicting."
+          else
+            resource_diff << "and #{conflicting_r} conflicting."
+          end
+        end
+      else
+        conflicting_r   = count_of(delta[:conflicting_resources])
+        resource_diff << "#{conflicting_r} with conflicting attributes."
+      end
+      puts resource_diff
+
+      missing_e       = count_of(delta[:missing_edges])
+      added_e         = count_of(delta[:added_edges])
+      puts "Edge Diff: #{missing_e} missing, #{added_e} added."
+    end
+  end
+
+  def count_of(elements)
+    return 0 if elements.nil?
+    elements.size
   end
 
   def setup_logs
