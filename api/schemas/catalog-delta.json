@@ -46,11 +46,19 @@
         },
         "baseline_resource_count": {
             "type": "integer",
-            "description": "number of resources in the baseline catalog, -1 if catalog could not be produced"
+            "description": "number of resources in the baseline catalog"
         },
         "preview_resource_count": {
             "type": "integer",
-            "description": "number of resources in the preview catalog, -1 if catalog could not be produced"
+            "description": "number of resources in the preview catalog"
+        },
+        "baseline_edge_count": {
+            "type": "integer",
+            "description": "number of edges in the baseline catalog"
+        },
+        "preview_edge_count": {
+            "type": "integer",
+            "description": "number of edges in the preview catalog"
         },
         "preview_compliant": {
             "type": "boolean",
@@ -253,7 +261,11 @@
                   "conflicting_attributes": {
                       "type": "array",
                       "items": { "$ref": "#/definitions/conflicting_attribute" }
-                  }
+                  },
+                  "compliant": {
+                      "type": "boolean",
+                      "description": "Has attributes that differ, but all are compliant"
+                   }
               },
               "required": [
                   "type",
