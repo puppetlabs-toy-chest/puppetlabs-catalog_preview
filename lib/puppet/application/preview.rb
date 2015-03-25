@@ -158,13 +158,13 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
     # TODO: Deal with the output directory
     # It should come from a puppet setting which user can override - that currently does not exist
     # while developing simply write files to CWD
-    options[:output_dir] = "./PREVIEW_OUTPUT"
+    options[:output_dir] = Puppet[:preview_outputdir] # "./PREVIEW_OUTPUT"
 
     # Make sure the output directory for the node exists
     node_output_dir = Puppet::FileSystem.pathname(File.join(options[:output_dir], options[:node]))
     options[:node_output_dir] = node_output_dir
     Puppet::FileSystem.mkpath(options[:node_output_dir])
-    Puppet::FileSystem.chmod(0755, options[:node_output_dir])
+    Puppet::FileSystem.chmod(0750, options[:node_output_dir])
 
     # Construct file name for this diff
     options[:baseline_catalog] = Puppet::FileSystem.pathname(File.join(node_output_dir, "baseline_catalog.json"))
