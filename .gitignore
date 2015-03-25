@@ -34,3 +34,4 @@ build/
 .rvmrc
 /.project
 /.idea/
+/Gemfile.lock

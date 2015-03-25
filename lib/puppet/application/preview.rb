@@ -205,27 +205,8 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
-    # TODO: Real call to produce diff
-
-    # TODO: REPLACE THIS FAKE RESULT
-    result = {
-      :produced_by => 'puppet preview 3.8.0',
-      :baseline_env => baseline_hash['data']['environment'],
-      :preview_env => preview_hash['data']['environment'],
-      :assertion_count => 121,
-      :passed_assertion_count => 101,
-      :failed_assertion_count => 20,
-      :baseline_resource_count => 50,
-      :preview_resource_count => 48,
-      :baseline_edge_count => 12,
-      :preview_edge_count => 13,
-
-      :preview_equal => false,
-      :preview_compliant => true,
-      :conflicting_resources => [ {:compliant => true}, {:compliant => true}, {:compliant => false}],
-      :missing_resources => ['fake', 'fake', 'fake', 'fake', 'fake', 'fake'],
-      :added_resources => ['fake', 'fake', 'fake', 'fake']
-    }
+    delta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta.new(baseline_hash['data'], preview_hash['data'], false, false)
+    result = delta.to_hash
 
     # Finish result by supplying information that is not in the catalogs and not produced by the diff utility
     #
