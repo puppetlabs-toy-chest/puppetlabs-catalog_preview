@@ -13,7 +13,7 @@ class Puppet::Application::Preview < Puppet::Application
 
   option("--view OPTION") do |arg|
     if %w{summary diff baseline preview baseline_log preview_log none}.include?(arg)
-      options[:summary] = arg.to_sym
+      options[:view] = arg.to_sym
     else
       raise "The --view option only accepts a restricted list of arguments. Run 'puppet preview --help' for more details"
     end
@@ -151,6 +151,8 @@ class Puppet::Application::Preview < Puppet::Application
       # Produce output as directed by the :view option
       #
       case options[:view]
+      when :diff
+          display_file(options[:catalog_diff])
       when :baseline_log
         display_file(options[:baseline_log])
       when :preview_log
