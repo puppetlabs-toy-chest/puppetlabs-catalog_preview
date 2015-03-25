@@ -12,8 +12,8 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option("--view OPTION") do |arg|
-    if arg == "summary" || arg == "diff" || arg == "baseline" || arg == "preview" || arg == "baseline_log" || arg == "preview_log" || arg == "none"
-      options[:summary] = arg
+    if %w{summary diff baseline preview baseline_log preview_log none}.include?(arg)
+      options[:summary] = arg.to_sym
     else
       raise "The --view option only accepts a restricted list of arguments. Run 'puppet preview --help' for more details"
     end
@@ -24,28 +24,22 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option("--assert OPTION") do |arg|
-    if arg == "equal" || arg == "compliant"
-      options[:exit] = arg
+    if %w{equal compliant}.include?(arg)
+      options[:exit] = arg.to_sym
     else
       raise "The --assert option only accepts 'equal' or 'compliant' as arguments. Run 'puppet preview --help' for more details"
     end
   end
 
-  option("--preview_outputdir DIR") do |arg|
-    options[:preview_outputdir] = arg
-  end
-
   option("--schema CATALOG") do |arg|
-    if arg == "catalog" || arg == "catalog_delta"
-      options[:schema] = arg
+    if %w{catalog catalog_delta}.include?(arg)
+      options[:schema] = arg.to_sym
     else
       raise "The --schema option only accepts 'catalog' or 'catalog_delta' as arguments. Run 'puppet preview --help' for more details"
     end
   end
 
-  option("--skip_tags") do |arg|
-    options[:skip_tags] = arg
-  end
+  option("--skip_tags")
 
   def help
     path = ::File.expand_path( "../../../../api/documentation/preview-help.md", __FILE__)
