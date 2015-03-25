@@ -72,17 +72,31 @@ class Puppet::Application::Preview < Puppet::Application
   def run_command
     options[:node] = command_line.args.shift
 
-    unless options[:node]
-      raise "No node to perform preview compilation given"
+    if options[:schema]
+      if options[:node]
+        raise "A node was given but no compilation will be done when running with the --schema option"
+      end
+
+      if options[:schema] == "catalog"
+        catalog_path = ::File.expand_path("../../../../api/schemas/catalog.json", __FILE__)
+        display_file(catalog_path)
+      else
+        delta_path = ::File.expand_path("../../../../api/schemas/catalog-delta.json", __FILE__)
+        display_file(delta_path)
+      end
+    else
+      unless options[:node]
+        raise "No node to perform preview compilation given"
+      end
+
+      unless options[:preview_environment]
+        raise "No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known"
+      end
+
+      prepare_output
+
+      compile
     end
-
-    unless options[:preview_environment]
-      raise "No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known"
-    end
-
-    prepare_output
-
-    compile
   end
 
   def compile
@@ -225,7 +239,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def display_file(file)
-    Puppet::FileSystem.open(options[:baseline_catalog], nil, 'rb') do |source|
+    Puppet::FileSystem.open(file, nil, 'rb') do |source|
       FileUtils.copy_stream(source, $stdout)
       puts "" # ensure a new line at the end
     end
