@@ -12,12 +12,12 @@ USAGE
 ```
 puppet preview [
     [--assert equal|compliant]
-    [--baseline_env <ENV-NAME>]
     [-d|--debug]
-    [--migrate]
+    [-m|--migrate]
     [--preview_outputdir <PATH-TO-OUTPUT-DIR>]
     [--skip_tags]
     [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
+    [-vd|--verbose_diff]
     --preview_env <ENV-NAME>
     <NODE-NAME>
   ]|[--schema catalog|catalog_delta]
@@ -111,8 +111,8 @@ Note that all settings such as 'log_level' affects both compilations.
   
 * --assert equal | compliant
   Modifies the exit code to be -4 if catalogs are not equal and -5 if the preview
-  catalog is not compliant instead of an exit with 0 to indicate that the preview run was
-  successful in itself. 
+  catalog is not compliant instead of an exit with 0 to indicate that the preview run
+  was successful in itself. 
   
 * --preview_outputdir <DIR>
   Defines the directory to which output is produced.
@@ -127,7 +127,13 @@ Note that all settings such as 'log_level' affects both compilations.
   combined with any other option.
   
 * --skip_tags
-  Ignores comparison of tags, catalogs are considered equal if they only differ in tags.  
+  Ignores comparison of tags, catalogs are considered equal/compliant if they only
+  differ in tags.
+  
+* --verbose_diff
+  Includes more information in the catalog diff such as attribute values in
+  missing and added resources. Does not affect if catalogs are considered equal or
+  compliant.
 
 
 EXAMPLE
