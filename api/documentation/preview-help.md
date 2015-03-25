@@ -15,7 +15,7 @@ puppet preview [
     [--baseline_env <ENV-NAME>]
     [-d|--debug]
     [--migrate]
-    [--preview_output_dir <PATH-TO-OUTPUT-DIR>]
+    [--preview_outputdir <PATH-TO-OUTPUT-DIR>]
     [--skip_tags]
     [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
     --preview_env <ENV-NAME>
@@ -48,7 +48,7 @@ to use the future parser in its environment.conf.
 All output (except the summary report intended for human use) is written in
 JSON format to allow further processing with tools like 'jq' (JSON query).
 
-The output is written to a subdirectory named after the node of the directory appointed by the setting 'preview_output_dir':
+The output is written to a subdirectory named after the node of the directory appointed by the setting 'preview_outputdir':
 
     |- "$preview_output-dir"
     |  |
@@ -114,8 +114,8 @@ Note that all settings such as 'log_level' affects both compilations.
   catalog is not compliant instead of an exit with 0 to indicate that the preview run was
   successful in itself. 
   
-* --preview_output_dir <DIR>
-  Defines the director to which output is produced.
+* --preview_outputdir <DIR>
+  Defines the directory to which output is produced.
   This is a puppet setting that can be overridden on the command line.
 
 * <NODE-NAME>
