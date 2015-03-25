@@ -19,7 +19,7 @@ class Puppet::Application::Preview < Puppet::Application
     end
   end
 
-  option("--migrate") do |arg|
+  option("--migrate", "-m") do |arg|
     options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
   end
 
@@ -40,6 +40,10 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option("--skip_tags")
+
+  option("--verbose_diff", "-vd")
+
+  CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
 
   def help
     path = ::File.expand_path( "../../../../api/documentation/preview-help.md", __FILE__)
@@ -207,7 +211,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
-    delta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta.new(baseline_hash['data'], preview_hash['data'], false, false)
+    delta = CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options[:skip_tags], options[:verbose_diff])
     result = delta.to_hash
 
     # Finish result by supplying information that is not in the catalogs and not produced by the diff utility
