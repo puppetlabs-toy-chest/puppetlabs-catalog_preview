@@ -10,6 +10,10 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       @file = file
       @line = line
     end
+
+    def to_hash
+      {:file => @file, :line => @line }
+    end
   end
 
   # The super class of all elements in the CatalogDelta model
@@ -30,6 +34,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     def hashify(val)
       case val
       when Diff
+        val.to_hash
+      when Location
         val.to_hash
       when Hash
         Hash.new(val.each_pair {|k, v| [k, hashify(v)]})
