@@ -209,7 +209,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       @conflicting_resources = []
       baseline_resources.each_pair do |key,br|
         pr = preview_resources[key]
-        next if br.nil?
+        next if br.nil? || pr.nil?
         conflict = create_resource_conflict(br, pr, ignore_tags)
         if conflict.nil?
           # Resources are equal
@@ -217,7 +217,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
           @equal_attribute_count += br.attributes.size
         else
           @conflicting_resources << conflict
-          @equal_attribute_count += conflict.equal_attributes_count
+          @equal_attribute_count += conflict.equal_attribute_count
           @conflicting_attribute_count += conflict.conflicting_attributes.size
           @added_attribute_count += conflict.added_attributes.size
           @missing_attribute_count += conflict.missing_attributes.size
