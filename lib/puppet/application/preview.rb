@@ -182,7 +182,7 @@ puppet preview [-d|--debug] [-h|--help] [--migrate]
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
-    delta = PuppetX::Puppetlabs::Migration::Model::CatalogDelta.new(baseline_hash['data'], preview_hash['data'], false, false)
+    delta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta.new(baseline_hash['data'], preview_hash['data'], false, false)
     result = delta.to_hash
 
     # Finish result by supplying information that is not in the catalogs and not produced by the diff utility

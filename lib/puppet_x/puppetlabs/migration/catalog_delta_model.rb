@@ -1,4 +1,4 @@
-module PuppetX::Puppetlabs::Migration::Model
+module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
   # Denotes a line in a file
   class Location
     attr_reader :file, :line, :pos
