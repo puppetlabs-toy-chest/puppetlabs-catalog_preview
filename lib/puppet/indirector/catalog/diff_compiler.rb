@@ -140,8 +140,11 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
               if checker
                 Puppet::Pops::IssueReporter.assert_and_report(checker.acceptor,
-                  :emit_warnings => true,
-                  :max_warnings => Float::INFINITY)
+                  :emit_warnings     => true,
+                  :max_warnings      => Float::INFINITY,
+                  :max_errors        => Float::INFINITY,
+                  :max_deprecations  => Float::INFINITY
+                  )
               end
             end
           end
