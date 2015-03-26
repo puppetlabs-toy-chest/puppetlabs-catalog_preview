@@ -1,6 +1,7 @@
 require 'puppet/application'
 require 'puppet/file_system'
 require 'puppet_x/puppetlabs/preview'
+require 'puppet/util/colors'
 
 class Puppet::Application::Preview < Puppet::Application
   run_mode :master
@@ -232,40 +233,48 @@ class Puppet::Application::Preview < Puppet::Application
     end
   end
 
+  class Colorizer
+    include Puppet::Util::Colors
+  end
+
   def display_summary(delta)
+    compliant_count = delta[:conflicting_resources].count {|r| r[:compliant] }
+    compliant_attr_count = delta[:conflicting_resources].reduce(0) do |memo, r|
+      memo + r[:conflicting_attributes].count {|a| a[:compliant] }
+    end
+
+      puts <<-TEXT
+
+Resources:
+  Baseline......: #{delta[:baseline_resource_count]}
+  Preview.......: #{delta[:preview_resource_count]}
+  Equal.........: #{delta[:equal_resource_count]}
+  Compliant.....: #{compliant_count}
+  Missing.......: #{delta[:missing_resource_count]}
+  Added.........: #{delta[:added_resource_count]}
+  Conflicting...: #{delta[:conflicting_resource_count] - compliant_count}
+
+Attributes:
+  Equal.........: #{delta[:equal_attribute_count]}
+  Compliant.....: #{compliant_attr_count}
+  Missing.......: #{delta[:missing_attribute_count]}
+  Added.........: #{delta[:added_attribute_count]}
+  Conflicting...: #{delta[:conflicting_attribute_count] - compliant_attr_count}
+
+Edges:
+  Baseline......: #{delta[:baseline_edge_count]}
+  Preview.......: #{delta[:preview_edge_count]}
+  Missing.......: #{count_of(delta[:missing_edges])}
+  Added.........: #{count_of(delta[:added_edges])}
+
+      TEXT
+
     preview_equal     = !!(delta[:preview_equal])
     preview_compliant = !!(delta[:preview_compliant])
-    status = preview_equal ? "equal" : preview_compliant ? "compliant" : "neither equal nor compliant"
-    puts "Catalogs for node '#{options[:node]}' are #{status}."
-    puts "Passed #{delta[:passed_assertion_count]} of total #{delta[:assertion_count]} assertions"
-    unless preview_equal
-      puts "Baseline has: #{delta[:baseline_resource_count]} resources, and #{delta[:baseline_edge_count]} edges"
-      puts "Preview has: #{delta[:preview_resource_count]} resources, and #{delta[:preview_edge_count]} edges"
+    status = preview_equal ? "equal" : preview_compliant ? "not equal but compliant" : "neither equal nor compliant"
+    color = preview_equal || preview_compliant ? :green : :hred
+    puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
 
-      missing_r       = count_of(delta[:missing_resources])
-      added_r         = count_of(delta[:added_resources])
-      resource_diff = "Resource Diff: #{missing_r} missing, #{added_r} added, "
-      if preview_compliant
-        conflicting_r   = count_of(delta[:conflicting_resources])
-        if conflicting_r > 0
-          compliant_r = delta[:conflicting_resources].count {|r| r[:compliant] }
-          conflicting_r -= compliant_r
-          if compliant_r > 0
-            resource_diff << "#{compliant_r} compliant, and #{conflicting_r} conflicting."
-          else
-            resource_diff << "and #{conflicting_r} conflicting."
-          end
-        end
-      else
-        conflicting_r   = count_of(delta[:conflicting_resources])
-        resource_diff << "#{conflicting_r} with conflicting attributes."
-      end
-      puts resource_diff
-
-      missing_e       = count_of(delta[:missing_edges])
-      added_e         = count_of(delta[:added_edges])
-      puts "Edge Diff: #{missing_e} missing, #{added_e} added."
-    end
   end
 
   def count_of(elements)
