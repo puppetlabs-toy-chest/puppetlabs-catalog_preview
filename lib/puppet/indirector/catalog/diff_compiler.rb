@@ -123,19 +123,23 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
           end
           Puppet::Util::Log.close(baseline_dest)
 
+          # Preview compilation
+          #
           Puppet::Util::Log.newdestination(preview_dest)
           Puppet::Util::Log.with_destination(preview_dest) do
-            baseline_catalog = Puppet::Parser::Compiler.compile(node)
 
-            # Preview compilation
-            #
+            # Switch the node's environment (it finds and instantiates the Environment)
+            node.environment = options[:preview_environment]
+
             # optional migration checking in preview
             checker = options[:migration_checker]
-            overrides = checker ? {:migration_checker => checker } : { }
+            overrides = checker ? {
+              :migration_checker => checker,
+              :current_environment => node.environment
+            } : { }
 
             Puppet.override(overrides, "puppet-preview-compile") do
               # override environment with specified env for preview
-              node.environment = options[:preview_environment]
               preview_catalog = Puppet::Parser::Compiler.compile(node)
 
               if checker
