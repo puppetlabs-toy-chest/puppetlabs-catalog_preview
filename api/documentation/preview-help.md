@@ -19,8 +19,8 @@ puppet preview [
     [--skip_tags]
     [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
     [-vd|--verbose_diff]
-    [--baseline_environment <ENV-NAME>]
-    --preview_environment <ENV-NAME>
+    [--baseline_environment <ENV-NAME> | --be <ENV-NAME>]
+    --preview_environment <ENV-NAME> | --pe <ENV-NAME>
     <NODE-NAME>
   ]|[--schema catalog|catalog_delta]
    |[-h|--help]

@@ -9,11 +9,11 @@ class Puppet::Application::Preview < Puppet::Application
 
   option("--debug", "-d")
 
-  option("--baseline_environment ENV_NAME") do |arg|
+  option("--baseline_environment ENV_NAME,", "--be ENV_NAME") do |arg|
     options[:baseline_environment] = arg
   end
 
-  option("--preview_environment ENV_NAME") do |arg|
+  option("--preview_environment ENV_NAME", "--pe ENV_NAME") do |arg|
     options[:preview_environment] = arg
   end
 
