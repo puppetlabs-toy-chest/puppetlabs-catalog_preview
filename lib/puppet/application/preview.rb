@@ -277,6 +277,7 @@ class Puppet::Application::Preview < Puppet::Application
 Catalog:
   Versions......: #{delta[:version_equal] ? 'equal' : 'different' }
   Preview.......: #{delta[:preview_equal] ? 'equal' : delta[:preview_compliant] ? 'compliant' : 'different'}
+  Tags..........: #{delta[:tags_ignored] ? 'ignored' : 'compared'}
 
 Resources:
   Baseline......: #{delta[:baseline_resource_count]}
