@@ -500,7 +500,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
 
       @baseline_env = baseline['environment']
       @preview_env = preview['environment']
-      @tags_ignored = tags_ignored
+      @tags_ignored = ignore_tags
       @version_equal = baseline['version'] == preview['version']
 
       baseline_resources = create_resources(baseline)
