@@ -13,12 +13,14 @@ USAGE
 puppet preview [
     [--assert equal|compliant]
     [-d|--debug]
+    [-l|--last]
     [-m|--migrate]
     [--preview_outputdir <PATH-TO-OUTPUT-DIR>]
     [--skip_tags]
     [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
     [-vd|--verbose_diff]
-    --preview_env <ENV-NAME>
+    [--baseline_environment <ENV-NAME>]
+    --preview_environment <ENV-NAME>
     <NODE-NAME>
   ]|[--schema catalog|catalog_delta]
    |[-h|--help]
@@ -30,13 +32,28 @@ DESCRIPTION
 This command compiles, compares, and asserts a baseline catalog and a preview catalog
 for a node that has previously requested a catalog from a puppet master (thereby making
 its facts available). The compilation of the baseline catalog takes place in the
-environment configured for the node (optionally overridden with '--baseline_env').
-The compilation of the preview takes place in the environment
-designated by '--preview_env'.
+environment configured for the node (optionally overridden with '--baseline_environment').
+The compilation of the preview takes place in the environment designated by '--preview_env'.
+
+If '--baseline_environment' is set, the node will first be configured as directed by
+an ENC, the environment is then switched to the '--baseline_environment'.
+The '--baseline_environment' option is intended to aid when changing code in the
+preview environment (for the purpose of making it work with the future parser) while
+the original environment is unchanged and is configured with the 3.x current parser
+(i.e. what is in 'production').
+If the intent is to make backwards compatible changes in the preview
+environment (i.e. changes that work for both parsers) it is of value to have yet another
+environment configured for future parser where the same code as in the preview environment
+is checked out. It is then simple to diff between compilations in any two environments
+without having to modify the environment assigned by the ENC. All other assignments
+made by the ENC are unchanged.
 
 By default the command outputs a summary report of the difference between the two
 catalogs on 'stdout'. This can be changed with '--view' to instead view
-one of the catalogs, the diff, or one of the compilation logs.
+one of the catalogs, the diff, or one of the compilation logs. Use the '--last' option
+to view one of the results from the last preview compilation instead of again compiling
+and computing a diff. Note that '--last' does not reload the information and can
+therefore not display a summary.
 
 When the preview compilation is performed, it is possible to turn on extra
 migration validation using '--migrate'. This will turn on extra validations
@@ -48,7 +65,8 @@ to use the future parser in its environment.conf.
 All output (except the summary report intended for human use) is written in
 JSON format to allow further processing with tools like 'jq' (JSON query).
 
-The output is written to a subdirectory named after the node of the directory appointed by the setting 'preview_outputdir':
+The output is written to a subdirectory named after the node of the directory appointed
+by the setting 'preview_outputdir' (defaults to '$vardir/preview'):
 
     |- "$preview_output-dir"
     |  |
@@ -97,9 +115,15 @@ Note that all settings such as 'log_level' affects both compilations.
 * --version:
   Print the puppet version number and exit.
 
-* --preview_env <ENV-NAME>:
-  Makes the preview compilation take place in the given <ENV>.
-  Uses facts contained in the $vardir/yaml/ directory to compile the catalog.
+* --preview_environment <ENV-NAME>
+  Makes the preview compilation take place in the given <ENV-NAME>.
+  Uses facts obtained from the configured facts terminus to compile the catalog.
+  
+* --baseline_environment <ENV-NAME>
+  Makes the baseline compilation take place in the given <ENV-NAME>. This overrides
+  the environment set for the node via an ENC.
+  Uses facts obtained from the configured facts terminus to compile the catalog.
+  Note that the puppet setting '-environment' cannot be used to achieve the same effect.
   
 * --view summary | diff | baseline | preview | baseline_log | preview_log | none
   Specifies what will be output on stdout; the catalog diff, one of the two
@@ -135,6 +159,9 @@ Note that all settings such as 'log_level' affects both compilations.
   missing and added resources. Does not affect if catalogs are considered equal or
   compliant.
 
+* --last
+  Use the last result obtained for the node instead of performing new compilations
+  and diff. (Cannot be combined with --view none or --view summary).
 
 EXAMPLE
 -------
@@ -159,6 +186,16 @@ View the catalog schema:
 View the catalog-diff schema:
 
     puppet preview --schema catalog_diff
+    
+Run a diff (with the default summary view) then view the preview log:
+
+    puppet preview --preview_env future_production mynode
+    puppet preview --preview_env future_production mynode --view preview_log --last
+
+Node name can be placed anywhere:
+
+    puppet preview mynode --preview_env future_production
+
     
 DIAGNOSTICS
 -----------

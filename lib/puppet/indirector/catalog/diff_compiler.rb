@@ -119,7 +119,13 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
           Puppet::Util::Log.newdestination(baseline_dest)
           Puppet::Util::Log.close(:console)
           Puppet::Util::Log.with_destination(baseline_dest) do
-            baseline_catalog = Puppet::Parser::Compiler.compile(node)
+            if options[:baseline_environment]
+              # Switch the node's environment (it finds and instantiates the Environment)
+              node.environment = options[:preview_environment]
+            end
+            Puppet.override({:current_environment => node.environment}, "puppet-preview-baseine-compile") do
+              baseline_catalog = Puppet::Parser::Compiler.compile(node)
+            end
           end
           Puppet::Util::Log.close(baseline_dest)
 

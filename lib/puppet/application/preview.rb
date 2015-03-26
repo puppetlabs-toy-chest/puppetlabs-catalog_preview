@@ -9,6 +9,10 @@ class Puppet::Application::Preview < Puppet::Application
 
   option("--debug", "-d")
 
+  option("--baseline_environment ENV_NAME") do |arg|
+    options[:baseline_environment] = arg
+  end
+
   option("--preview_environment ENV_NAME") do |arg|
     options[:preview_environment] = arg
   end
@@ -20,6 +24,8 @@ class Puppet::Application::Preview < Puppet::Application
       raise "The --view option only accepts a restricted list of arguments. Run 'puppet preview --help' for more details"
     end
   end
+
+  option("--last", "-l")
 
   option("--migrate", "-m") do |arg|
     options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
@@ -95,17 +101,25 @@ class Puppet::Application::Preview < Puppet::Application
         raise "No node to perform preview compilation given"
       end
 
-      unless options[:preview_environment]
-        raise "No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known"
+      if options[:last]
+        if %w{summary none}.include?(options[:view].to_s)
+          raise "--view #{options[:view].to_s} can not be combined with the --last option"
+        end
+
+        last
+      else
+        unless options[:preview_environment]
+          raise "No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known"
+        end
+
+        compile
       end
-
-      prepare_output
-
-      compile
     end
   end
 
   def compile
+    prepare_output
+
     # Compilation start time
     timestamp = Time.now.iso8601(9)
 
@@ -154,27 +168,7 @@ class Puppet::Application::Preview < Puppet::Application
         of.write(PSON::pretty_generate(catalog_delta, :allow_nan => true, :max_nesting => false))
       end
 
-      # Produce output as directed by the :view option
-      #
-      case options[:view]
-      when :diff
-          display_file(options[:catalog_diff])
-      when :baseline_log
-        display_file(options[:baseline_log])
-      when :preview_log
-        display_file(options[:preview_log])
-      when :baseline
-        display_file(options[:baseline_catalog])
-      when :preview
-        display_file(options[:preview_catalog])
-      when :none
-        # One line status if catalogs are equal or not
-        display_status(catalog_delta)
-      else
-        display_summary(catalog_delta)
-        display_status(catalog_delta)
-      end
-
+      view(catalog_delta)
 
     rescue => detail
       # TODO: Should give better error depending on what failed (when)
@@ -187,7 +181,35 @@ class Puppet::Application::Preview < Puppet::Application
     exit(0)
   end
 
-  def prepare_output
+  def last
+    prepare_output_options
+    view(nil)
+  end
+
+  def view(catalog_delta)
+    # Produce output as directed by the :view option
+    #
+    case options[:view]
+    when :diff
+        display_file(options[:catalog_diff])
+    when :baseline_log
+      display_file(options[:baseline_log])
+    when :preview_log
+      display_file(options[:preview_log])
+    when :baseline
+      display_file(options[:baseline_catalog])
+    when :preview
+      display_file(options[:preview_catalog])
+    when :none
+      # One line status if catalogs are equal or not
+      display_status(catalog_delta)
+    else
+      display_summary(catalog_delta)
+      display_status(catalog_delta)
+    end
+  end
+
+  def prepare_output_options
     # TODO: Deal with the output directory
     # It should come from a puppet setting which user can override - that currently does not exist
     # while developing simply write files to CWD
@@ -205,6 +227,10 @@ class Puppet::Application::Preview < Puppet::Application
     options[:preview_catalog]  = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_catalog.json"))
     options[:preview_log]      = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_log.json"))
     options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "catalog_diff.json"))
+  end
+
+  def prepare_output
+    prepare_output_options
 
     Puppet::FileSystem.open(options[:baseline_log], 0660, 'wb') { |of| of.write('') }
     Puppet::FileSystem.open(options[:preview_log],  0660, 'wb') { |of| of.write('') }
@@ -273,6 +299,9 @@ Edges:
   Preview.......: #{delta[:preview_edge_count]}
   Missing.......: #{count_of(delta[:missing_edges])}
   Added.........: #{count_of(delta[:added_edges])}
+
+Output:
+  For node......: #{Puppet[:preview_outputdir]}/#{options[:node]}
 
       TEXT
   end
