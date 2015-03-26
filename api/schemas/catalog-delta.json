@@ -1,6 +1,6 @@
 {
-    "$schema":     "http://json-schema.org/draft-04/schema#",
-    "title":       "CatalogDelta",
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "CatalogDelta",
     "description": "A puppet resource catalog delta",
     "type": "object",
     "properties": {
@@ -9,11 +9,11 @@
             "description": "The name of the node for which the baseline and preview catalogs were compiled"
         },
         "time": {
-            "type":        "string",
+            "type": "string",
             "description": "When preview run began. In ISO 8601 format with 9 characters second-fragment"
         },
         "produced_by": {
-            "type":        "string",
+            "type": "string",
             "description": "Name and version of tool that produced this delta"
         },
         "baseline_env": {
@@ -23,18 +23,6 @@
         "preview_env": {
             "type": "string",
             "description": "The name of the preview catalog environment"
-        },
-        "assertion_count": {
-            "type": "integer",
-            "description": "The total number of compares made (1 per resource, 1 per attribute, 1 per edge"
-        },
-        "passed_assertion_count": {
-            "type": "integer",
-            "description": "The number of passed assertions"
-        },
-        "failed_assertion_count": {
-            "type": "integer",
-            "description": "The number of failed assertions"
         },
         "baseline_catalog": {
             "type": "string",
@@ -60,13 +48,45 @@
             "type": "integer",
             "description": "number of edges in the preview catalog"
         },
+        "added_resource_count": {
+            "type": "integer",
+            "description": "number of resources in preview but not in baseline"
+        },
+        "missing_resource_count": {
+            "type": "integer",
+            "description": "number of resources in baseline but not in preview"
+        },
+        "conflicting_resource_count": {
+            "type": "integer",
+            "description": "number of resources in both baseline and preview with conflicting attributes"
+        },
+        "added_edge_count": {
+            "type": "integer",
+            "description": "number of edges in preview but not in baseline"
+        },
+        "missing_edge_count": {
+            "type": "integer",
+            "description": "number of edges in baseline but not in preview"
+        },
+        "added_attribute_count": {
+            "type": "integer",
+            "description": "total number of resource attributes in preview but not in baseline"
+        },
+        "missing_attribute_count": {
+            "type": "integer",
+            "description": "total number of resource attributes in baseline but not in preview"
+        },
+        "conflicting_attribute_count": {
+            "type": "integer",
+            "description": "total number of resource attributes in both baseline and preview with conflicting values"
+        },
         "preview_compliant": {
             "type": "boolean",
-            "description": "true if the preview catalog has all content in the baseline (may contain more) and version is equal"
+            "description": "true if the preview catalog has all content in the baseline (may contain more)"
         },
         "preview_equal": {
             "type": "boolean",
-            "description": "true if the preview catalog is equal to the baseline catalog and they have the same version"
+            "description": "true if the preview catalog is equal to the baseline catalog"
         },
         "version_equal": {
             "type": "boolean",
@@ -75,220 +95,171 @@
         "missing_resources": {
             "description": "An array of resources in baseline that are not in preview",
             "type": "array",
-            "items": { "$ref": "#/definitions/missing_resource" }
+            "items": {"$ref": "#/definitions/resource"}
         },
         "added_resources": {
             "description": "An array of resources in preview not in baseline",
             "type": "array",
-            "items": { "$ref": "#/definitions/added_resource" }
+            "items": {"$ref": "#/definitions/resource"}
         },
         "conflicting_resources": {
             "description": "An array of resources in both baseline and preview with conflicting attributes",
             "type": "array",
-            "items": { "$ref": "#/definitions/conflicting_resource" }
+            "items": {"$ref": "#/definitions/conflicting_resource"}
         },
         "missing_edges": {
             "description": "An array of edges missing in preview",
             "type": "array",
-            "items": { "$ref": "#/definitions/edge" }
+            "items": {"$ref": "#/definitions/edge"}
         },
         "added_edges": {
             "description": "An array of edges in preview that are not in baseline",
             "type": "array",
-            "items": { "$ref": "#/definitions/edge" }
+            "items": {"$ref": "#/definitions/edge"}
         },
-        "tags_ignored": { 
+        "tags_ignored": {
             "type": "boolean",
             "description": "This delta was produced with tags being ignored",
-        },
+        }
     },
     "required": [
         "node_name",
         "time",
         "produced_by",
-        "baseline_env", 
-        "preview_env", 
-        "assertion_count", 
-        "passed_assertion_count", 
-        "failed_assertion_count",
-        "preview_equal", 
+        "baseline_env",
+        "preview_env",
+        "added_resource_count",
+        "missing_resource_count",
+        "conflicting_resource_count",
+        "added_edge_count",
+        "missing_edge_count",
+        "added_attribute_count",
+        "missing_attribute_count",
+        "conflicting_attribute_count",
+        "preview_equal",
         "preview_compliant"
-     ],
+    ],
     "additionalProperties": false,
-
     "definitions": {
         "location": {
             "type": "object",
-            "description": "Describes a location in a file/line, and optionally position on line",
+            "description": "Describes a location in a file/line",
             "properties": {
-                "file": { "type": "string" },
-                "line": { "type": "integer" },
-                "pos":  { "type": "integer" }
-                }
+                "file": {"type": "string"},
+                "line": {"type": "integer"}
             },
             "required": ["file"]
         },
-        "missing": {
-            "type": "object",
-            "description": "Abstract object denoting something missing",
-            "properties": {
-               "baseline_location": {
-                 "$ref": "#/definitions/location",
-                 "description": "The location as reported in the baseline"
-               },
-               "diff_id": { "type": "integer" }
-            }
-        },
-        "added": {
-            "type": "object",
-            "description": "Abstract object denoting something added",
-            "properties": {
-               "preview_location": {
-                 "$ref": "#/definitions/location",
-                 "description": "The location as reported in the preview"
-               },
-               "diff_id": { "type": "integer" }
-            }
-        },
-        "conflicting": {
-            "type": "object",
-            "description": "Abstract object denoting something conflicting",
-            "properties": {
-               "baseline_location": {
-                 "$ref": "#/definitions/location",
-                 "description": "The location as reported in the baseline"
-               },
-               "preview_location": {
-                 "$ref": "#/definitions/location",
-                 "description": "The location as reported in the preview"
-               },
-               "diff_id": { "type": "integer" }
-            }
-        },
-        "added_attribute": {
-          "allOf": [
-            { "$ref": "#/definitions/added" },
-              { "properties": { 
-                    "name":  { "type": "string" },
-                    "value": { "type": "any" }
-                },
-                "required": ["name", "value" ]
-              }
-          ],
-          "additionalProperties": false
-        },
-        "missing_attribute": {
-          "allOf": [
-              { "$ref": "#/definitions/missing" },
-              { "properties": { 
-                    "name":  { "type": "string" },
-                    "value": { "type": "any" }
-                },
-                "required": ["name", "value" ]
-              }
-          ],
-          "additionalProperties": false
+        "attribute": {
+            "allOf": [
+                {
+                    "properties": {
+                        "diff_id": {"type": "integer"},
+                        "name": {"type": "string"},
+                        "value": {"type": "any"}
+                    },
+                    "required": ["name", "value"]
+                }
+            ],
+            "additionalProperties": false
         },
         "conflicting_attribute": {
-          "allOf": [
-            { "$ref": "#/definitions/conflicting" },
-            { "properties": {
-                  "name": { "type": "string" },
-                  "baseline_value": {"type": "any"},
-                  "preview_value":  {"type": "any"},
-                  "compliant": {
-                      "type": "boolean",
-                      "description": "Values different, but preview contains baseline"
-                   }
-               },
-              "required": ["name", "baseline_value", "preview_value"]
-            }
-          ],
-          "additionalProperties": false
+            "allOf": [
+                {
+                    "properties": {
+                        "diff_id": {"type": "integer"},
+                        "name": {"type": "string"},
+                        "baseline_value": {"type": "any"},
+                        "preview_value": {"type": "any"},
+                        "compliant": {
+                            "type": "boolean",
+                            "description": "Values different, but preview contains baseline"
+                        }
+                    },
+                    "required": ["name", "baseline_value", "preview_value"]
+                }
+            ],
+            "additionalProperties": false
         },
-        "added_resource": {
-          "allOf": [
-            { "$ref": "#/definitions/added" },
-            { "properties": {
-                  "type": { "type": "string" },
-                  "title": { "type": "string" },
-                  "attributes": {
-                      "type": "array",
-                      "items": { "$ref": "#/definitions/added_attribute" }
-                  }
-              },
-              "required": ["type", "title" ],
-            }
-          ],
-          "additionalProperties": false
-        },
-        "missing_resource": {
-          "allOf": [
-            { "$ref": "#/definitions/missing" },
-            { "properties": {
-                  "type": { "type": "string" },
-                  "title": { "type": "string" },
-                  "attributes": {
-                      "type": "array",
-                      "items": { "$ref": "#/definitions/added_attribute" }
-                  }
-              },
-              "required": ["type", "title" ],
-            }
-          ],
-          "additionalProperties": false
+        "resource": {
+            "allOf": [
+                {
+                    "properties": {
+                        "diff_id": {"type": "integer"},
+                        "location": {
+                            "$ref": "#/definitions/location",
+                            "description": "The location as reported in the preview"
+                        },
+                        "type": {"type": "string"},
+                        "title": {"type": "string"},
+                        "attributes": {
+                            "type": "array",
+                            "items": {"$ref": "#/definitions/attribute"}
+                        }
+                    },
+                    "required": ["type", "title"]
+                }
+            ],
+            "additionalProperties": false
         },
         "conflicting_resource": {
-          "allOf": [
-            { "$ref": "#/definitions/missing" },
-            { "properties": {
-                  "type":  { "type": "string" },
-                  "title": { "type": "string" },
-
-                  "equal_attributes_count":       { "type": "integer" },
-                  "missing_attributes_count":     { "type": "integer" },
-                  "added_attributes_count":       { "type": "integer" },
-                  "conflicting_attributes_count": { "type": "integer" },
-
-                  "missing_attributes": {
-                      "type": "array",
-                      "items": { "$ref": "#/definitions/missing_attribute" }
-                  },
-                  "added_attributes": {
-                      "type": "array",
-                      "items": { "$ref": "#/definitions/added_attribute" }
-                  },
-                  "conflicting_attributes": {
-                      "type": "array",
-                      "items": { "$ref": "#/definitions/conflicting_attribute" }
-                  },
-                  "compliant": {
-                      "type": "boolean",
-                      "description": "Has attributes that differ, but all are compliant"
-                   }
-              },
-              "required": [
-                  "type",
-                  "title",
-                  "equal_attributes_count",
-                  "missing_attributes_count",
-                  "added_attributes_count",
-                  "conflicting_attributes_count"
-              ]
-            }
-          ],
-          "additionalProperties": false
+            "allOf": [
+                {
+                    "properties": {
+                        "baseline_location": {
+                            "$ref": "#/definitions/location",
+                            "description": "The location as reported in the baseline"
+                        },
+                        "preview_location": {
+                            "$ref": "#/definitions/location",
+                            "description": "The location as reported in the preview"
+                        },
+                        "diff_id": {"type": "integer"},
+                        "type": {"type": "string"},
+                        "title": {"type": "string"},
+                        "equal_attribute_count": {"type": "integer"},
+                        "missing_attribute_count": {"type": "integer"},
+                        "added_attribute_count": {"type": "integer"},
+                        "conflicting_attribute_count": {"type": "integer"},
+                        "missing_attributes": {
+                            "type": "array",
+                            "items": {"$ref": "#/definitions/attribute"}
+                        },
+                        "added_attributes": {
+                            "type": "array",
+                            "items": {"$ref": "#/definitions/attribute"}
+                        },
+                        "conflicting_attributes": {
+                            "type": "array",
+                            "items": {"$ref": "#/definitions/conflicting_attribute"}
+                        },
+                        "compliant": {
+                            "type": "boolean",
+                            "description": "Has attributes that differ, but all are compliant"
+                        }
+                    },
+                    "required": [
+                        "type",
+                        "title",
+                        "equal_attributes_count",
+                        "missing_attributes_count",
+                        "added_attributes_count",
+                        "conflicting_attributes_count"
+                    ]
+                }
+            ],
+            "additionalProperties": false
         },
         "edge": {
             "type": "object",
             "properties": {
-               "source":  {"type": "string" },
-               "target":  {"type": "string" },
-               "diff_id": {"type": "integer" }
+                "source": {"type": "string"},
+                "target": {"type": "string"},
+                "diff_id": {"type": "integer"}
             },
-            "required": [ "source", "target", "diff_id" ],
+            "required": ["source", "target", "diff_id"],
             "additionalProperties": false
-        },
-      }
+        }
     }
 }
+

@@ -19,6 +19,12 @@ The root object describes the following attributes:
 * `time` - the timestamp when the delta was produced (start time)
 * `produced_by` - the name and version of the tool that produced the diff (e.g. "Puppet Preview 1.0")
 
+* `preview_compliant` - `true` if the preview catalog has all content in the baseline (may contain more)
+* `preview_equal` - `true` if the preview catalog is equal to the baseline catalog
+* `version_equal` - `true` if the the versions of the two catalogs are the same
+
+* `tags_ignored` - `true` if tags are ignored when comparing resources
+
 * `baseline_env` - the name of the baseline environment
 * `preview_env` - the name of the preview environment
 
@@ -27,52 +33,49 @@ The root object describes the following attributes:
 
 * `baseline_resource_count` -number of resources in the baseline catalog
 * `preview_resource_count` - number of resources in the preview catalog
-  
-* `preview_compliant` - `true` if the preview catalog has all content in the baseline (may contain more)
-* `preview_equal` - `true` if the preview catalog is equal to the baseline catalog
 
-* `assertion_count` - the total number of assertions made (number of checks)
-* `passed_assertion_count` - the number of assertions that passed
-* `failed_assertion_count` - the number of assertions that did not pass
+* `baseline_edge_count` -number of edges in the baseline catalog
+* `preview_edge_count` - number of edges in the preview catalog
 
-* `missing_resources` - an array of information about missing resources (i.e. a resource
-  not found in preview).
+* `added_resource_count` - number of resources found in the preview catalog but not in the baseline catalog
+* `missing_resource_count` - number of resources found in the baseline catalog but not in the preview catalog
+* `conflicting_resource_count` - number of resources that are conflicting (i.e. resources in both baseline 
+  and preview where their contents is different).
+
+* `added_edge_count` - number of edges found in the preview catalog but not in the baseline catalog
+* `missing_edge_count` - number of edges found in the baseline catalog but not in the preview catalog
+
+* `added_attribute_count` - total number of resource attributes found in the preview catalog but not in
+  the baseline catalog
+* `missing_attribute_count` - total number of resource attributes found in the baseline catalog but not
+  in the preview catalog
+* `conflicting_attribute_count` - total number of resource attributes that are conflicting (i.e. resource
+  attributes in both baseline and preview with different values).
+
 * `added_resources` - an array of information about added resources (i.e. a resource found
   in preview, but not in baseline)
+* `missing_resources` - an array of information about missing resources (i.e. a resource
+  not found in preview).
 * `conflicting_resources` - an array of information about resources that are conflicting (i.e.
   resources in both baseline and preview where their contents is different).
 
-* `missing_edges` - array of edges in baseline not in preview
 * `added_edges` - array of edges not in baseline but in preview
-
-* `version_equal` - `true` if the versions of the two catalogs are the same
+* `missing_edges` - array of edges in baseline not in preview
 
 
 Summary Information
 ---
 The attributes `preview_equal`, and `preview_compliant` signals if the two catalogs are
 equal, or if the preview catalog contains all of the baseline but has additional content.
-
-The assertion counts are intended to help quickly decide the extent of the delta, and if
-there were any errors when computing the delta.
-
-The relationship between the counts are:
-
-    assertion_count = passed_assertion_count + failed_assertion_count
     
 The `preview_compliant` is true if
 
-    assertion_count == passed_assertion_count
+    missing_resource_count == 0 && conflicting_resource_count == 0 && missing_edges_count == 0
 
 The `preview_equal` is true if 
 
-    preview_compliant  &&
-    baseline_resource_count == preview_resource_count &&
-    added_edges.size == 0 &&
-    version_equal == true
+    preview_compliant  && added_resource_count == 0 added_edge_count == 0
 
-> TODO: There should be counts for the edges as well
->
 The `preview_equals` is useful when upgrading the version of Puppet as it is an assertion that an identical catalog is produced.
 
 The `preview_compliant` is useful when refactoring and an assertion is wanted that the catalog
@@ -108,7 +111,7 @@ with the same type and title in the preview.
 
     missing_resources: [ 
         {
-            "baseline_location" : {  "file" : "/.../abc.pp", "line" : 10 }
+            "location" : {  "file" : "/.../abc.pp", "line" : 10 }
             "type" : "File",
             "title": "tmp/foo"
         },
@@ -128,7 +131,7 @@ with the same type and title in the baseline.
 
     added_resources: [ 
         {
-            "preview_location" : {  "file" : "/.../abc.pp", "line" : 10 }
+            "location" : {  "file" : "/.../abc.pp", "line" : 10 }
             "type" : "File",
             "title": "tmp/foo2"
         },
@@ -222,7 +225,7 @@ reported as missing attributes:
 
     "missing_attributes" : [
         {
-           "baseline_location" : {  "file" : "/.../abc.pp", "line" : 11 }
+           "location" : {  "file" : "/.../abc.pp", "line" : 11 }
             "name" : "mode",
             "value": "0777"
         },
@@ -236,7 +239,7 @@ reported as added attributes:
 
     "added_attributes" : [
         {
-            "preview_location" : {  "file" : "/.../abc.pp", "line" : 15 }
+            "location" : {  "file" : "/.../abc.pp", "line" : 15 }
             "name" : "owner",
             "value": "mothra"
         },
