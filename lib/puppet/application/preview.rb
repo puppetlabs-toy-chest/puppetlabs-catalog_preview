@@ -163,9 +163,9 @@ class Puppet::Application::Preview < Puppet::Application
         display_file(options[:baseline_log])
       when :preview_log
         display_file(options[:preview_log])
-      when :baseline_catalog
+      when :baseline
         display_file(options[:baseline_catalog])
-      when :preview_catalog
+      when :preview
         display_file(options[:preview_catalog])
       when :none
         # One line status if catalogs are equal or not
