@@ -2,6 +2,7 @@ require 'puppet/application'
 require 'puppet/file_system'
 require 'puppet_x/puppetlabs/preview'
 require 'puppet/util/colors'
+require 'puppet/pops'
 
 class Puppet::Application::Preview < Puppet::Application
   run_mode :master
@@ -167,9 +168,11 @@ class Puppet::Application::Preview < Puppet::Application
       when :preview_catalog
         display_file(options[:preview_catalog])
       when :none
-        # do nothing
+        # One line status if catalogs are equal or not
+        display_status(catalog_delta)
       else
         display_summary(catalog_delta)
+        display_status(catalog_delta)
       end
 
 
@@ -245,6 +248,10 @@ class Puppet::Application::Preview < Puppet::Application
 
       puts <<-TEXT
 
+Catalog:
+  Versions......: #{delta[:version_equal] ? 'equal' : 'different' }
+  Preview.......: #{delta[:preview_equal] ? 'equal' : delta[:preview_compliant] ? 'compliant' : 'different'}
+
 Resources:
   Baseline......: #{delta[:baseline_resource_count]}
   Preview.......: #{delta[:preview_resource_count]}
@@ -268,13 +275,14 @@ Edges:
   Added.........: #{count_of(delta[:added_edges])}
 
       TEXT
+  end
 
+  def display_status(delta)
     preview_equal     = !!(delta[:preview_equal])
     preview_compliant = !!(delta[:preview_compliant])
     status = preview_equal ? "equal" : preview_compliant ? "not equal but compliant" : "neither equal nor compliant"
     color = preview_equal || preview_compliant ? :green : :hred
     puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
-
   end
 
   def count_of(elements)
