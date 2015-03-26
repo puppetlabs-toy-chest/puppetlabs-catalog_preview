@@ -17,7 +17,7 @@ The root object describes the following attributes:
 
 * `node_name` - the name of the node (by definition the same for both baseline and preview)
 * `time` - the timestamp when the delta was produced (start time)
-* `produced_by` - the name and version of the tool that produced the diff (e.g. "Puppet Preview 1.0")
+* `produced_by` - the name and version of the tool that produced the diff (e.g. "Puppet Preview 3.8")
 
 * `preview_compliant` - `true` if the preview catalog has all content in the baseline (may contain more)
 * `preview_equal` - `true` if the preview catalog is equal to the baseline catalog
