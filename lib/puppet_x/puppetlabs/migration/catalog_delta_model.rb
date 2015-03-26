@@ -394,6 +394,11 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     #   @return [Boolean] `true` if preview is equal to baseline
     attr_reader :preview_equal
 
+    # @!attribute [r] preview_equal
+    #   @api public
+    #   @return [Boolean] `true` if baseline version is equal to preview version
+    attr_reader :version_equal
+
     # @!attribute [r] baseline_resource_count
     #   @api public
     #   @return [Integer] number of resources in baseline
@@ -418,6 +423,31 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     #   @api public
     #   @return [Integer] number of resources in conflict between baseline and preview
     attr_reader :conflicting_resource_count
+
+    # @!attribute [r] added_edge_count
+    #   @api public
+    #   @return [Integer] number of edges added in preview
+    attr_reader :added_edge_count
+
+    # @!attribute [r] missing_edge_count
+    #   @api public
+    #   @return [Integer] number of edges only present in baseline
+    attr_reader :missing_edge_count
+
+    # @!attribute [r] added_resource_count
+    #   @api public
+    #   @return [Integer] total number of resource attributes added in preview
+    attr_reader :added_attribute_count
+
+    # @!attribute [r] missing_resource_count
+    #   @api public
+    #   @return [Integer] total number of resource attributes only present in baseline
+    attr_reader :missing_attribute_count
+
+    # @!attribute [r] conflicting_resource_count
+    #   @api public
+    #   @return [Integer] total number of resource attributes in conflict between baseline and preview
+    attr_reader :conflicting_attribute_count
 
     # @!attribute [r] baseline_edge_count
     #   @api public
@@ -471,6 +501,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       @baseline_env = baseline['environment']
       @preview_env = preview['environment']
       @tags_ignored = tags_ignored
+      @version_equal = baseline['version'] == preview['version']
 
       baseline_resources = create_resources(baseline)
       @baseline_resource_count = baseline_resources.size
@@ -517,7 +548,9 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       @preview_edge_count = preview_edges.size
 
       @added_edges = preview_edges.reject { |edge| baseline_edges.include?(edge) }
+      @added_edge_count = @added_edges.size
       @missing_edges = baseline_edges.reject { |edge| preview_edges.include?(edge) }
+      @missing_edge_count = @missing_edges.size
 
       @preview_compliant = @missing_resources.empty? && @conflicting_resources.empty? && @missing_edges.empty?
       @preview_equal = @preview_compliant && @added_resources.empty? && @added_edges.empty?
