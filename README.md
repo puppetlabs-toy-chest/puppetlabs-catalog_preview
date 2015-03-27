@@ -10,4 +10,4 @@ PE only module providing catalog preview and migration features in the form of a
 
 The content of this model is:
 
-Copyright (c) 2015 Puppet Labs, LLC Licensed under Puppet Labs Commerical.
+Copyright (c) 2015 Puppet Labs, LLC Licensed under Puppet Labs Commercial.

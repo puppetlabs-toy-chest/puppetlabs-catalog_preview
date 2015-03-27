@@ -117,8 +117,8 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
           # Baseline compilation
           #
+          Puppet::Util::Log.close_all()
           Puppet::Util::Log.newdestination(baseline_dest)
-          Puppet::Util::Log.close(:console)
           Puppet::Util::Log.with_destination(baseline_dest) do
             if options[:baseline_environment]
               # Switch the node's environment (it finds and instantiates the Environment)
@@ -127,16 +127,22 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
             Puppet.override({:current_environment => node.environment}, "puppet-preview-baseline-compile") do
 
               if Puppet.future_parser?
-                raise PuppetX::Puppetlabs::Migration::GeneralError, "Migration is only possible from an environment that is not using parser=future"
+                raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration is only possible from an environment that is not using parser=future"
               end
-
-              baseline_catalog = Puppet::Parser::Compiler.compile(node)
+              begin
+                baseline_catalog = Puppet::Parser::Compiler.compile(node)
+              rescue StandardError => e
+                # Log it (ends up in baseline_log)
+                Puppet.err(e.to_s)
+                raise PuppetX::Puppetlabs::Preview::BaselineCompileError, "Error while compiling the baseline catalog"
+              end
             end
           end
           Puppet::Util::Log.close(baseline_dest)
 
           # Preview compilation
           #
+          Puppet::Util::Log.close_all()
           Puppet::Util::Log.newdestination(preview_dest)
           Puppet::Util::Log.with_destination(preview_dest) do
 
@@ -144,6 +150,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
             node.environment = options[:preview_environment]
 
             # optional migration checking in preview
+            # override environment with specified env for preview
             checker = options[:migration_checker]
             overrides = checker ? {
               :migration_checker => checker,
@@ -153,11 +160,19 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
             Puppet.override(overrides, "puppet-preview-compile") do
 
               unless Puppet.future_parser?
-                raise PuppetX::Puppetlabs::Migration::GeneralError, "Migration preview is only possible when the target env is configured with parser=future"
+                raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration preview is only possible when the target env is configured with parser=future"
               end
 
-              # override environment with specified env for preview
-              preview_catalog = Puppet::Parser::Compiler.compile(node)
+              begin
+                preview_catalog = Puppet::Parser::Compiler.compile(node)
+              rescue Puppet::Error => e
+                raise PuppetX::Puppetlabs::Preview::PreviewCompileError, "Error while compiling the preview catalog"
+
+              rescue StandardError => e
+                # Log it (ends up in preview_log)
+                Puppet.err(e.to_s)
+                raise PuppetX::Puppetlabs::Preview::PreviewCompileError, "Error while compiling the preview catalog"
+              end
 
               if checker
                 Puppet::Pops::IssueReporter.assert_and_report(checker.acceptor,
@@ -189,8 +204,10 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
     Puppet::Util::Profiler.profile("Found node information", [:diff_compiler, :find_node]) do
       node = nil
       begin
-        node = Puppet::Node.indirection.find(name, :environment => environment,
-                                             :transaction_uuid => transaction_uuid)
+        node = Puppet::Node.indirection.find(name,
+          :environment => environment,
+          :transaction_uuid => transaction_uuid)
+
       rescue => detail
         message = "Failed when searching for node #{name}: #{detail}"
         Puppet.log_exception(detail, message)

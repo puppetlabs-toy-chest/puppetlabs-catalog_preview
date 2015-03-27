@@ -134,7 +134,7 @@ Note that all settings such as 'log_level' affects both compilations.
   is produced to the preview log file or optionally to stdout with --view preview_log
   
 * --assert equal | compliant
-  Modifies the exit code to be -4 if catalogs are not equal and -5 if the preview
+  Modifies the exit code to be 4 if catalogs are not equal and 5 if the preview
   catalog is not compliant instead of an exit with 0 to indicate that the preview run
   was successful in itself. 
   
@@ -202,20 +202,20 @@ DIAGNOSTICS
 The '--assert' option controls the exit code of the command.
 
 If '--assert' is not specified the command will exit with 0 if the two compilations
-succeeded, -2 if the baseline compilation failed (a catalog could not be
-produced), and -3 if the preview compilation did not produce a catalog. Files not produced
+succeeded, 2 if the baseline compilation failed (a catalog could not be
+produced), and 3 if the preview compilation did not produce a catalog. Files not produced
 may either not exist, or be empty.
 
-If '--assert' is set to 'equal', the command will exit with -4 if the two catalogs
+If '--assert' is set to 'equal', the command will exit with 4 if the two catalogs
 are not equal.
 
-If --assert is set to 'compliant' it will exit with -5 if the content of the
+If --assert is set to 'compliant' it will exit with 5 if the content of the
 baseline catalog is not a subset of the content of the preview catalog.
 
 The different assert values do not alter what is produced - only the exit value is
 different as both equality and compliance is checked in every preview.
 
-The command exits with -1 if there is a general error. The state
+The command exits with 1 if there is a general error.
 
 AUTHOR
 ------
