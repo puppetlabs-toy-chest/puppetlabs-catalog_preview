@@ -50,7 +50,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
   # The find request should
   # - change logging to json output (as directed by baseline-log option)
-  # - compile in the basseline (reqular) environment given by the node/infrastructure
+  # - compile in the baseline (reqular) environment given by the node/infrastructure
   # - write baseline catalog to file as directed by option
   # - change logging to json output (as directed by preview-log option)
   # - compile in the preview environment as directed by options
@@ -124,7 +124,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
               # Switch the node's environment (it finds and instantiates the Environment)
               node.environment = options[:preview_environment]
             end
-            Puppet.override({:current_environment => node.environment}, "puppet-preview-baseine-compile") do
+            Puppet.override({:current_environment => node.environment}, "puppet-preview-baseline-compile") do
 
               if Puppet.future_parser?
                 raise PuppetX::Puppetlabs::Migration::GeneralError, "Migration is only possible from an environment that is not using parser=future"

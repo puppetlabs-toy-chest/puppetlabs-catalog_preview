@@ -69,11 +69,11 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   def report_ambiguous_integer(o)
     radix = o.radix
     return unless radix == 8 || radix == 16
-    report(Issues::MIGRATE4_AMBIGOUS_INTEGER, o, {:value => o.value, :radix => radix})
+    report(Issues::MIGRATE4_AMBIGUOUS_INTEGER, o, {:value => o.value, :radix => radix})
   end
 
   def report_ambiguous_float(o)
-    report(Issues::MIGRATE4_AMBIGOUS_FLOAT, o, {:value => o.value })
+    report(Issues::MIGRATE4_AMBIGUOUS_FLOAT, o, {:value => o.value })
   end
 
   def report_empty_string_true(value, o)
@@ -98,7 +98,7 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   end
 
   # Helper method used by equality and case option to determine if a diff in type may cause difference between 3.x and 4.x
-  # @return [Boolan] true if diff should be reported
+  # @return [Boolean] true if diff should be reported
   #
   def is_type_diff?(left, right)
     l_class = left.class

@@ -119,7 +119,7 @@
         },
         "tags_ignored": {
             "type": "boolean",
-            "description": "This delta was produced with tags being ignored",
+            "description": "This delta was produced with tags being ignored"
         }
     },
     "required": [

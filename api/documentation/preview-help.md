@@ -224,5 +224,5 @@ Henrik Lindberg, Puppet Labs
 
 COPYRIGHT
 ---------
-Copyright (c) 2015 Puppet Labs, LLC Licensed under Puppet Labs Commerical.
+Copyright (c) 2015 Puppet Labs, LLC Licensed under Puppet Labs Commercial.
 

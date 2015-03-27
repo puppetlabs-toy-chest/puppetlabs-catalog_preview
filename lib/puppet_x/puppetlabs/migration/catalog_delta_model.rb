@@ -117,7 +117,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       id + 1
     end
 
-    # Calls #assign_ids(id) all elements in the array while keeping track of the assinged id
+    # Calls #assign_ids(id) all elements in the array while keeping track of the assigned id
     #
     # @param id [Integer] The id to set
     # @return [Integer] The incremented id
@@ -178,7 +178,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     end
   end
 
-  # Represents a conflicting attribute, i.e. an attribut that has the same name but different
+  # Represents a conflicting attribute, i.e. an attribute that has the same name but different
   # values in the compared catalogs.
   #
   # @api public
@@ -341,7 +341,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @param equal_attribute_count [Integer]
     # @param added_attributes [Array<Attribute>]
     # @param missing_attributes [Array<Attribute>]
-    # @param conflicting_attributes [Array<AttributeConfict>]
+    # @param conflicting_attributes [Array<AttributeConflict>]
     def initialize(baseline_location, preview_location, type, title, equal_attribute_count, added_attributes, missing_attributes, conflicting_attributes)
       @baseline_location = baseline_location
       @preview_location = preview_location
@@ -486,11 +486,11 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
 
     # Creates a new delta between the two catalog hashes _baseline_ and _preview_. The delta will be produced
     # without considering differences in resource tagging if _ignore_tags_ is set to `true`. The _verbose_
-    # flag controls wether or not attributes will be included in missing and added resources in the delta.
+    # flag controls whether or not attributes will be included in missing and added resources in the delta.
     #
     # @param baseline [Hash<Symbol,Object>] the hash representing the baseline catalog
     # @param preview [Hash<Symbol,Object] the hash representing the preview catalog
-    # @param ignore_tags [Boolean] `true` if tags should be ingored when comparing resources
+    # @param ignore_tags [Boolean] `true` if tags should be ignored when comparing resources
     # @param verbose [Boolean] `true` to include attributes of missing and added resources in the delta
     #
     # @api public
@@ -579,8 +579,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @return [ResourceConflict]
     # @api private
     def create_resource_conflict(br, pr, ignore_tags)
-      added_attributes = pr.attributes.reject { |key, a| br.attributes.include?(key) }
-      missing_attributes = br.attributes.reject { |key, a| pr.attributes.include?(key) }
+      added_attributes = pr.attributes.reject { |key, _| br.attributes.include?(key) }
+      missing_attributes = br.attributes.reject { |key, _| pr.attributes.include?(key) }
       conflicting_attributes = []
       br.attributes.each_pair do |key,ba|
         pa = pr.attributes[key]
@@ -610,7 +610,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
 
     # Answers the question, is _bav_ and _pav_ compliant?
     # Sets are compliant if _pav_ is a subset of _bav_
-    # Arrays are compliant if _pav_ contains all non unique values in _bav_. Order is insigificant
+    # Arrays are compliant if _pav_ contains all non unique values in _bav_. Order is insignificant
     # Hashes are compliant if _pav_ has at least the same set of keys as _bav_, and the values are compliant
     # All other values are compliant if the values are equal
     #
@@ -620,7 +620,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @api private
     def compliant?(bav, pav)
       if bav.is_a?(Set) && pav.is_a?(Set)
-        ba.subset?(pa)
+        bav.subset?(pav)
       elsif bav.is_a?(Array) && pav.is_a?(Array)
         bav.all? { |e| pav.include?(e) }
       elsif bav.is_a?(Hash) && pav.is_a?(Hash)
@@ -657,7 +657,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @return [Array<Edge>]
     # @api private
     def create_edges(hash)
-      assert_type(Array, hash['edges'], []).map { |eh| resource = create_edge(assert_type(Hash, eh, {})) }
+      assert_type(Array, hash['edges'], []).map { |eh| create_edge(assert_type(Hash, eh, {})) }
     end
     private :create_edges
 
