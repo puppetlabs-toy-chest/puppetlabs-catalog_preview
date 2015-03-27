@@ -1,10 +1,12 @@
 Catalog Delta
-===
+=============
+
 A catalog-delta describes a delta between a *baseline* and a *preview* catalog compiled
 for the same node. The baseline is the expected content, and the preview is the actual.
 
 The catalog delta output format is expressed in JSON and is specified in [catalog-delta.json][1]
-using Json-schema `'http://json-schema.org/draft-04/schema#`'.
+using Json-schema `'http://json-schema.org/draft-04/schema#`'. The catalog-delta schema can
+be viewed directly on the command line with 'puppet preview --schema catalog_delta'.
 
 [1]: ../schemas/catalog-delta.json
 
@@ -12,12 +14,12 @@ This document serves as an overview of the content in a catalog diff and how it 
 be used.
 
 The root object
----
+---------------
 The root object describes the following attributes:
 
 * `node_name`
   the name of the node (by definition the same for both baseline and preview)
-  
+
 * `time`
   the timestamp when the delta was produced (start time)
 
@@ -26,7 +28,7 @@ The root object describes the following attributes:
 
 * `preview_compliant`
   `true` if the preview catalog has all content in the baseline (may contain more)
-  
+
 * `preview_equal`
   `true` if the preview catalog is equal to the baseline catalog
 
@@ -106,7 +108,7 @@ The root object describes the following attributes:
 
 
 Summary Information
----
+-------------------
 The attributes `preview_equal`, and `preview_compliant` signals if the two catalogs are
 equal, or if the preview catalog contains all of the baseline but has additional "compliant"
 content. The `preview_equals` is useful when upgrading the version of Puppet as it is an
@@ -118,51 +120,58 @@ a minimum set of resources as dictated by organization policy.
 
 Note that `preview_compliant` relaxes rules regarding the order of content in array
 attributes; if baseline has the values `[1,2,3]` in an attribute, and the preview has
-`[a, 2, 3, 1]`, this is still considered compliant. The difference is still reported as a
-conflicting value. The reported conflicts should be reviewed to assert the degree of compliance.
+`[a, 2, 3, 1]`, this is still considered compliant. The difference is reported as a
+conflicting value with the "compliant" entry set to true.
 
-By default the summary information is displayed to the user. The `--view` option makes it 
-possible to instead write one of the other 5 artifacts to `stdout`; baseline_catalog, baseline_log,
-preview_catalog, preview_log, or catalog_diff. This allows the user to pipe the output to a
-JSON query to select/transform the output for the purpose of focusing on a particular part of
-the output.
+By default the summary information is displayed to the user. The `--view` option makes it
+possible to instead write one of the other produced artifacts to `stdout`; baseline_catalog,
+baseline_log, preview_catalog, preview_log, or catalog_diff. This allows the user to pipe
+the output to a JSON query to select/transform the output for the purpose of focusing on
+a particular part of the output.
+
+If the baseline or preview compilation fails, the log for the failing compilation
+is displayed in abbreviated form on stderr. If the full log is required to understand the
+nature of the problem it can be obtained by running again with the options '--last' and
+'--view xxx_log' where 'xxx' is either 'baseline' or 'preview' depending on wanted log.
 
 Exit Status
-----
-The exit status is difficult to use as there are many possible outcomes that do not constitute
-a failure on the application's part and requires interpretation. By default the application
-exits with 0 if it was possible to compile both catalogs (no hard compilation errors),
-2 if baseline compilation failed, 3 if preview compilation failed, and 1 if the application
-failed in general (could not write a file etc.).
+-----------
+The application exits with the following exit codes and reasons:
 
-The option `--assert=equal` makes the command exit with 4 if catalogs are not equal, and
-the option `--assert=compliant` makes the command exit with 5 if catalogs are not compliant.
+| exit | description
+| ---  | -----------
+| 0    | if it was possible to compile both catalogs (there were no hard compilation errors)
+| 1    | if the preview application failed in general
+| 2    | if baseline compilation failed
+| 3    | if preview compilation failed
+| 4    | if '--assert equal' is used and catalogs are not equal
+| 5    | if '--assert compliant' is used and preview is not compliant
 
 Missing Resources
----
+-----------------
 Resources are reported as missing if they exist in the baseline but there is no resource
 with the same type and title in the preview.
 
-    missing_resources: [ 
+    missing_resources: [
         {
-            "location" : {  "file" : "/.../abc.pp", "line" : 10 }
+            "location" : {  "file" : "/.../abc.pp", "line" : 10 },
             "type" : "File",
             "title": "tmp/foo"
         },
         { ... }
     ]
-    
+
 Note that the attributes of missing resources are not included by default in the diff to
 reduce clutter. These values can be found in the produced catalog if they are needed
 for identification. Alternatively, the option `--verbose_diff' can be used to include
 these.
 
 Added Resources
----
+---------------
 Resources are reported as added if they exist in the preview but there is no resource
 with the same type and title in the baseline.
 
-    added_resources: [ 
+    added_resources: [
         {
             "location" : {  "file" : "/.../abc.pp", "line" : 10 }
             "type" : "File",
@@ -173,16 +182,15 @@ with the same type and title in the baseline.
 
 Note that the attributes of added resources are not included in the diff to
 reduce clutter. These values can be found in the produced catalog if they are needed
-for identification.
-
-> A flag for '--verbose-added' may be added to the command later.
+for identification. Alternatively, the option `--verbose_diff' can be used to include
+these.
 
 Conflicting Resources
----
+---------------------
 Resources are reported as conflicting if they exist in both the preview and baseline but
 there is a difference in the number of attributes and/or their values.
 
-    conflicting_resources: [ 
+    conflicting_resources: [
         {
             "baseline_location" : {  "file" : "/.../abc.pp", "line" : 10 }
             "preview_location" :  {  "file" : "/.../abc.pp", "line" : 11 }
@@ -190,7 +198,7 @@ there is a difference in the number of attributes and/or their values.
             "title": "tmp/foo2",
             "equal_attributes_count": 8,
             "missing_attributes_count": 2,
-            "added_attributes_count": 3
+            "added_attributes_count": 3,
             "conflicting_attributes_count": 1,
 
             "missing_attributes" : [
@@ -206,15 +214,14 @@ there is a difference in the number of attributes and/or their values.
         { ... }
     ]
 
-> A flag for '--verbose-conflicting' may be added to the command later.
 
 ### Attributes
 
-A resource contains different kinds of attributes; parameters, and information encoded
-directly in the resource (i.e. `exported`, and `tags`). The `tags` are reported as a regular
-parameter `{ "name" : "tags" }`, but `exported` may also be a parameter value
-(albeit esoteric), and it is reported with the attribute name `"@@"` (since this is the
-syntax for an exported resource).
+A resource contains different kinds of attributes; resource properties, parameters, and
+information encoded directly in the resource (i.e. `exported`, and `tags`).
+The `tags` are reported as a regular parameter `{ "name" : "tags" }`, but `exported`
+is also valid as a parameter name value, and it is therefore reported with the attribute
+name `"@@"` (since this is the syntax for an exported resource in the puppet language).
 
 The following attributes are treated as sets:
 
@@ -238,21 +245,21 @@ Hash attributes are equal if the keys and values are equal (order is insignifica
 Hashes are compliant if they have at least the same set of keys, and values
 are compliant.
 
-> DISCUSS: Are these rules helpful? They should squelch compliance noise, but
-> are they correct? (Note that they are still reported as conflicting)
-
-When refactoring, the tag values can be quite different and the `--ignore_tags`
+When refactoring, the tag values can be quite different and the `--skip_tags`
 options can be used to ignore tag differences.
 
+The versions of the catalogs are compared. If different this is noted in the
+output but this difference has no effect on the outcome of catalogs being
+equal or compliant. (A difference in version may explain why catalogs are
+different; data changed, etc.).
 
 #### Format of differences
 
 Added, missing and conflicting attributes are output in JSON format. For large values
 and complex structures it may be difficult to spot differences by just reading the
 delta output in JSON. In such situations the values can be extracted with a
-json tool (e.g. jq, or jgrep) and compared using a diff tool such as the
-system `diff`, one of the many json-diff tools such as `jsondiffpath.js`.
-
+json tool (e.g. 'jq', or 'jgrep') and compared using a diff tool such as the
+system `diff`, one of the many json-diff tools freely available; such as `jsondiffpath.js`.
 
 ### Missing Attributes
 
@@ -313,7 +320,8 @@ are reported as added attributes:
 
 
 Edges
----
+-----
+
 Edges describe containment. An edge is considered equal if the source and target strings
 are equal. Edges are never reported as being in conflict.
 
@@ -337,11 +345,12 @@ An edge in preview that is not equal to any edge in baseline is considered added
         { "source": "Class[main]", "target" : "File[fool]" },
         { ... }
     ]
-    
+
 
 Diff Id
----
+-------
+
 All diff entries have a `diff_id` integer value. The id values serves as way of finding a
-specific entry in the catalog_diff.json output after having filtered the output and looking
+specific entry in the 'catalog_diff.json' output after having filtered the output and looking
 at a small portion - having a unique value helps as output from a json query cannot produce
 references to line numbers in the json source file.

@@ -198,11 +198,11 @@ class Puppet::Application::Preview < Puppet::Application
       case @exit_code
       when 2
         display_log(options[:baseline_log], :pretty_json)
-        puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
+        $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
 
       when 3
         display_log(options[:preview_log], :pretty_json)
-        puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
+        $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
 
       end
       Puppet.err(@exception.message) if @exception
@@ -319,7 +319,7 @@ class Puppet::Application::Preview < Puppet::Application
       elsif file
         message << "at #{entry['file']}"
       end
-      puts  Colorizer.new().colorize(:hred, message)
+      $stderr.puts  Colorizer.new().colorize(:hred, message)
     end
   end
 
@@ -333,7 +333,7 @@ class Puppet::Application::Preview < Puppet::Application
       memo + r[:conflicting_attributes].count {|a| a[:compliant] }
     end
 
-      puts <<-TEXT
+    $stdout.puts <<-TEXT
 
 Catalog:
   Versions......: #{delta[:version_equal] ? 'equal' : 'different' }
@@ -373,7 +373,7 @@ Output:
     preview_compliant = !!(delta[:preview_compliant])
     status = preview_equal ? "equal" : preview_compliant ? "not equal but compliant" : "neither equal nor compliant"
     color = preview_equal || preview_compliant ? :green : :hred
-    puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
+    $stderr.puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
   end
 
   def count_of(elements)
