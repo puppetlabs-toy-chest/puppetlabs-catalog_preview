@@ -22,7 +22,7 @@ puppet preview [
     [--baseline_environment <ENV-NAME> | --be <ENV-NAME>]
     --preview_environment <ENV-NAME> | --pe <ENV-NAME>
     <NODE-NAME>
-  ]|[--schema catalog|catalog_delta]
+  ]|[--schema catalog|catalog_delta|help]
    |[-h|--help]
    |[-V|--version]
 ```
@@ -146,9 +146,10 @@ Note that all settings such as 'log_level' affects both compilations.
   This specifies for which node the preview should produce output. The node must
   have previously requested a catalog from the master to make its facts available.
   
-* --schema catalog | catalog_delta
-  Outputs the json-schema for the puppet catalog, or for the catalog_delta. Can not be
-  combined with any other option.
+* --schema catalog | catalog_delta | help
+  Outputs the json-schema for the puppet catalog, or for the catalog_delta. The option
+  'help' will display the semantics of the catalog-diff schema. Can not be combined with
+  any other option.
   
 * --skip_tags
   Ignores comparison of tags, catalogs are considered equal/compliant if they only
