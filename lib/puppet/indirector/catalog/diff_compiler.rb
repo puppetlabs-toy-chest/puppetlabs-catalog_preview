@@ -57,7 +57,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
   # - write preview catalog to file as directed by option
   # - produce a diff (passing options to it from the request
   # - write diff to file as directed by options
-  # 
+  #
   # - return a hash of information
   #
   # Compile a node's catalog.
@@ -114,6 +114,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
         baseline_dest = options[:baseline_log].to_s
         preview_dest = options[:preview_log].to_s
         begin
+
           # Baseline compilation
           #
           Puppet::Util::Log.newdestination(baseline_dest)
@@ -124,6 +125,11 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
               node.environment = options[:preview_environment]
             end
             Puppet.override({:current_environment => node.environment}, "puppet-preview-baseine-compile") do
+
+              if Puppet.future_parser?
+                raise PuppetX::Puppetlabs::Migration::GeneralError, "Migration is only possible from an environment that is not using parser=future"
+              end
+
               baseline_catalog = Puppet::Parser::Compiler.compile(node)
             end
           end
@@ -145,6 +151,11 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
             } : { }
 
             Puppet.override(overrides, "puppet-preview-compile") do
+
+              unless Puppet.future_parser?
+                raise PuppetX::Puppetlabs::Migration::GeneralError, "Migration preview is only possible when the target env is configured with parser=future"
+              end
+
               # override environment with specified env for preview
               preview_catalog = Puppet::Parser::Compiler.compile(node)
 
