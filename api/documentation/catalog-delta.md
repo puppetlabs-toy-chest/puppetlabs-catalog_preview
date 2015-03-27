@@ -15,68 +15,102 @@ The root object
 ---
 The root object describes the following attributes:
 
-* `node_name` - the name of the node (by definition the same for both baseline and preview)
-* `time` - the timestamp when the delta was produced (start time)
-* `produced_by` - the name and version of the tool that produced the diff (e.g. "Puppet Preview 3.8")
+* `node_name`
+  the name of the node (by definition the same for both baseline and preview)
+  
+* `time`
+  the timestamp when the delta was produced (start time)
 
-* `preview_compliant` - `true` if the preview catalog has all content in the baseline (may contain more)
-* `preview_equal` - `true` if the preview catalog is equal to the baseline catalog
-* `version_equal` - `true` if the the versions of the two catalogs are the same
+* `produced_by`
+  the name and version of the tool that produced the diff (e.g. "Puppet Preview 3.8")
 
-* `tags_ignored` - `true` if tags are ignored when comparing resources
+* `preview_compliant`
+  `true` if the preview catalog has all content in the baseline (may contain more)
+  
+* `preview_equal`
+  `true` if the preview catalog is equal to the baseline catalog
 
-* `baseline_env` - the name of the baseline environment
-* `preview_env` - the name of the preview environment
+* `version_equal`
+  `true` if the the versions of the two catalogs are the same (this is the internal version
 
-* `baseline_catalog` - the file name of the baseline catalog (if produced)
-* `preview_catalog` - the file name of the preview catalog (if produced)
+* `tags_ignored`
+  `true` if tags are ignored when comparing resources
 
-* `baseline_resource_count` -number of resources in the baseline catalog
-* `preview_resource_count` - number of resources in the preview catalog
+* `baseline_env`
+  the name of the baseline environment
 
-* `baseline_edge_count` -number of edges in the baseline catalog
-* `preview_edge_count` - number of edges in the preview catalog
+* `preview_env`
+  the name of the preview environment
 
-* `added_resource_count` - number of resources found in the preview catalog but not in the baseline catalog
-* `missing_resource_count` - number of resources found in the baseline catalog but not in the preview catalog
-* `conflicting_resource_count` - number of resources that are conflicting (i.e. resources in both baseline 
-  and preview where their contents is different).
+* `baseline_catalog`
+  the file name of the baseline catalog (if produced)
 
-* `added_edge_count` - number of edges found in the preview catalog but not in the baseline catalog
-* `missing_edge_count` - number of edges found in the baseline catalog but not in the preview catalog
+* `preview_catalog`
+  the file name of the preview catalog (if produced)
 
-* `added_attribute_count` - total number of resource attributes found in the preview catalog but not in
-  the baseline catalog
-* `missing_attribute_count` - total number of resource attributes found in the baseline catalog but not
-  in the preview catalog
-* `conflicting_attribute_count` - total number of resource attributes that are conflicting (i.e. resource
-  attributes in both baseline and preview with different values).
+* `baseline_resource_count`
+  number of resources in the baseline catalog
 
-* `added_resources` - an array of information about added resources (i.e. a resource found
+* `preview_resource_count`
+  number of resources in the preview catalog
+
+* `baseline_edge_count`
+  number of edges in the baseline catalog
+
+* `preview_edge_count`
+  number of edges in the preview catalog
+
+* `added_resource_count`
+  number of resources found in the preview catalog but not in the baseline catalog
+
+* `missing_resource_count`
+  number of resources found in the baseline catalog but not in the preview catalog
+
+* `conflicting_resource_count` - number of resources that are conflicting (i.e.
+  resources in both baseline  and preview where their contents is different).
+
+* `added_edge_count`
+  number of edges found in the preview catalog but not in the baseline catalog
+
+* `missing_edge_count`
+  number of edges found in the baseline catalog but not in the preview catalog
+
+* `added_attribute_count`
+  total number of resource attributes found in the preview catalog but not in the
+  baseline catalog
+
+* `missing_attribute_count`
+  total number of resource attributes found in the baseline catalog but not in the
+  preview catalog
+
+* `conflicting_attribute_count`
+  total number of resource attributes that are conflicting (i.e. resource attributes
+  in both baseline and preview with different values).
+
+* `added_resources`
+  an array of information about added resources (i.e. a resource found
   in preview, but not in baseline)
-* `missing_resources` - an array of information about missing resources (i.e. a resource
-  not found in preview).
-* `conflicting_resources` - an array of information about resources that are conflicting (i.e.
-  resources in both baseline and preview where their contents is different).
 
-* `added_edges` - array of edges not in baseline but in preview
-* `missing_edges` - array of edges in baseline not in preview
+* `missing_resources`
+  an array of information about missing resources (i.e. a resource not found in preview).
+
+* `conflicting_resources`
+  an array of information about resources that are conflicting (i.e. resources in
+  both baseline and preview where their contents is different).
+
+* `added_edges`
+  array of edges not in baseline but in preview
+
+* `missing_edges`
+  array of edges in baseline not in preview
 
 
 Summary Information
 ---
 The attributes `preview_equal`, and `preview_compliant` signals if the two catalogs are
-equal, or if the preview catalog contains all of the baseline but has additional content.
-    
-The `preview_compliant` is true if
-
-    missing_resource_count == 0 && conflicting_resource_count == 0 && missing_edges_count == 0
-
-The `preview_equal` is true if 
-
-    preview_compliant  && added_resource_count == 0 added_edge_count == 0
-
-The `preview_equals` is useful when upgrading the version of Puppet as it is an assertion that an identical catalog is produced.
+equal, or if the preview catalog contains all of the baseline but has additional "compliant"
+content. The `preview_equals` is useful when upgrading the version of Puppet as it is an
+assertion that an identical catalog is produced.
 
 The `preview_compliant` is useful when refactoring and an assertion is wanted that the catalog
 contains at least the baseline content. This can also be used to assert that a catalog contains
@@ -97,12 +131,12 @@ Exit Status
 ----
 The exit status is difficult to use as there are many possible outcomes that do not constitute
 a failure on the application's part and requires interpretation. By default the application
-should exit with 0 if it was possible to compile both catalogs (no hard compilation errors),
--2 if baseline compilation failed, -3 if preview compilation failed, -§ if the application
+exits with 0 if it was possible to compile both catalogs (no hard compilation errors),
+2 if baseline compilation failed, 3 if preview compilation failed, and 1 if the application
 failed in general (could not write a file etc.).
 
-The option `--assert=equal` makes the command exit with -4 if catalogs are not equal, and
-the option `--assert=compliant` makes the command exit with -5 if catalogs are not compliant.
+The option `--assert=equal` makes the command exit with 4 if catalogs are not equal, and
+the option `--assert=compliant` makes the command exit with 5 if catalogs are not compliant.
 
 Missing Resources
 ---
@@ -118,11 +152,10 @@ with the same type and title in the preview.
         { ... }
     ]
     
-Note that the attributes of missing resources are not included in the diff to
+Note that the attributes of missing resources are not included by default in the diff to
 reduce clutter. These values can be found in the produced catalog if they are needed
-for identification.
-
-> A flag for '-- verbose-missing' may be added to the command later.         
+for identification. Alternatively, the option `--verbose_diff' can be used to include
+these.
 
 Added Resources
 ---
@@ -142,7 +175,7 @@ Note that the attributes of added resources are not included in the diff to
 reduce clutter. These values can be found in the produced catalog if they are needed
 for identification.
 
-> A flag for '--verbose-added' may be added to the command later.         
+> A flag for '--verbose-added' may be added to the command later.
 
 Conflicting Resources
 ---
@@ -173,13 +206,15 @@ there is a difference in the number of attributes and/or their values.
         { ... }
     ]
 
-> A flag for '--verbose-conflicting' may be added to the command later.         
+> A flag for '--verbose-conflicting' may be added to the command later.
 
 ### Attributes
 
 A resource contains different kinds of attributes; parameters, and information encoded
-directly in the resource (i.e. `exported`, and `tags`). The `tags` are reported as a regular parameter `{ "name" : "tags" }`, but `exported` may also be a parameter value
-(albeit esoteric), and it is reported with the attribute name `"@@"` (since this is the syntax for an exported resource).
+directly in the resource (i.e. `exported`, and `tags`). The `tags` are reported as a regular
+parameter `{ "name" : "tags" }`, but `exported` may also be a parameter value
+(albeit esoteric), and it is reported with the attribute name `"@@"` (since this is the
+syntax for an exported resource).
 
 The following attributes are treated as sets:
 
@@ -206,16 +241,17 @@ are compliant.
 > DISCUSS: Are these rules helpful? They should squelch compliance noise, but
 > are they correct? (Note that they are still reported as conflicting)
 
-When refactoring, the tag values can be quite different and the `--ignore_tags` options can
-be used to ignore tag differences.
+When refactoring, the tag values can be quite different and the `--ignore_tags`
+options can be used to ignore tag differences.
 
 
 #### Format of differences
 
 Added, missing and conflicting attributes are output in JSON format. For large values
 and complex structures it may be difficult to spot differences by just reading the
-delta output in JSON. In such situations the values can be extracted with a json tool (e.g. jq,
-or jgrep) and compared using a diff tool such as the system `diff`, one of the many json-diff tools such as `jsondiffpath.js`.
+delta output in JSON. In such situations the values can be extracted with a
+json tool (e.g. jq, or jgrep) and compared using a diff tool such as the
+system `diff`, one of the many json-diff tools such as `jsondiffpath.js`.
 
 
 ### Missing Attributes
@@ -306,5 +342,6 @@ An edge in preview that is not equal to any edge in baseline is considered added
 Diff Id
 ---
 All diff entries have a `diff_id` integer value. The id values serves as way of finding a
-specific entry in the catalog_diff.json output after having filtered the output and looking at a small portion - having a unique value helps as output from a json query cannot produce references
-to line numbers in the json source file.
+specific entry in the catalog_diff.json output after having filtered the output and looking
+at a small portion - having a unique value helps as output from a json query cannot produce
+references to line numbers in the json source file.

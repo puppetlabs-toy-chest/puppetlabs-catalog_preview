@@ -80,13 +80,15 @@ by the setting 'preview_outputdir' (defaults to '$vardir/preview'):
     |  |- <NODE-NAME-2>
     |  |  |- ...
  
-Each new invocation of the command for a given node overwrites the information already produced.
+Each new invocation of the command for a given node overwrites the information
+already produced.
 
-The two catalogs are written in JSON compliant with a json-schema ('catalog.json'; the format
-used by puppet to represent catalogs in JSON) viable on stdout using '--schema catalog'
+The two catalogs are written in JSON compliant with a json-schema
+('catalog.json'; the format used by puppet to represent catalogs in JSON)
+viewable on stdout using '--schema catalog'
 
-The 'catalog_diff.json' file is written in JSON compliant with a json-schema viable on stdout
-using '--schema catalog_delta'.
+The 'catalog_diff.json' file is written in JSON compliant with a json-schema
+viewable on stdout using '--schema catalog_delta'.
 
 OPTIONS
 -------
@@ -106,8 +108,8 @@ Note that all settings such as 'log_level' affects both compilations.
 * --debug:
   Enable full debugging. Debugging output is sent to the respective log outputs
   for baseline and preview compilation. This option is for both compilations.
-  Note that debugging information for the startup and end of the application itself is
-  sent to the console.
+  Note that debugging information for the startup and end of the application
+  itself is sent to the console.
 
 * --help:
   Print this help message.
@@ -118,26 +120,26 @@ Note that all settings such as 'log_level' affects both compilations.
 * --preview_environment <ENV-NAME>
   Makes the preview compilation take place in the given <ENV-NAME>.
   Uses facts obtained from the configured facts terminus to compile the catalog.
-  
+
 * --baseline_environment <ENV-NAME>
   Makes the baseline compilation take place in the given <ENV-NAME>. This overrides
   the environment set for the node via an ENC.
   Uses facts obtained from the configured facts terminus to compile the catalog.
   Note that the puppet setting '-environment' cannot be used to achieve the same effect.
-  
+
 * --view summary | diff | baseline | preview | baseline_log | preview_log | none
   Specifies what will be output on stdout; the catalog diff, one of the two
   catalogs, or one of the two logs. The option 'none' turns off output to stdout.
-  
+
 * --migrate
   Turns on migration validation for the preview compilation. Validation result
   is produced to the preview log file or optionally to stdout with --view preview_log
-  
+
 * --assert equal | compliant
   Modifies the exit code to be 4 if catalogs are not equal and 5 if the preview
   catalog is not compliant instead of an exit with 0 to indicate that the preview run
   was successful in itself. 
-  
+
 * --preview_outputdir <DIR>
   Defines the directory to which output is produced.
   This is a puppet setting that can be overridden on the command line.
@@ -145,16 +147,16 @@ Note that all settings such as 'log_level' affects both compilations.
 * <NODE-NAME>
   This specifies for which node the preview should produce output. The node must
   have previously requested a catalog from the master to make its facts available.
-  
+
 * --schema catalog | catalog_delta | help
   Outputs the json-schema for the puppet catalog, or for the catalog_delta. The option
   'help' will display the semantics of the catalog-diff schema. Can not be combined with
   any other option.
-  
+
 * --skip_tags
   Ignores comparison of tags, catalogs are considered equal/compliant if they only
   differ in tags.
-  
+
 * --verbose_diff
   Includes more information in the catalog diff such as attribute values in
   missing and added resources. Does not affect if catalogs are considered equal or
