@@ -579,8 +579,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @return [ResourceConflict]
     # @api private
     def create_resource_conflict(br, pr, ignore_tags)
-      added_attributes = pr.attributes.reject { |key, _| br.attributes.include?(key) }
-      missing_attributes = br.attributes.reject { |key, _| pr.attributes.include?(key) }
+      added_attributes = pr.attributes.reject { |key, _| br.attributes.include?(key) }.values
+      missing_attributes = br.attributes.reject { |key, _| pr.attributes.include?(key) }.values
       conflicting_attributes = []
       br.attributes.each_pair do |key,ba|
         pa = pr.attributes[key]
