@@ -122,7 +122,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
           Puppet::Util::Log.with_destination(baseline_dest) do
             if options[:baseline_environment]
               # Switch the node's environment (it finds and instantiates the Environment)
-              node.environment = options[:preview_environment]
+              node.environment = options[:baseline_environment]
             end
             Puppet.override({:current_environment => node.environment}, "puppet-preview-baseline-compile") do
 
