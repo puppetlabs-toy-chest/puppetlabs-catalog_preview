@@ -54,7 +54,7 @@ class Puppet::Application::Preview < Puppet::Application
   CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
 
   def help
-    path = ::File.expand_path( "../../../../api/documentation/preview-help.md", __FILE__)
+    path = ::File.expand_path( "../../../puppet_x/puppetlabs/preview/api/documentation/preview-help.md", __FILE__)
     Puppet::FileSystem.read(path)
   end
 
@@ -90,13 +90,13 @@ class Puppet::Application::Preview < Puppet::Application
       end
 
       if options[:schema] == :catalog
-        catalog_path = ::File.expand_path("../../../../api/schemas/catalog.json", __FILE__)
+        catalog_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/schemas/catalog.json", __FILE__)
         display_file(catalog_path)
       elsif options[:schema] == :catalog_delta
-        delta_path = ::File.expand_path("../../../../api/schemas/catalog-delta.json", __FILE__)
+        delta_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/schemas/catalog-delta.json", __FILE__)
         display_file(delta_path)
       else
-        help_path = ::File.expand_path("../../../../api/documentation/catalog-delta.md", __FILE__)
+        help_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/documentation/catalog-delta.md", __FILE__)
         display_file(help_path)
       end
     else
