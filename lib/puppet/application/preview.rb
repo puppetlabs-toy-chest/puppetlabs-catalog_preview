@@ -89,10 +89,11 @@ class Puppet::Application::Preview < Puppet::Application
         raise "A node was given but no compilation will be done when running with the --schema option"
       end
 
-      if options[:schema] == "catalog"
+      require 'debugger'; debugger
+      if options[:schema] == :catalog
         catalog_path = ::File.expand_path("../../../../api/schemas/catalog.json", __FILE__)
         display_file(catalog_path)
-      elsif options[:schema] == "catalog_delta"
+      elsif options[:schema] == :catalog_delta
         delta_path = ::File.expand_path("../../../../api/schemas/catalog-delta.json", __FILE__)
         display_file(delta_path)
       else
