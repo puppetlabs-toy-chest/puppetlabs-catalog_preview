@@ -22,6 +22,24 @@ describe 'CatalogDelta' do
           'parameters' => {
             'ensure' => 'present'
           }
+        },
+        {
+          'type' => 'File',
+          'title' => '/tmp/bartest',
+          'tags' => ['file', 'class'],
+          'file' => '/etc/puppet/environments/production/manifests/site.pp',
+          'line' => 2,
+          'exported' => false,
+          'parameters' => {
+            'ensure' => 'present',
+            'array' => %w(a b c c),
+            'before' => %w(a b c c),
+            'after' => %w(a b c),
+            'subscribe' => %w(a b c),
+            'notify' => %w(a b c),
+            'tags' => %w(a b c),
+            'hash' => { 'a' => 'A', 'b' => [1,2]}
+          }
         }
       ],
       'edges' => [
@@ -50,14 +68,14 @@ describe 'CatalogDelta' do
 
   it 'reports that tags are skipped' do
     delta = CatalogDelta.new(baseline_hash, preview_hash, true, false)
-    expect(delta.tags_ignored).to be(true)
+    expect(delta.tags_ignored?).to be(true)
   end
 
   it 'reports version_equal' do
     delta = CatalogDelta.new(baseline_hash, preview_hash, true, false)
-    expect(delta.version_equal).to be(true)
+    expect(delta.version_equal?).to be(true)
     delta = CatalogDelta.new(baseline_hash, preview_hash.merge!('version' => 1427456348), true, false)
-    expect(delta.version_equal).to be(false)
+    expect(delta.version_equal?).to be(false)
   end
 
   it 'reports missing resource' do
@@ -67,7 +85,7 @@ describe 'CatalogDelta' do
     expect(delta.missing_resource_count).to eq(1)
     expect(delta.missing_resources).to contain_exactly(be_a(Resource))
     expect(delta.missing_resources[0].type).to eq('File')
-    expect(delta.missing_resources[0].title).to eq('/tmp/footest')
+    expect(delta.missing_resources[0].title).to eq('/tmp/bartest')
   end
 
   it 'reports added resource' do
@@ -75,17 +93,17 @@ describe 'CatalogDelta' do
     pv['resources'].push(
       {
         'type' => 'File',
-        'title' => '/tmp/bartest',
+        'title' => '/tmp/fumtest',
         'tags' => ['file', 'class'],
         'file' => '/etc/puppet/environments/production/manifests/site.pp',
-        'line' => 1,
+        'line' => 3,
       }
     )
     delta = CatalogDelta.new(baseline_hash, pv, true, false)
     expect(delta.added_resource_count).to eq(1)
     expect(delta.added_resources).to contain_exactly(be_a(Resource))
     expect(delta.added_resources[0].type).to eq('File')
-    expect(delta.added_resources[0].title).to eq('/tmp/bartest')
+    expect(delta.added_resources[0].title).to eq('/tmp/fumtest')
   end
 
   it 'reports conflicting resource when preview is missing an attribute' do
@@ -196,6 +214,127 @@ describe 'CatalogDelta' do
     expect(edge.source).to eq('Class[main]')
     expect(edge.target).to eq('Notify[roses are red]')
   end
-end
-end
 
+  it 'considers added resources to be different but compliant' do
+    pv = preview_hash
+    pv['resources'].push(
+      {
+        'type' => 'File',
+        'title' => '/tmp/fumtest',
+        'tags' => ['file', 'class'],
+        'file' => '/etc/puppet/environments/production/manifests/site.pp',
+        'line' => 3,
+      }
+    )
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(true)
+  end
+
+  it 'considers missing resources to be different and not compliant' do
+    pv = preview_hash
+    pv['resources'].pop()
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(false)
+  end
+
+  it 'considers added edges to be different but compliant' do
+    pv = preview_hash
+    pv['edges'].push(
+      {
+        'source' => 'Class[main]',
+        'target' => 'Notify[roses are red]'
+      }
+    )
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(true)
+  end
+
+  it 'considers missing edges to be different and not compliant' do
+    pv = preview_hash
+    pv['edges'].pop()
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(false)
+  end
+
+  it 'considers adding attributes to be different but compliant' do
+    pv = preview_hash
+    pv['resources'][0] = {
+      'type' => 'File',
+      'title' => '/tmp/footest',
+      'tags' => ['file', 'class'],
+      'file' => '/etc/puppet/environments/production/manifests/site.pp',
+      'line' => 1,
+      'exported' => false,
+      'parameters' => {
+        'ensure' => 'present',
+        'mode' => '0775'
+      }
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(true)
+  end
+
+  it 'considers adding a value to an array attribute to be different but compliant' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['array'].push(4)
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(true)
+  end
+
+  it 'considers adding a value to a hash attribute to be different but compliant' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['hash']['c'] = 3
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(true)
+  end
+
+  it 'considers changing an element of a hash attribute to a compliant element to be different but compliant' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['hash']['b']= [2,1]
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(true)
+  end
+
+  it 'considers array attributes with the same content but differnet order to be different but compliant' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['array'] = %w(c b a c)
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(true)
+  end
+
+  it 'considers array attributes named before, after, subscribe, notify, or tags to use Set semantics' do
+    pv = preview_hash
+    params = pv['resources'][1]['parameters']
+    %w(before after subscribe notify tags).each do |attr|
+      params[attr] = %w(c b a c a)
+      delta = CatalogDelta.new(baseline_hash, pv, true, false)
+      expect(delta.preview_equal?).to be(true)
+    end
+  end
+
+  it 'considers array attributes not named before, after, subscribe, notify, or tags to use List semantics' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['array'] = %w(c b a)
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(false)
+  end
+
+  it 'considers array attributes with less content to be non compliant' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['array'] = %w(c b)
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(false)
+  end
+end
+end
