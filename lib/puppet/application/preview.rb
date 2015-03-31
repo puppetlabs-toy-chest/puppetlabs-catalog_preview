@@ -130,6 +130,15 @@ class Puppet::Application::Preview < Puppet::Application
     # COMPILE
     #
     Puppet[:catalog_terminus] = :diff_compiler
+
+    # Ensure that the baseline and preview catalogs are not stored via the
+    # catalog indirection (may go to puppet-db)- The preview application
+    # has its own output directory (and purpose).
+    #
+    # TODO: Is there a better way to disable the cache ?
+    #
+    Puppet::Resource::Catalog.indirection.cache_class = false
+
     # Do the compilations and get the catalogs
     unless result = Puppet::Resource::Catalog.indirection.find(options[:node], options)
       # TODO: Should always produce a result and give better error depending on what failed
