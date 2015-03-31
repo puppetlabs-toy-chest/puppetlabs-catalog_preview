@@ -49,6 +49,8 @@ class Puppet::Application::Preview < Puppet::Application
 
   option("--skip_tags")
 
+  option("--ignore_string_numeric_diff")
+
   option("--trusted") do |arg|
     unless Puppet.features.root?
       raise "The --trusted option is only available when running as root"
@@ -290,7 +292,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
-    delta = CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options[:skip_tags], options[:verbose_diff])
+    delta = CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options[:skip_tags], options[:ignore_string_numeric_diff], options[:verbose_diff])
     result = delta.to_hash
 
     # Finish result by supplying information that is not in the catalogs and not produced by the diff utility
@@ -356,6 +358,7 @@ Catalog:
   Versions......: #{delta[:version_equal] ? 'equal' : 'different' }
   Preview.......: #{delta[:preview_equal] ? 'equal' : delta[:preview_compliant] ? 'compliant' : 'different'}
   Tags..........: #{delta[:tags_ignored] ? 'ignored' : 'compared'}
+  String/Numeric: #{delta[:string_numeric_diff_ignored] ? 'numerically compared' : 'different'}
 
 Resources:
   Baseline......: #{delta[:baseline_resource_count]}
