@@ -49,7 +49,7 @@ class Puppet::Application::Preview < Puppet::Application
 
   option("--skip_tags")
 
-  option("--ignore_string_numeric_diff")
+  option("--diff_string_numeric")
 
   option("--trusted") do |arg|
     unless Puppet.features.root?
@@ -124,7 +124,9 @@ class Puppet::Application::Preview < Puppet::Application
         unless options[:preview_environment]
           raise "No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known"
         end
-
+        if options[:diff_string_numeric] && !options[:migrate]
+          raise "--diff_string_numeric can only be used in combination with --migrate"
+        end
         compile
       end
     end
@@ -306,7 +308,12 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
-    delta = CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options[:skip_tags], options[:ignore_string_numeric_diff], options[:verbose_diff])
+    delta = CatalogDelta.new(
+      baseline_hash['data'], 
+      preview_hash['data'], 
+      options[:skip_tags], 
+      options[:migrate] && !options[:diff_string_numeric],
+      options[:verbose_diff])
     result = delta.to_hash
 
     # Finish result by supplying information that is not in the catalogs and not produced by the diff utility

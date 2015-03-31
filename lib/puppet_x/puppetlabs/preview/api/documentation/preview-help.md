@@ -135,7 +135,15 @@ Note that all settings such as 'log_level' affects both compilations.
 
 * --migrate
   Turns on migration validation for the preview compilation. Validation result
-  is produced to the preview log file or optionally to stdout with --view preview_log
+  is produced to the preview log file or optionally to stdout with '--view preview_log'.
+  When --migrate is on, values where one value is a string and the other numeric
+  are considered equal if they represent the same number. This can be turned off
+  with --diff_string_numeric, but turning this off may result in many conflicts
+  being reported that need no action.
+
+* --diff_string_numeric
+  Makes a difference in type between a string and a numeric value (that are equal numerically)
+  be a conflicting diff. Can only be combined with --migrate.
 
 * --assert equal | compliant
   Modifies the exit code to be 4 if catalogs are not equal and 5 if the preview
