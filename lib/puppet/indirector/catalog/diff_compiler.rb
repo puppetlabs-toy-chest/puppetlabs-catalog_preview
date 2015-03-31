@@ -105,8 +105,8 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
     node.trusted_data = Puppet.lookup(:trusted_information) do
       # resurrect trusted param if set, else use a local node
-      trusted_param || Puppet::Context::TrustedInformation.local(node)
-    end.to_h
+      trusted_param || Puppet::Context::TrustedInformation.local(node).to_hash
+    end
 
     if catalog = compile(node, request.options)
       return catalog
