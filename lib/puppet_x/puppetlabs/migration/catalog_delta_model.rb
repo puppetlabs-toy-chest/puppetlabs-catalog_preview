@@ -31,7 +31,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @api private
     def assert_type(expected_type, value, default = nil)
       value = default if value.nil?
-      raise ArgumentError "Expected an instance of #{expected_type.name}. Got #{value.class.name}" unless value.nil? || value.is_a?(expected_type)
+      raise ArgumentError, "Expected an instance of #{expected_type.name}. Got #{value.class.name}" unless value.nil? || value.is_a?(expected_type)
       value
     end
     private :assert_type
@@ -45,7 +45,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @api private
     def assert_boolean(value, default)
       value = default if value.nil?
-      raise ArgumentError "Expected an instance of Boolean. Got #{value.class.name}" unless value == true || value == false
+      raise ArgumentError, "Expected an instance of Boolean. Got #{value.class.name}" unless value == true || value == false
       value
     end
     private :assert_boolean
