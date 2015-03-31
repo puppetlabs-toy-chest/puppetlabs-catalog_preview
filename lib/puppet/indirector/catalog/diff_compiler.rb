@@ -192,11 +192,10 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
             # optional migration checking in preview
             # override environment with specified env for preview
-            checker = options[:migration_checker]
-            overrides = checker ? {
-              :migration_checker => checker,
-              :current_environment => node.environment
-            } : { }
+            overrides = { :current_environment => node.environment }
+            if (checker = options[:migration_checker])
+              overrides[:migration_checker] = checker
+            end
 
             Puppet.override(overrides, "puppet-preview-compile") do
 
