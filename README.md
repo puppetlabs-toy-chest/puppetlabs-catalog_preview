@@ -19,4 +19,4 @@ The help for the catalog-delta is viewable on the command line with:
 
 The content of this model is:
 
-Copyright (c) 2015 Puppet Labs, LLC Licensed under Puppet Labs Commercial.
+Copyright (c) 2015 Puppet Labs, LLC Licensed under Puppet Labs Enterprise.

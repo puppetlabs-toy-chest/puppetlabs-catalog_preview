@@ -8,7 +8,13 @@
   "project_page": "https://github.com/puppetlabs/puppetlabs-preview",
   "issues_url": "https://tickets.puppetlabs.com/browse/PRE",
   "tags": [
-    "migration"
+    "migration",
+    "preview",
+    "refactoring",
+    "compliance",
+    "catalog",
+    "diff",
+    "delta"
   ],
   "operatingsystem_support": [
   
