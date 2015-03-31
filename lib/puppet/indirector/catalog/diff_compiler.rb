@@ -90,7 +90,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
       if trusted_param.is_a?(Hash) && %w{authenticated certname extensions}.all? {|key| trusted_param.has_key?(key) }
         # looks like a hash of trusted data - resurrect it
         # Allow root to trust the authenticated information if option --trusted is given
-        if ! (Puppet.features.root? && options[:trusted])
+        if ! (Puppet.features.root? && request.options[:trusted])
           # Set as not trusted - but keep the information
           trusted_param['authenticated'] = false
         end

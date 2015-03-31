@@ -129,7 +129,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def compile
-    @exit_code = -1 # assume something will go wrong in general
+    @exit_code = 1 # assume something will go wrong in general
     prepare_output
 
     # Compilation start time
@@ -147,53 +147,55 @@ class Puppet::Application::Preview < Puppet::Application
     #
     Puppet::Resource::Catalog.indirection.cache_class = false
 
-    # Do the compilations and get the catalogs
-    unless result = Puppet::Resource::Catalog.indirection.find(options[:node], options)
-      # TODO: Should always produce a result and give better error depending on what failed
+    begin
+
+      # Do the compilations and get the catalogs
+      unless result = Puppet::Resource::Catalog.indirection.find(options[:node], options)
+        # TODO: Should always produce a result and give better error depending on what failed
+        #
+        raise "Could not compile catalogs for #{options[:node]}"
+      end
+
+      # WRITE the two catalogs to output files
+      baseline_as_resource = result[:baseline].to_resource
+      preview_as_resource = result[:preview].to_resource
+
+      Puppet::FileSystem.open(options[:baseline_catalog], 0640, 'wb') do |of|
+        of.write(PSON::pretty_generate(baseline_as_resource, :allow_nan => true, :max_nesting => false))
+      end
+      Puppet::FileSystem.open(options[:preview_catalog], 0640, 'wb') do |of|
+        of.write(PSON::pretty_generate(preview_as_resource, :allow_nan => true, :max_nesting => false))
+      end
+
+      # Make paths real/absolute
+      options[:baseline_catalog] = options[:baseline_catalog].realpath
+      options[:preview_catalog]  = options[:preview_catalog].realpath
+
+      # DIFF
       #
-      raise "Could not compile catalogs for #{options[:node]}"
-    end
+      # Take the two catalogs and produce pure hash (no class information).
+      # Produce a diff hash using the diff utility.
+      #
+      baseline_hash = JSON::parse(baseline_as_resource.to_pson)
+      preview_hash  = JSON::parse(preview_as_resource.to_pson)
 
-    # WRITE the two catalogs to output files
-    baseline_as_resource = result[:baseline].to_resource
-    preview_as_resource = result[:preview].to_resource
+      catalog_delta = catalog_diff(timestamp, baseline_hash, preview_hash)
 
-    Puppet::FileSystem.open(options[:baseline_catalog], 0640, 'wb') do |of|
-      of.write(PSON::pretty_generate(baseline_as_resource, :allow_nan => true, :max_nesting => false))
-    end
-    Puppet::FileSystem.open(options[:preview_catalog], 0640, 'wb') do |of|
-      of.write(PSON::pretty_generate(preview_as_resource, :allow_nan => true, :max_nesting => false))
-    end
+      Puppet::FileSystem.open(options[:catalog_diff], 0640, 'wb') do |of|
+        of.write(PSON::pretty_generate(catalog_delta, :allow_nan => true, :max_nesting => false))
+      end
 
-    # Make paths real/absolute
-    options[:baseline_catalog] = options[:baseline_catalog].realpath
-    options[:preview_catalog]  = options[:preview_catalog].realpath
+      view(catalog_delta)
 
-    # DIFF
-    #
-    # Take the two catalogs and produce pure hash (no class information).
-    # Produce a diff hash using the diff utility.
-    #
-    baseline_hash = JSON::parse(baseline_as_resource.to_pson)
-    preview_hash  = JSON::parse(preview_as_resource.to_pson)
-
-    catalog_delta = catalog_diff(timestamp, baseline_hash, preview_hash)
-
-    Puppet::FileSystem.open(options[:catalog_diff], 0640, 'wb') do |of|
-      of.write(PSON::pretty_generate(catalog_delta, :allow_nan => true, :max_nesting => false))
-    end
-
-    view(catalog_delta)
-
-    # Set exit code for assertion status
-    case options[:assert]
-    when :equal
-      @exit_code = catalog_delta[:preview_equal] ? 0 : 4
-    when :compliant
-      @exit_code = catalog_delta[:preview_compliant] ? 0 : 5
-    else
-      @exit_code = 0
-    end
+      # Set exit code for assertion status
+      case options[:assert]
+      when :equal
+        @exit_code = catalog_delta[:preview_equal] ? 0 : 4
+      when :compliant
+        @exit_code = catalog_delta[:preview_compliant] ? 0 : 5
+      else
+        @exit_code = 0
+      end
 
     rescue PuppetX::Puppetlabs::Preview::GeneralError => e
       @exit_code = 1
@@ -207,23 +209,33 @@ class Puppet::Application::Preview < Puppet::Application
       @exit_code = 3
       @exception = e
 
+    rescue => e
+      @exit_code = 1
+      @exception = e
+
     ensure
       terminate_logs
       Puppet::Util::Log.close_all()
       Puppet::Util::Log.newdestination(:console)
 
       case @exit_code
+      when 1
+        Puppet.log_exception(@exception)
+
       when 2
         display_log(options[:baseline_log], :pretty_json)
         $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
+        Puppet.err(@exception.message)
 
       when 3
         display_log(options[:preview_log], :pretty_json)
         $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
+        Puppet.err(@exception.message)
 
       end
-      Puppet.err(@exception.message) if @exception
+      Puppet::Util::Log.force_flushqueue()
       exit(@exit_code)
+    end
   end
 
   def last
@@ -410,9 +422,12 @@ Output:
 
   def terminate_logs
     # Terminate the JSON logs (the final ] is missing, and it must be provided to produce correct JSON)
+    # Also, if nothing was logged, the opening [ is required, or the file will not be valid JSON
     #
-    Puppet::FileSystem.open(options[:baseline_log], nil, 'ab') { |of| of.write("\n]") }
-    Puppet::FileSystem.open(options[:preview_log],  nil, 'ab') { |of| of.write("\n]") }
+    endtext = Puppet::FileSystem.size(options[:baseline_log]) == 0 ? "[\n]" : "\n]"
+    Puppet::FileSystem.open(options[:baseline_log], nil, 'ab') { |of| of.write(endtext) }
+    endtext = Puppet::FileSystem.size(options[:preview_log]) == 0 ? "[\n]" : "\n]"
+    Puppet::FileSystem.open(options[:preview_log],  nil, 'ab') { |of| of.write(endtext) }
   end
 
   def setup_terminuses
