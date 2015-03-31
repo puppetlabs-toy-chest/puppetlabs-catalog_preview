@@ -3,8 +3,8 @@
 PE only module providing catalog preview and migration features in the form of a puppet subcommand
 `puppet preview`. See [preview-help][1] and [catalog-delta][2] for more details.
 
-[1]: api/documentation/preview-help.md
-[2]: api/documentation/catalog-delta.md
+[1]: lib/puppet_x/puppetlabs/preview/api/documentation/preview-help.md
+[2]: lib/puppet_x/puppetlabs/preview/api/documentation/catalog-delta.md
 
 The help is viewable on the command line with:
 

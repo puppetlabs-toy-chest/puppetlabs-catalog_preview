@@ -90,8 +90,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @param file [String] the file name
     # @param line [Integer] the line in the file
     def initialize(file, line)
-      @file = file
-      @line = line
+      @file = assert_type(String, file)
+      @line = assert_type(Integer, line)
     end
   end
 
@@ -134,6 +134,9 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
   #
   # @api public
   class Attribute < Diff
+
+    SET_ATTRIBUTES = %w(before after subscribe notify tags).freeze
+
     # @!attribute [r] name
     #   @api public
     #   @return [String] the attribute name
@@ -147,7 +150,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @param name [String] the attribute name
     # @param value [Object] the attribute value
     def initialize(name, value)
-      @name = name
+      @name = assert_type(String, name)
+      value = Set.new(assert_type(Array, value, [])) if SET_ATTRIBUTES.include?(name)
       @value = value
     end
   end
@@ -169,8 +173,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @param source [String]
     # @param target [String]
     def initialize(source, target)
-      @source = source
-      @target = target
+      @source = assert_type(String, source)
+      @target = assert_type(String, target)
     end
 
     def ==(other)
@@ -198,10 +202,11 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     #   @return [Object] the attribute value in the preview catalog
     attr_reader :preview_value
 
-    # @!attribute [r] compliant
-    #   @api public
-    #   @return [Boolean] `true` if the preview value is considered compliant with the baseline value
-    attr_reader :compliant
+    # @api public
+    # @return [Boolean] `true` if the preview value is considered compliant with the baseline value
+    def compliant?
+      @compliant
+    end
 
     # @param name [String]
     # @param baseline_value [Object]
@@ -247,8 +252,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @param attributes [Array<Attribute>]
     def initialize(location, type, title, attributes)
       @location = location
-      @type = type
-      @title = title
+      @type = assert_type(String, type)
+      @title = assert_type(String, title)
       @attributes = attributes
     end
 
@@ -363,6 +368,10 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       start = assign_ids_on_each(start, conflicting_attributes)
       start
     end
+
+    def compliant?
+      @missing_attribute_count == 0 && @conflicting_attributes.all? { |ca| ca.compliant? }
+    end
   end
 
   # Represents a delta between two catalogs
@@ -379,25 +388,29 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     #   @return [String] name of preview environment
     attr_reader :preview_env
 
-    # @!attribute [r] tags_ignored
-    #   @api public
-    #   @return [Boolean] `true` if tags are ignored when comparing resources
-    attr_reader :tags_ignored
+    # @api public
+    # @return [Boolean] `true` if tags are ignored when comparing resources
+    def tags_ignored?
+      @tags_ignored
+    end
 
-    # @!attribute [r] preview_compliant
-    #   @api public
-    #   @return [Boolean] `true` if preview is compliant with baseline
-    attr_reader :preview_compliant
+    # @api public
+    # @return [Boolean] `true` if preview is compliant with baseline
+    def preview_compliant?
+      @preview_compliant
+    end
 
-    # @!attribute [r] preview_equal
-    #   @api public
-    #   @return [Boolean] `true` if preview is equal to baseline
-    attr_reader :preview_equal
+    # @api public
+    # @return [Boolean] `true` if preview is equal to baseline
+    def preview_equal?
+      @preview_equal
+    end
 
-    # @!attribute [r] preview_equal
-    #   @api public
-    #   @return [Boolean] `true` if baseline version is equal to preview version
-    attr_reader :version_equal
+    # @api public
+    # @return [Boolean] `true` if baseline version is equal to preview version
+    def version_equal?
+      @version_equal
+    end
 
     # @!attribute [r] baseline_resource_count
     #   @api public
@@ -552,8 +565,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       @missing_edges = baseline_edges.reject { |edge| preview_edges.include?(edge) }
       @missing_edge_count = @missing_edges.size
 
-      @preview_compliant = @missing_resources.empty? && @conflicting_resources.empty? && @missing_edges.empty?
-      @preview_equal = @preview_compliant && @added_resources.empty? && @added_edges.empty?
+      @preview_compliant = @missing_resources.empty? && @missing_edges.empty? && @conflicting_resources.all? { |cr| cr.compliant? }
+      @preview_equal = @preview_compliant && @conflicting_resources.empty? && @added_resources.empty? && @added_edges.empty?
 
       unless verbose
         # Clear attributes in the added and missing resources array
@@ -622,7 +635,14 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       if bav.is_a?(Set) && pav.is_a?(Set)
         bav.subset?(pav)
       elsif bav.is_a?(Array) && pav.is_a?(Array)
-        bav.all? { |e| pav.include?(e) }
+        return false if pav.size < bav.size
+        cp = pav.clone
+        bav.each do |be|
+          ix = cp.index(be)
+          return false if ix.nil?
+          cp.delete_at(ix)
+        end
+        true
       elsif bav.is_a?(Hash) && pav.is_a?(Hash)
         # Double negation here since Hash doesn't have an all? method
         !bav.any? {|k,v| !(pav.include?(k) && compliant?(v, pav[k])) }
@@ -649,7 +669,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @return [Resource]
     # @api private
     def create_resource(resource)
-      Resource.new(create_location(resource), assert_type(String, resource['type']), assert_type(String, resource['title']), create_attributes(resource))
+      Resource.new(create_location(resource), resource['type'], resource['title'], create_attributes(resource))
     end
     private :create_resource
 
@@ -665,7 +685,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @return [Edge]
     # @api private
     def create_edge(hash)
-      Edge.new(assert_type(String, hash['source']), assert_type(String, hash['target']))
+      Edge.new(hash['source'], hash['target'])
     end
     private :create_edge
 
@@ -673,8 +693,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @return [Location]
     # @api private
     def create_location(elem)
-      file = assert_type(String, elem['file'])
-      line = assert_type(Integer, elem['line'])
+      file = elem['file']
+      line = elem['line']
       file.nil? && line.nil? ? nil : Location.new(file, line)
     end
     private :create_location
@@ -684,20 +704,11 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @api private
     def create_attributes(resource)
       attrs = {}
-      attrs['tags'] = create_attribute('tags', assert_type(Array, resource['tags'], []))
-      attrs['@@'] = create_attribute('@@', assert_boolean(resource['exported'], false))
-      assert_type(Hash, resource['parameters'], {}).each_pair { |name, value| attrs[name] = create_attribute(name, value)}
+      attrs['tags'] = Attribute.new('tags', assert_type(Array, resource['tags'], []))
+      attrs['@@'] = Attribute.new('@@', assert_boolean(resource['exported'], false))
+      assert_type(Hash, resource['parameters'], {}).each_pair { |name, value| attrs[name] = Attribute.new(name, value)}
       attrs
     end
     private :create_attributes
-
-    # @param name [String]
-    # @param value [Object]
-    # @api private
-    def create_attribute(name, value)
-      value = Set.new(assert_type(Array, value, [])) if %w(before, after, subscribe, notify, tags).include?(name)
-      Attribute.new(name, value)
-    end
-    private :create_attribute
   end
 end
