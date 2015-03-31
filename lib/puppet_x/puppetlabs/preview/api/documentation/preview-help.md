@@ -128,9 +128,10 @@ Note that all settings such as 'log_level' affects both compilations.
   Uses facts obtained from the configured facts terminus to compile the catalog.
   Note that the puppet setting '-environment' cannot be used to achieve the same effect.
 
-* --view summary | diff | baseline | preview | baseline_log | preview_log | none
+* --view summary | diff | baseline | preview | baseline_log | preview_log | status | none
   Specifies what will be output on stdout; the catalog diff, one of the two
-  catalogs, or one of the two logs. The option 'none' turns off output to stdout.
+  catalogs, or one of the two logs. The option 'status' displays a one line status of compliance.
+  The option 'none' turns off output to stdout.
 
 * --migrate
   Turns on migration validation for the preview compilation. Validation result
