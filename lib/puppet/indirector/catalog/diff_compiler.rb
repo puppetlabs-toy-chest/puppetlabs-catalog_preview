@@ -83,7 +83,6 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
     # For the reasons above, the resurection of trusted node data with authenticated => true is only performed
     # if user is running as root, else it is resurrected as unauthenticated.
     #
-    require 'debugger'; debugger
     trusted_param = node.parameters['trusted']
     if trusted_param
       # Blows up if it is a parameter as it will be set as $trusted by the compiler as if it was a variable
