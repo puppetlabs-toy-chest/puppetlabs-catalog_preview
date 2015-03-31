@@ -18,7 +18,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option("--view OPTION") do |arg|
-    if %w{summary diff baseline preview baseline_log preview_log none}.include?(arg)
+    if %w{summary diff baseline preview baseline_log preview_log none status}.include?(arg)
       options[:view] = arg.to_sym
     else
       raise "The --view option only accepts a restricted list of arguments. Run 'puppet preview --help' for more details"
@@ -245,6 +245,8 @@ class Puppet::Application::Preview < Puppet::Application
       display_file(options[:baseline_catalog])
     when :preview
       display_file(options[:preview_catalog])
+    when :status
+      display_status(catalog_delta)
     when :none
       # One line status if catalogs are equal or not
       display_status(catalog_delta)
@@ -390,7 +392,7 @@ Output:
     preview_compliant = !!(delta[:preview_compliant])
     status = preview_equal ? "equal" : preview_compliant ? "not equal but compliant" : "neither equal nor compliant"
     color = preview_equal || preview_compliant ? :green : :hred
-    $stderr.puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
+    $stdout.puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
   end
 
   def count_of(elements)
