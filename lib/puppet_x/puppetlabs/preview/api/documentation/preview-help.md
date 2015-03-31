@@ -14,7 +14,7 @@ puppet preview [
     [--assert equal|compliant]
     [-d|--debug]
     [-l|--last]
-    [-m|--migrate]
+    [-m|--migrate [--diff_string_numeric]]
     [--preview_outputdir <PATH-TO-OUTPUT-DIR>]
     [--skip_tags]
     [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
