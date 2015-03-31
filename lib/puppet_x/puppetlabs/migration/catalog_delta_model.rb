@@ -240,10 +240,12 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     attr_reader :title
 
     # @!attribute [r] attributes
-    #   The attribute array will be `nil` when the delta was produced in non-verbose mode
+    #   The attributes property is a Hash during delta creation. When the creation is finished
+    #   it will either be set to `nil` if the production was non-verbose or converted to an
+    #   `Array` if the production was verbose.
     #
     #   @api public
-    #   @return [Array<Attribute>,nil] the attributes of this resource
+    #   @return [Array<Attribute>,Hash<String,Attribute>,nil] the attributes of this resource
     attr_reader :attributes
 
     # @param location [Location]
@@ -267,7 +269,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     end
 
     def assign_ids(start)
-      assign_ids_on_each(super(start), attributes)
+      @attributes = @attributes.values if @attributes.is_a?(Hash)
+      assign_ids_on_each(super(start), @attributes)
     end
 
     # Set the _attributes_ instance variable to `nil`. This is done for all resources

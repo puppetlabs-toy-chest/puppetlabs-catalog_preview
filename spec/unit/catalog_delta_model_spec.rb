@@ -78,6 +78,13 @@ describe 'CatalogDelta' do
     expect(delta.version_equal?).to be(false)
   end
 
+  it 'version inequality has no impact on preview equality or compliance' do
+    delta = CatalogDelta.new(baseline_hash, preview_hash, true, false)
+    delta = CatalogDelta.new(baseline_hash, preview_hash.merge!('version' => 1427456348), true, false)
+    expect(delta.preview_equal?).to be(true)
+    expect(delta.preview_compliant?).to be(true)
+  end
+
   it 'reports missing resource' do
     pv = preview_hash
     pv['resources'].pop
@@ -335,6 +342,23 @@ describe 'CatalogDelta' do
     delta = CatalogDelta.new(baseline_hash, pv, true, false)
     expect(delta.preview_equal?).to be(false)
     expect(delta.preview_compliant?).to be(false)
+  end
+
+  it 'does not include resource attributes in delta unless verbose is given' do
+    pv = preview_hash
+    pv['resources'].push(
+      {
+        'type' => 'File',
+        'title' => '/tmp/fumtest',
+        'tags' => ['file', 'class'],
+        'file' => '/etc/puppet/environments/production/manifests/site.pp',
+        'line' => 3,
+      }
+    )
+    delta = CatalogDelta.new(baseline_hash, pv, true, false)
+    expect(delta.added_resources[0].attributes).to be_nil
+    delta = CatalogDelta.new(baseline_hash, pv, true, true)
+    expect(delta.added_resources[0].attributes).to be_a(Array)
   end
 end
 end
