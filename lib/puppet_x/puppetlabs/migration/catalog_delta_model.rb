@@ -398,6 +398,12 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     end
 
     # @api public
+    # @return [Boolean] `true` if string/numeric diffs were ignored when comparing resources
+    def string_numeric_diff_ignored?
+      @string_numeric_diff_ignored
+    end
+
+    # @api public
     # @return [Boolean] `true` if preview is compliant with baseline
     def preview_compliant?
       @preview_compliant
@@ -506,17 +512,20 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     #
     # @param baseline [Hash<Symbol,Object>] the hash representing the baseline catalog
     # @param preview [Hash<Symbol,Object] the hash representing the preview catalog
-    # @param ignore_tags [Boolean] `true` if tags should be ignored when comparing resources
+    # @param tags_ignored [Boolean] `true` if tags should be ignored when comparing resources
+    # @param string_numeric_diff_ignored [Boolean] `true` if strings in the baseline should be considered equal to numbers
+    #    provided that their string forms are equal
     # @param verbose [Boolean] `true` to include attributes of missing and added resources in the delta
     #
     # @api public
-    def initialize(baseline, preview, ignore_tags, verbose)
+    def initialize(baseline, preview, tags_ignored, string_numeric_diff_ignored, verbose)
       baseline = assert_type(Hash, baseline, {})
       preview = assert_type(Hash, preview, {})
 
       @baseline_env = baseline['environment']
       @preview_env = preview['environment']
-      @tags_ignored = ignore_tags
+      @tags_ignored = tags_ignored
+      @string_numeric_diff_ignored = string_numeric_diff_ignored
       @version_equal = baseline['version'] == preview['version']
 
       baseline_resources = create_resources(baseline)
@@ -542,7 +551,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       baseline_resources.each_pair do |key,br|
         pr = preview_resources[key]
         next if pr.nil?
-        conflict = create_resource_conflict(br, pr, ignore_tags)
+        conflict = create_resource_conflict(br, pr)
         if conflict.nil?
           # Resources are equal
           @equal_resource_count += 1
@@ -594,13 +603,13 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @param pr [Resource] Preview resource
     # @return [ResourceConflict]
     # @api private
-    def create_resource_conflict(br, pr, ignore_tags)
+    def create_resource_conflict(br, pr)
       added_attributes = pr.attributes.reject { |key, _| br.attributes.include?(key) }.values
       missing_attributes = br.attributes.reject { |key, _| pr.attributes.include?(key) }.values
       conflicting_attributes = []
       br.attributes.each_pair do |key,ba|
         pa = pr.attributes[key]
-        next if pa.nil? || ignore_tags && key == 'tags'
+        next if pa.nil? || tags_ignored? && key == 'tags'
         conflict = create_attribute_conflict(ba, pa)
         conflicting_attributes << conflict unless conflict.nil?
       end
@@ -620,9 +629,41 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     def create_attribute_conflict(ba, pa)
       bav = ba.value
       pav = pa.value
-      bav == pav ? nil : AttributeConflict.new(ba.name, bav, pav, compliant?(bav, pav))
+      values_equal?(bav, pav) ? nil : AttributeConflict.new(ba.name, bav, pav, compliant?(bav, pav))
     end
     private :create_attribute_conflict
+
+    # Compares the two values for equality taking #string_to_numeric_diff? into account if set
+    #
+    # @param bav [Object] value of baseline attribute
+    # @param pav [Object] value of preview attribute
+    # @return [Boolean] the result of the comparison
+    def values_equal?(bav, pav)
+      bav == pav || string_numeric_diff_ignored? && bav.is_a?(String) && pav.is_a?(Numeric) && to_number_or_nil(bav) == pav
+    end
+    private :values_equal?
+
+    # Coerce value to a number, or return `nil` if it isn't one
+    #
+    # @param value [String] The value to convert
+    # @return [Numeric,nil] the number or `nil`
+    # @api private
+    def to_number_or_nil(value)
+      # case/when copied from Puppet::Parser::Scope::number?
+      case value
+      when /^-?\d+(:?\.\d+|(:?\.\d+)?e\d+)$/
+        value.to_f
+      when /^0x[0-9a-f]+$/i
+        value.to_i(16)
+      when /^0[0-7]+$/
+        value.to_i(8)
+      when /^-?\d+$/
+        value.to_i
+      else
+        nil
+      end
+    end
+    private :to_number_or_nil
 
     # Answers the question, is _bav_ and _pav_ compliant?
     # Sets are compliant if _pav_ is a subset of _bav_
@@ -650,7 +691,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
         # Double negation here since Hash doesn't have an all? method
         !bav.any? {|k,v| !(pav.include?(k) && compliant?(v, pav[k])) }
       else
-        bav == pav
+        values_equal?(bav, pav)
       end
     end
 
