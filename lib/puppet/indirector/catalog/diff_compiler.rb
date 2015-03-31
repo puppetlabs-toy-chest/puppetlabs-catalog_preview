@@ -65,7 +65,49 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
     extract_facts_from_request(request)
 
     node = node_from_request(request)
-    node.trusted_data = Puppet.lookup(:trusted_information) { Puppet::Context::TrustedInformation.local(node) }.to_h
+
+    # Resurrect "trusted information" that comes from node/fact terminus.
+    # The current way this is done in puppet db (currently the only one)
+    # is to store the node parameter 'trusted' as a hash of the trusted information.
+    #
+    # Thus here there are two main cases:
+    # 1. This terminus was used in a real agent call (only meaningful if someone curls the request as it would
+    #  fail since the result is a hash of two catalogs).
+    # 2  It is a command line call with a given node that use a terminus that:
+    # 2.1 does not include a 'trusted' fact - use local from node trusted information
+    # 2.2 has a 'trusted' fact - this in turn could be
+    # 2.2.1 puppet db having stored trusted node data as a fact (not a great design)
+    # 2.2.2 some other terminus having stored a fact called "trusted" (most likely that would have failed earlier, but could
+    #       be spoofed).
+    #
+    # For the reasons above, the resurection of trusted node data with authenticated => true is only performed
+    # if user is running as root, else it is resurrected as unauthenticated.
+    #
+    require 'debugger'; debugger
+    trusted_param = node.parameters['trusted']
+    if trusted_param
+      # Blows up if it is a parameter as it will be set as $trusted by the compiler as if it was a variable
+      node.parameters.delete('trusted')
+      if trusted_param.is_a?(Hash) && %w{authenticated certname extensions}.all? {|key| trusted_param.has_key?(key) }
+        # looks like a hash of trusted data - resurrect it
+        # Allow root to trust the authenticated information if option --trusted is given
+        if ! (Puppet.features.root? && options[:trusted])
+          # Set as not trusted - but keep the information
+          trusted_param['authenticated'] = false
+        end
+      else
+        # trusted is some kind of garbage, do not resurrect
+        trusted_param = nil
+      end
+    else
+      # trusted may be boolean false if set as a fact by someone
+      trusted_param = nil
+    end
+
+    node.trusted_data = Puppet.lookup(:trusted_information) do
+      # resurrect trusted param if set, else use a local node
+      trusted_param || Puppet::Context::TrustedInformation.local(node)
+    end.to_h
 
     if catalog = compile(node, request.options)
       return catalog

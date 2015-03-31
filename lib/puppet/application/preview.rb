@@ -49,6 +49,14 @@ class Puppet::Application::Preview < Puppet::Application
 
   option("--skip_tags")
 
+  option("--trusted") do |arg|
+    unless Puppet.features.root?
+      raise "The --trusted option is only available when running as root"
+    end
+    # Allow root to keep authenticated in resurrected trusted data
+    options[:trusted] = true
+  end
+
   option("--verbose_diff", "-vd")
 
   CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta

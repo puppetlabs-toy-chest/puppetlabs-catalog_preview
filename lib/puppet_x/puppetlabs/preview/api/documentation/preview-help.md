@@ -19,6 +19,7 @@ puppet preview [
     [--skip_tags]
     [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
     [-vd|--verbose_diff]
+    [--trusted]
     [--baseline_environment <ENV-NAME> | --be <ENV-NAME>]
     --preview_environment <ENV-NAME> | --pe <ENV-NAME>
     <NODE-NAME>
@@ -156,6 +157,13 @@ Note that all settings such as 'log_level' affects both compilations.
 * --skip_tags
   Ignores comparison of tags, catalogs are considered equal/compliant if they only
   differ in tags.
+
+* --trusted
+  Makes trusted node data obtained from a fact terminus retain its authentication
+  status of "remote", "local", or false.(the authentication status the write request had).
+  If this option is not in effect, any trusted node information is kept, and the
+  authenticated key is set to false. The --trusted option is only available when running
+  as root, and should only be turned on when also trusting the fact store.
 
 * --verbose_diff
   Includes more information in the catalog diff such as attribute values in
