@@ -231,7 +231,9 @@ The following attributes are treated as sets:
 * `notify`
 * `tags`
 
-That is, the order of elements never matters, and duplicate entries are ignored.
+That is, the order of elements never matters, and duplicate entries are ignored. When
+one of these attributes have a single value, it will be treated as a set containing that
+value.
 
 For other array attributes, the exact content must be present for the parameter to
 be considered equal. For compliance, the preview array must contain the same

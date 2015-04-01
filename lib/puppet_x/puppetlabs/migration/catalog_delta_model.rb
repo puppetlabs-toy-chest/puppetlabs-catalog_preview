@@ -151,7 +151,10 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @param value [Object] the attribute value
     def initialize(name, value)
       @name = assert_type(String, name)
-      value = Set.new(assert_type(Array, value, [])) if SET_ATTRIBUTES.include?(name)
+      if SET_ATTRIBUTES.include?(name)
+        value = [value] unless value.is_a?(Array)
+        value = Set.new(value)
+      end
       @value = value
     end
   end
