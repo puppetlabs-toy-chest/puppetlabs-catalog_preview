@@ -124,7 +124,8 @@ class Puppet::Application::Preview < Puppet::Application
         unless options[:preview_environment]
           raise "No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known"
         end
-        if options[:diff_string_numeric] && !options[:migrate]
+
+        if options[:diff_string_numeric] && !options[:migration_checker]
           raise "--diff_string_numeric can only be used in combination with --migrate"
         end
         compile
@@ -312,7 +313,7 @@ class Puppet::Application::Preview < Puppet::Application
       baseline_hash['data'], 
       preview_hash['data'], 
       options[:skip_tags], 
-      options[:migrate] && !options[:diff_string_numeric],
+      options[:migration_checker] && !options[:diff_string_numeric],
       options[:verbose_diff])
     result = delta.to_hash
 
@@ -379,7 +380,7 @@ Catalog:
   Versions......: #{delta[:version_equal] ? 'equal' : 'different' }
   Preview.......: #{delta[:preview_equal] ? 'equal' : delta[:preview_compliant] ? 'compliant' : 'different'}
   Tags..........: #{delta[:tags_ignored] ? 'ignored' : 'compared'}
-  String/Numeric: #{delta[:string_numeric_diff_ignored] ? 'numerically compared' : 'different'}
+  String/Numeric: #{delta[:string_numeric_diff_ignored] ? 'numerically compared' : 'type significant compare'}
 
 Resources:
   Baseline......: #{delta[:baseline_resource_count]}
