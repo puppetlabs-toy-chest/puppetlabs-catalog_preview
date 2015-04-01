@@ -1,0 +1,59 @@
+{
+    "$schema":"http://json-schema.org/draft-04/schema#",
+    "title":"Log",
+    "description":"Puppet Log Output",
+    "type":"array",
+    "items":{
+        "$ref":"#/definitions/log_entry"
+    },
+    "definitions":{
+        "log_entry":{
+            "type":"object",
+            "properties":{
+                "level":{
+                    "type":"string",
+                    "description":"The log level for the event e.g. err, warning"
+                },
+                "message":{
+                    "type":"string",
+                    "description":"The message text for the event"
+                },
+                "file":{
+                    "type":"string",
+                    "description":"The name of the file associated with the event"
+                },
+                "time":{
+                    "type":"string",
+                    "description":"When the event was logged"
+                },
+                "line":{
+                    "type":"string",
+                    "description":"The line number in the file, where 1 is the first line in the file"
+                },
+                "pos":{
+                    "type":"string",
+                    "description":"The position on the source line, where 1 is the first position"
+                },
+                "issue_code":{
+                    "type":"string",
+                    "description":"The issue code of the event"
+                },
+                "environment":{
+                    "type":"string",
+                    "description":"The name of the environment where the event took place"
+                },
+                "backtrace":{
+                    "type":"array",
+                    "items":{
+                        "type":"string"
+                    }
+                }
+            },
+            "required":[
+                "level",
+                "message"
+            ],
+            "additionalProperties":true
+        }
+    }
+}
