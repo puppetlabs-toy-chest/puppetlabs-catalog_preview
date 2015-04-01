@@ -17,7 +17,6 @@ group :test do
   gem "puppet-lint"
 #  gem "rspec-puppet", :git => 'https://github.com/rodjek/rspec-puppet.git'
   gem "puppet-syntax"
-  gem "puppetlabs_spec_helper"
 end
 
 group :development, :unit_tests do
@@ -25,8 +24,11 @@ group :development, :unit_tests do
   gem 'rspec-core',              :require => false
   gem 'rspec-puppet',            :require => false
   gem 'mocha',                   :require => false
-  gem 'puppetlabs_spec_helper',  :require => false
   gem 'rubocop',                 :require => false
+end
+
+group :development, :unit_tests, :test do
+  gem 'puppetlabs_spec_helper',  :require => false
 end
 
 group :development do
