@@ -40,10 +40,10 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option("--schema CATALOG") do |arg|
-    if %w{catalog catalog_delta help}.include?(arg)
+    if %w{catalog catalog_delta log help}.include?(arg)
       options[:schema] = arg.to_sym
     else
-      raise "The --schema option only accepts 'catalog', 'catalog_delta', or 'help' as arguments.\nRun 'puppet preview --help' for more details"
+      raise "The --schema option only accepts 'catalog', 'catalog_delta', 'log', or 'help' as arguments.\nRun 'puppet preview --help' for more details"
     end
   end
 
@@ -105,6 +105,9 @@ class Puppet::Application::Preview < Puppet::Application
       elsif options[:schema] == :catalog_delta
         delta_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/schemas/catalog-delta.json", __FILE__)
         display_file(delta_path)
+      elsif options[:schema] == :log
+        log_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/schemas/log.json", __FILE__)
+        display_file(log_path)
       else
         help_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/documentation/catalog-delta.md", __FILE__)
         display_file(help_path)

@@ -23,7 +23,7 @@ puppet preview [
     [--baseline_environment <ENV-NAME> | --be <ENV-NAME>]
     --preview_environment <ENV-NAME> | --pe <ENV-NAME>
     <NODE-NAME>
-  ]|[--schema catalog|catalog_delta|help]
+  ]|[--schema catalog|catalog_delta|log|help]
    |[-h|--help]
    |[-V|--version]
 ```
@@ -90,6 +90,9 @@ viewable on stdout using '--schema catalog'
 
 The 'catalog_diff.json' file is written in JSON compliant with a json-schema
 viewable on stdout using '--schema catalog_delta'.
+
+The '<type>_log.json' files are written in JSON compliant with a json-schema
+viewable on stdout using '--schema log'.
 
 OPTIONS
 -------
@@ -158,8 +161,8 @@ Note that all settings such as 'log_level' affects both compilations.
   This specifies for which node the preview should produce output. The node must
   have previously requested a catalog from the master to make its facts available.
 
-* --schema catalog | catalog_delta | help
-  Outputs the json-schema for the puppet catalog, or for the catalog_delta. The option
+* --schema catalog | catalog_delta | log | help
+  Outputs the json-schema for the puppet catalog, catalog_delta, or log. The option
   'help' will display the semantics of the catalog-diff schema. Can not be combined with
   any other option.
 
