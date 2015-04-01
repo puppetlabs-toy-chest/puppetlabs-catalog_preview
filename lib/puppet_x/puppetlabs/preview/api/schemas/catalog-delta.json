@@ -8,7 +8,7 @@
             "type": "string",
             "description": "The name of the node for which the baseline and preview catalogs were compiled"
         },
-        "time": {
+        "timestamp": {
             "type": "string",
             "description": "When preview run began. In ISO 8601 format with 9 characters second-fragment"
         },
@@ -52,6 +52,10 @@
             "type": "integer",
             "description": "number of resources in preview but not in baseline"
         },
+        "equal_resource_count": {
+            "type": "integer",
+            "description": "number of resources in both preview and baseline"
+        },
         "missing_resource_count": {
             "type": "integer",
             "description": "number of resources in baseline but not in preview"
@@ -67,6 +71,10 @@
         "missing_edge_count": {
             "type": "integer",
             "description": "number of edges in baseline but not in preview"
+        },
+        "equal_attribute_count": {
+            "type": "integer",
+            "description": "total number of resource attributes in both preview and baseline"
         },
         "added_attribute_count": {
             "type": "integer",
@@ -120,19 +128,25 @@
         "tags_ignored": {
             "type": "boolean",
             "description": "This delta was produced with tags being ignored"
+        },
+        "string_numeric_diff_ignored": {
+            "type": "boolean",
+            "description": "This delta was produced considering strings and numbers equal if their numeric representation is the same"
         }
     },
     "required": [
         "node_name",
-        "time",
+        "timestamp",
         "produced_by",
         "baseline_env",
         "preview_env",
+        "equal_resource_count",
         "added_resource_count",
         "missing_resource_count",
         "conflicting_resource_count",
         "added_edge_count",
         "missing_edge_count",
+        "equal_attribute_count",
         "added_attribute_count",
         "missing_attribute_count",
         "conflicting_attribute_count",
@@ -151,102 +165,89 @@
             "required": ["file"]
         },
         "attribute": {
-            "allOf": [
-                {
-                    "properties": {
-                        "diff_id": {"type": "integer"},
-                        "name": {"type": "string"},
-                        "value": {"type": "any"}
-                    },
-                    "required": ["name", "value"]
-                }
-            ],
+            "properties": {
+                "diff_id": {"type": "integer"},
+                "name": {"type": "string"},
+                "value": {}
+            },
+            "required": ["name", "value"],
             "additionalProperties": false
         },
         "conflicting_attribute": {
-            "allOf": [
-                {
-                    "properties": {
-                        "diff_id": {"type": "integer"},
-                        "name": {"type": "string"},
-                        "baseline_value": {"type": "any"},
-                        "preview_value": {"type": "any"},
-                        "compliant": {
-                            "type": "boolean",
-                            "description": "Values different, but preview contains baseline"
-                        }
-                    },
-                    "required": ["name", "baseline_value", "preview_value"]
+            "type": "object",
+            "properties": {
+                "diff_id": {"type": "integer"},
+                "name": {"type": "string"},
+                "baseline_value": {},
+                "preview_value": {},
+                "compliant": {
+                    "type": "boolean",
+                    "description": "Values different, but preview contains baseline"
                 }
-            ],
+            },
+            "required": ["name", "baseline_value", "preview_value"],
             "additionalProperties": false
         },
         "resource": {
-            "allOf": [
-                {
-                    "properties": {
-                        "diff_id": {"type": "integer"},
-                        "location": {
-                            "$ref": "#/definitions/location",
-                            "description": "The location as reported in the preview"
-                        },
-                        "type": {"type": "string"},
-                        "title": {"type": "string"},
-                        "attributes": {
-                            "type": "array",
-                            "items": {"$ref": "#/definitions/attribute"}
-                        }
-                    },
-                    "required": ["type", "title"]
+            "type": "object",
+            "properties": {
+                "diff_id": {"type": "integer"},
+                "location": {
+                    "$ref": "#/definitions/location",
+                    "description": "The location as reported in the preview"
+                },
+                "type": {"type": "string"},
+                "title": {"type": "string"},
+                "attributes": {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/attribute"}
                 }
-            ],
+            },
+            "required": ["type", "title"],
             "additionalProperties": false
         },
         "conflicting_resource": {
-            "allOf": [
-                {
-                    "properties": {
-                        "baseline_location": {
-                            "$ref": "#/definitions/location",
-                            "description": "The location as reported in the baseline"
-                        },
-                        "preview_location": {
-                            "$ref": "#/definitions/location",
-                            "description": "The location as reported in the preview"
-                        },
-                        "diff_id": {"type": "integer"},
-                        "type": {"type": "string"},
-                        "title": {"type": "string"},
-                        "equal_attribute_count": {"type": "integer"},
-                        "missing_attribute_count": {"type": "integer"},
-                        "added_attribute_count": {"type": "integer"},
-                        "conflicting_attribute_count": {"type": "integer"},
-                        "missing_attributes": {
-                            "type": "array",
-                            "items": {"$ref": "#/definitions/attribute"}
-                        },
-                        "added_attributes": {
-                            "type": "array",
-                            "items": {"$ref": "#/definitions/attribute"}
-                        },
-                        "conflicting_attributes": {
-                            "type": "array",
-                            "items": {"$ref": "#/definitions/conflicting_attribute"}
-                        },
-                        "compliant": {
-                            "type": "boolean",
-                            "description": "Has attributes that differ, but all are compliant"
-                        }
-                    },
-                    "required": [
-                        "type",
-                        "title",
-                        "equal_attributes_count",
-                        "missing_attributes_count",
-                        "added_attributes_count",
-                        "conflicting_attributes_count"
-                    ]
+            "type": "object",
+            "properties": {
+                "baseline_location": {
+                    "$ref": "#/definitions/location",
+                    "description": "The location as reported in the baseline"
+                },
+                "preview_location": {
+                    "$ref": "#/definitions/location",
+                    "description": "The location as reported in the preview"
+                },
+                "diff_id": {"type": "integer"},
+                "type": {"type": "string"},
+                "title": {"type": "string"},
+                "equal_attribute_count": {"type": "integer"},
+                "missing_attribute_count": {"type": "integer"},
+                "added_attribute_count": {"type": "integer"},
+                "conflicting_attribute_count": {"type": "integer"},
+                "missing_attributes": {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/attribute"}
+                },
+                "added_attributes": {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/attribute"}
+                },
+                "conflicting_attributes": {
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/conflicting_attribute"}
+                },
+                "compliant": {
+                    "type": "boolean",
+                    "description": "Has attributes that differ, but all are compliant"
                 }
+            },
+            "required": [
+                "type",
+                "title",
+                "equal_attribute_count",
+                "missing_attribute_count",
+                "added_attribute_count",
+                "conflicting_attribute_count"
             ],
             "additionalProperties": false
         },

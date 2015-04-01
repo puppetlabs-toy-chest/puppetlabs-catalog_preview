@@ -312,23 +312,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
-    delta = CatalogDelta.new(
-      baseline_hash['data'], 
-      preview_hash['data'], 
-      options[:skip_tags], 
-      options[:migration_checker] && !options[:diff_string_numeric],
-      options[:verbose_diff])
-    result = delta.to_hash
-
-    # Finish result by supplying information that is not in the catalogs and not produced by the diff utility
-    #
-    result[:produced_by]      = 'puppet preview 3.8.0'
-    result[:timestamp]        = timestamp
-    result[:baseline_catalog] = options[:baseline_catalog]
-    result[:preview_catalog]  = options[:preview_catalog]
-    result[:node_name]        = options[:node]
-
-    result
+    CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp).to_hash
   end
 
   def display_file(file)

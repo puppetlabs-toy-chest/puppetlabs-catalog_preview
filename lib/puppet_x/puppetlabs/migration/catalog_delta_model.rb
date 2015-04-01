@@ -506,27 +506,56 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     #   @return [Array<Edge>] edges added in preview
     attr_reader :added_edges
 
+    # @!attribute [r] produced_by
+    #   @api public
+    #   @return [String] name and version of tool that produced this delta"
+    attr_reader :produced_by
+
+    # @!attribute [r] timestamp
+    #   @api public
+    #   @return [String] when preview run began. In ISO 8601 format with 9 characters second-fragment
+    attr_reader :timestamp
+
+    # @!attribute [r] baseline_catalog
+    #   @api public
+    #   @return [String] the file name of the baseline catalog
+    attr_reader :baseline_catalog
+
+    # @!attribute [r] baseline_catalog
+    #   @api public
+    #   @return [String] the file name of the preview catalog
+    attr_reader :preview_catalog
+
+    # @!attribute [r] node_name
+    #   @api public
+    #   @return [String] the name of the node for which the baseline and preview catalogs were compiled
+    attr_reader :node_name
+
     # Creates a new delta between the two catalog hashes _baseline_ and _preview_. The delta will be produced
     # without considering differences in resource tagging if _ignore_tags_ is set to `true`. The _verbose_
     # flag controls whether or not attributes will be included in missing and added resources in the delta.
     #
     # @param baseline [Hash<Symbol,Object>] the hash representing the baseline catalog
     # @param preview [Hash<Symbol,Object] the hash representing the preview catalog
-    # @param tags_ignored [Boolean] `true` if tags should be ignored when comparing resources
-    # @param string_numeric_diff_ignored [Boolean] `true` if strings in the baseline should be considered equal to numbers
-    #    provided that their string forms are equal
-    # @param verbose [Boolean] `true` to include attributes of missing and added resources in the delta
+    # @param options [Hash<Symbol,Object>] preview options
+    # @param timestamp [String] when preview run began. In ISO 8601 format with 9 characters second-fragment
     #
     # @api public
-    def initialize(baseline, preview, tags_ignored, string_numeric_diff_ignored, verbose)
+    def initialize(baseline, preview, options, timestamp)
+      @produced_by      = 'puppet preview 3.8.0'
+      @timestamp        = timestamp
+      @baseline_catalog = options[:baseline_catalog]
+      @preview_catalog  = options[:preview_catalog]
+      @node_name        = options[:node]
+      @tags_ignored     = options[:skip_tags]
+      @string_numeric_diff_ignored = options[:migration_checker] && !options[:diff_string_numeric]
+
       baseline = assert_type(Hash, baseline, {})
       preview = assert_type(Hash, preview, {})
 
-      @baseline_env = baseline['environment']
-      @preview_env = preview['environment']
-      @tags_ignored = tags_ignored
-      @string_numeric_diff_ignored = string_numeric_diff_ignored
-      @version_equal = baseline['version'] == preview['version']
+      @baseline_env     = baseline['environment']
+      @preview_env      = preview['environment']
+      @version_equal    = baseline['version'] == preview['version']
 
       baseline_resources = create_resources(baseline)
       @baseline_resource_count = baseline_resources.size
@@ -580,7 +609,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       @preview_compliant = @missing_resources.empty? && @missing_edges.empty? && @conflicting_resources.all? { |cr| cr.compliant? }
       @preview_equal = @preview_compliant && @conflicting_resources.empty? && @added_resources.empty? && @added_edges.empty?
 
-      unless verbose
+      unless options[:verbose_diff]
         # Clear attributes in the added and missing resources array
         @added_resources.each { |r| r.clear_attributes }
         @missing_resources.each { |r| r.clear_attributes }
@@ -590,7 +619,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     end
 
     def assign_ids(start)
-      start = super
+      start = 1
       start = assign_ids_on_each(start, added_resources)
       start = assign_ids_on_each(start, missing_resources)
       start = assign_ids_on_each(start, conflicting_resources)
