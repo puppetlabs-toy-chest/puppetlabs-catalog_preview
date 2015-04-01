@@ -44,6 +44,18 @@ describe 'CatalogDelta' do
             'hash' => { 'a' => 'A', 'b' => [1,2]},
             'mol' => "42"
           }
+        },
+        {
+          'type' => 'File',
+          'title' => '/tmp/fumtest',
+          'tags' => ['file', 'class'],
+          'file' => '/etc/puppet/environments/production/manifests/site.pp',
+          'line' => 3,
+          'exported' => false,
+          'parameters' => {
+            'before' => 'a',
+            'after' => ['a']
+          }
         }
       ],
       'edges' => [
@@ -118,7 +130,7 @@ describe 'CatalogDelta' do
     expect(delta.missing_resource_count).to eq(1)
     expect(delta.missing_resources).to contain_exactly(be_a(Resource))
     expect(delta.missing_resources[0].type).to eq('File')
-    expect(delta.missing_resources[0].title).to eq('/tmp/bartest')
+    expect(delta.missing_resources[0].title).to eq('/tmp/fumtest')
     JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
   end
 
@@ -127,7 +139,7 @@ describe 'CatalogDelta' do
     pv['resources'].push(
       {
         'type' => 'File',
-        'title' => '/tmp/fumtest',
+        'title' => '/tmp/baztest',
         'tags' => ['file', 'class'],
         'file' => '/etc/puppet/environments/production/manifests/site.pp',
         'line' => 4,
@@ -137,7 +149,7 @@ describe 'CatalogDelta' do
     expect(delta.added_resource_count).to eq(1)
     expect(delta.added_resources).to contain_exactly(be_a(Resource))
     expect(delta.added_resources[0].type).to eq('File')
-    expect(delta.added_resources[0].title).to eq('/tmp/fumtest')
+    expect(delta.added_resources[0].title).to eq('/tmp/baztest')
     JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
   end
 
@@ -260,7 +272,7 @@ describe 'CatalogDelta' do
     pv['resources'].push(
       {
         'type' => 'File',
-        'title' => '/tmp/fumtest',
+        'title' => '/tmp/baztest',
         'tags' => ['file', 'class'],
         'file' => '/etc/puppet/environments/production/manifests/site.pp',
         'line' => 4,
@@ -371,6 +383,17 @@ describe 'CatalogDelta' do
     end
   end
 
+  it 'allows variables that have Set semantics to be strings' do
+    pv = preview_hash
+    pv['resources'][2]['parameters'] =  {
+        'before' => ['a'],
+        'after' => 'a'
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
+    expect(delta.preview_equal?).to be(true)
+    expect(delta.preview_compliant?).to be(true)
+  end
+
   it 'considers array attributes not named before, after, subscribe, notify, or tags to use List semantics' do
     pv = preview_hash
     pv['resources'][1]['parameters']['array'] = %w(c b a)
@@ -394,7 +417,7 @@ describe 'CatalogDelta' do
     pv['resources'].push(
       {
         'type' => 'File',
-        'title' => '/tmp/fumtest',
+        'title' => '/tmp/baztest',
         'tags' => ['file', 'class'],
         'file' => '/etc/puppet/environments/production/manifests/site.pp',
         'line' => 4,
