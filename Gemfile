@@ -25,6 +25,7 @@ group :development, :unit_tests do
   gem 'rspec-puppet',            :require => false
   gem 'mocha',                   :require => false
   gem 'rubocop',                 :require => false
+  gem 'json-schema',             :require => false
 end
 
 group :development, :unit_tests, :test do
