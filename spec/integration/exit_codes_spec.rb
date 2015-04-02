@@ -2,7 +2,7 @@ require 'spec_helper_integration'
 
 describe 'preview subcommand' do
   it 'should be able to run --help' do
-    on default, puppet('preview --help'), {:catch_failures => true} do |r|
+    on master, puppet('preview --help'), {:catch_failures => true} do |r|
       expect(r.stdout).to match(/^puppet-preview\(8\).*SYNOPSIS.*USAGE.*DESCRIPTION.*OPTIONS.*AUTHOR.*COPYRIGHT/m)
       expect(r.stderr).to    be_empty
       expect(r.exit_code).to be_zero
@@ -10,7 +10,7 @@ describe 'preview subcommand' do
   end
 
   it 'should be able to run --schema help' do
-    on default, puppet('preview --schema help'), {:catch_failures => true} do |r|
+    on master, puppet('preview --schema help'), {:catch_failures => true} do |r|
       expect(r.stdout).to match(/^Catalog Delta.*Exit Status.*Missing Resources.*Added Resources.*Conflicting Resources/m)
       expect(r.stderr).to    be_empty
       expect(r.exit_code).to be_zero
@@ -100,27 +100,36 @@ file { '#{testdir_broken_test}/environments/test/manifests/init.pp':
 EOS
 
   apply_manifest(pp, :catch_failures => true)
+  node_name = 'nonesuch'
 
-
-  it 'should be able to compare simple catalogs and exit with 0' do
+  it 'should be able to compare simple catalogs and exit with 0 and produce logfiles' do
     env_path = File.join(testdir_simple, 'environments')
-    on default, puppet("preview --preview_environment test --migrate nonesuch --environmentpath #{env_path}"),
+    on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
                 {:catch_failures => true} do |r|
-      expect(r.stderr).not_to    be_empty
+      expect(r.stderr).to    be_empty
       expect(r.exit_code).to be_zero
+
+      vardir = on(master, puppet('master --configprint vardir')).stdout.strip
+      logfile_extension  = '.json'
+      # create a string to send to on master that tests all the files at once
+      test_files_short   = ['baseline_catalog','baseline_log','catalog_diff','preview_catalog','preview_log']
+      test_files_long    = test_files_short.map { |logfile| File.join(vardir,'preview',node_name,logfile + logfile_extension) }
+      test_strings       = test_files_long.map { |logfile| "test -s #{logfile}" }
+      test_files_command = test_strings.join(' && ')
+      on master, test_files_command
     end
   end
 
   it 'should fail to run and exit 1 if no node given' do
     env_path = File.join(testdir_simple, 'environments')
-    on default, puppet("preview --preview_environment test --environmentpath #{env_path}"), :acceptable_exit_codes => [1] do |r|
+    on master, puppet("preview --preview_environment test --environmentpath #{env_path}"), :acceptable_exit_codes => [1] do |r|
       expect(r.stderr).not_to    be_empty
     end
   end
 
   it 'should exit with 2 when baseline compilation fails' do
     env_path = File.join(testdir_broken_production, 'environments')
-    on default, puppet("preview --preview_environment test --migrate nonesuch --environmentpath #{env_path}"),
+    on master, puppet("preview --preview_environment test --migrate #{node_name} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [2] do |r|
       expect(r.stderr).not_to    be_empty
     end
@@ -128,7 +137,7 @@ EOS
 
   it 'should exit with 3 when preview compilation fails' do
     env_path = File.join(testdir_broken_test, 'environments')
-    on default, puppet("preview --preview_environment test --migrate nonesuch --environmentpath #{env_path}"),
+    on master, puppet("preview --preview_environment test --migrate #{node_name} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [3] do |r|
       expect(r.stderr).not_to    be_empty
     end
@@ -136,17 +145,17 @@ EOS
 
   it 'should exit with 4 when -assert equal is used and catalogs are not equal' do
     env_path = File.join(testdir_simple, 'environments')
-    on default, puppet("preview --preview_environment test --assert equal --migrate nonesuch --environmentpath #{env_path}"),
+    on master, puppet("preview --preview_environment test --assert equal --migrate #{node_name} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [4] do |r|
-      expect(r.stderr).not_to    be_empty
+      expect(r.stderr).to    be_empty
     end
   end
 
   it 'should exit with 5 when -assert compliant is used and preview is not compliant' do
     env_path = File.join(testdir_simple, 'environments')
-    on default, puppet("preview --preview_environment test --assert compliant --migrate nonesuch --environmentpath #{env_path}"),
+    on master, puppet("preview --preview_environment test --assert compliant --migrate nonesuch --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [5] do |r|
-      expect(r.stderr).not_to    be_empty
+      expect(r.stderr).to    be_empty
     end
   end
 end
