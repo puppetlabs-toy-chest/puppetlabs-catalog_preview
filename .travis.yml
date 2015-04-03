@@ -2,7 +2,7 @@ language: ruby
 sudo: false
 bundler_args: --without development
 script:
-  - "bundle exec rake $CHECK"
+  - "bundle exec $CHECK"
 notifications:
   email: false
 rvm:
@@ -11,8 +11,7 @@ rvm:
   - 2.1.0
 
 env:
-  - "CHECK=spec SPEC_OPTS='--color --format documentation'"
-  - "CHECK=rubocop"
+  - "CHECK=rspec spec -c -fd spec/unit"
 
 matrix:
   fast_finish: true
