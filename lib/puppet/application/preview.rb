@@ -428,6 +428,21 @@ Output:
     Puppet::FileSystem.open(options[:preview_log],  nil, 'ab') { |of| of.write(endtext) }
   end
 
+  def configure_indirector_routes
+    # Same implementation as the base Application class, except this loads
+    # routes configured for the "master" application in order to conform with
+    # the behavior of `puppet master --compile`
+    #
+    # TODO: In 4.0, this block can be replaced with:
+    #     Puppet::ApplicationSupport.configure_indirector_routes('master')
+    route_file = Puppet[:route_file]
+    if Puppet::FileSystem.exist?(route_file)
+      routes = YAML.load_file(route_file)
+      application_routes = routes['master'] # <-- This line is the actual change.
+      Puppet::Indirector.configure_routes(application_routes) if application_routes
+    end
+  end
+
   def setup_terminuses
     require 'puppet/file_serving/content'
     require 'puppet/file_serving/metadata'
