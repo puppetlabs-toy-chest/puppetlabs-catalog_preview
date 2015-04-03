@@ -18,7 +18,7 @@ end
 RSpec.configure do |c|
   unless ENV['RS_PROVISION'] == 'no' or ENV['BEAKER_provision'] == 'no'
     puppet_sha   = ENV['PUPPET_VERSION']
-    if puppet_sha
+    if hosts.options[:type] =~ /foss/ && puppet_sha
       install_package(master, 'git')
       tmp_repositories = []
       ['puppet', 'facter#2.x', 'hiera'].each do |uri|
@@ -43,11 +43,14 @@ RSpec.configure do |c|
     else
       hosts.each do |host|
         # Install Puppet
-        install_puppet
+        if host[:type] =~ /foss/
+          install_puppet
+        else
+          install_pe
+        end
       end
     end
   end
-
 
   # Project root
   proj_root = File.expand_path(File.join(File.dirname(__FILE__), '..'))
@@ -58,6 +61,13 @@ RSpec.configure do |c|
   # Configure all nodes in nodeset
   c.before :suite do
     # Install module and dependencies
-    puppet_module_install(:source => proj_root, :module_name => 'preview', :target_module_path => '/etc/puppet/modules/')
+    # if forge_host is included in options, this installs via pmt
+    #   if not, it scp's it to 'default' host :-\
+    #   if running this on foss, make sure to specify type as :foss
+    if ENV['SPEC_FORGE']
+      puppet_module_install(:source => proj_root, :module_name => 'preview', :forge_host => ENV['SPEC_FORGE'])
+    else
+      puppet_module_install(:source => proj_root, :module_name => 'preview')
+    end
   end
 end
