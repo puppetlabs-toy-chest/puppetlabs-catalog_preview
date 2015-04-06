@@ -12,7 +12,7 @@ def build_giturl(project_name, git_fork = nil, git_server = nil)
   repo = (git_server == 'github.com') ?
     "#{git_fork}/#{project_name}.git" :
     "#{git_fork}-#{project_name}.git"
-    " git@#{git_server}:#{repo}"
+    " git://#{git_server}/#{repo}"
 end
 
 RSpec.configure do |c|
