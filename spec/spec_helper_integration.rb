@@ -41,13 +41,10 @@ RSpec.configure do |c|
         on master, puppet('resource group puppet ensure=present')
       end
     else
-      hosts.each do |host|
-        # Install Puppet
-        if host[:type] =~ /foss/
-          install_puppet
-        else
-          install_pe
-        end
+      if default[:type] =~ /foss/
+        install_puppet
+      else
+        install_pe
       end
     end
   end
