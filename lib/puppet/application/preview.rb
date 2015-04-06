@@ -428,6 +428,32 @@ Output:
     Puppet::FileSystem.open(options[:preview_log],  nil, 'ab') { |of| of.write(endtext) }
   end
 
+  def configure_indirector_routes
+    # Same implementation as the base Application class, except this loads
+    # routes configured for the "master" application in order to conform with
+    # the behavior of `puppet master --compile`
+    #
+    # TODO: In 4.0, this block can be replaced with:
+    #     Puppet::ApplicationSupport.configure_indirector_routes('master')
+    route_file = Puppet[:route_file]
+    if Puppet::FileSystem.exist?(route_file)
+      routes = YAML.load_file(route_file)
+      application_routes = routes['master'] # <-- This line is the actual change.
+      Puppet::Indirector.configure_routes(application_routes) if application_routes
+    end
+
+    # NOTE: PE 3.x ships PuppetDB 2.x and uses the v3 PuppetDB API endpoints.
+    # These return stringified, non-structured facts. However, many Future
+    # parser comparisions are type-sensitive. For example, a variable holding a
+    # stringified fact will fail to compare against an integer.
+    #
+    # So, if PuppetDB is in use, we swap in a copy of the 2.x terminus which
+    # uses the v4 API which returns properly structured and typed facts.
+    if Puppet::Node::Facts.indirection.terminus_class.to_s == 'puppetdb'
+      Puppet::Node::Facts.indirection.terminus_class = :diff_puppetdb
+    end
+  end
+
   def setup_terminuses
     require 'puppet/file_serving/content'
     require 'puppet/file_serving/metadata'
