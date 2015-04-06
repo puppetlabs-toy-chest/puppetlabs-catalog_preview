@@ -15,7 +15,6 @@ puppet preview [
     [-d|--debug]
     [-l|--last]
     [-m|--migrate [--diff_string_numeric]]
-    [--preview_outputdir <PATH-TO-OUTPUT-DIR>]
     [--skip_tags]
     [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
     [-vd|--verbose_diff]
@@ -152,10 +151,6 @@ Note that all settings such as 'log_level' affects both compilations.
   Modifies the exit code to be 4 if catalogs are not equal and 5 if the preview
   catalog is not compliant instead of an exit with 0 to indicate that the preview run
   was successful in itself. 
-
-* --preview_outputdir <DIR>
-  Defines the directory to which output is produced.
-  This is a puppet setting that can be overridden on the command line.
 
 * <NODE-NAME>
   This specifies for which node the preview should produce output. The node must
