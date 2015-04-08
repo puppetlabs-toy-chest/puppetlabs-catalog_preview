@@ -44,10 +44,10 @@ the original environment is unchanged and is configured with the 3.x current par
 (i.e. what is in 'production').
 If the intent is to make backwards compatible changes in the preview
 environment (i.e. changes that work for both parsers) it is of value to have yet another
-environment configured for future parser where the same code as in the preview environment
-is checked out. It is then simple to diff between compilations in any two environments
-without having to modify the environment assigned by the ENC. All other assignments
-made by the ENC are unchanged.
+environment configured for current (3.x) parser where the same code as in the preview
+environment is checked out. It is then simple to diff between compilations in any two
+environments without having to modify the environment assigned by the ENC. All other
+assignments made by the ENC are unchanged.
 
 By default the command outputs a summary report of the difference between the two
 catalogs on 'stdout'. This can be changed with '--view' to instead view
@@ -91,7 +91,7 @@ viewable on stdout using '--schema catalog'
 The 'catalog_diff.json' file is written in JSON compliant with a json-schema
 viewable on stdout using '--schema catalog_delta'.
 
-The '<type>_log.json' files are written in JSON compliant with a json-schema
+The two '<type>_log.json' files are written in JSON compliant with a json-schema
 viewable on stdout using '--schema log'.
 
 OPTIONS
@@ -218,6 +218,7 @@ Run a diff (with the default summary view) then view the preview log:
 Node name can be placed anywhere:
 
     puppet preview mynode --preview_env future_production
+    puppet preview --preview_env future_production mynode
 
     
 DIAGNOSTICS
@@ -232,7 +233,7 @@ may either not exist, or be empty.
 If '--assert' is set to 'equal', the command will exit with 4 if the two catalogs
 are not equal.
 
-If --assert is set to 'compliant' it will exit with 5 if the content of the
+If '--assert' is set to 'compliant' it will exit with 5 if the content of the
 baseline catalog is not a subset of the content of the preview catalog.
 
 The different assert values do not alter what is produced - only the exit value is
