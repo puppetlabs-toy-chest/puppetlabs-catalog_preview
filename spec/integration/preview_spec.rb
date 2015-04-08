@@ -1,4 +1,5 @@
 require 'spec_helper_integration'
+require 'json'
 
 describe 'preview subcommand' do
   it 'should be able to run --help' do
@@ -102,7 +103,7 @@ EOS
   apply_manifest(pp, :catch_failures => true)
   node_name = 'nonesuch'
 
-  it 'should be able to compare simple catalogs and exit with 0 and produce logfiles' do
+  it 'should be able to compare simple catalogs and exit with 0 and produce json logfiles' do
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
                 {:catch_failures => true} do |r|
@@ -113,10 +114,19 @@ EOS
       logfile_extension  = '.json'
       # create a string to send to on master that tests all the files at once
       test_files_short   = ['baseline_catalog','baseline_log','catalog_diff','preview_catalog','preview_log']
+      # make the filenames fully qualified and with extensions
       test_files_long    = test_files_short.map { |logfile| File.join(vardir,'preview',node_name,logfile + logfile_extension) }
+      # add the test to each filename
       test_strings       = test_files_long.map { |logfile| "test -s #{logfile}" }
+      # join the array with && to test each file in series
       test_files_command = test_strings.join(' && ')
       on master, test_files_command
+      # validate if json
+      test_files_long.each do |file|
+        on master, "cat #{file}" do
+          JSON.parse(stdout)
+        end
+      end
     end
   end
 
