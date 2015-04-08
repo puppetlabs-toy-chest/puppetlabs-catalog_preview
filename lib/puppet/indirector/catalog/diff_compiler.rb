@@ -145,98 +145,99 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
   # Compile baseline and preview catalogs
   #
   def compile(node, options)
-    str = "Compiled baseline and preview catalogs for #{node.name}"
-    str += " in environments #{node.environment} and #{options[:preview_environment]}" if node.environment
     baseline_catalog = nil
     preview_catalog = nil
 
-    benchmark(:notice, str) do
-      Puppet::Util::Profiler.profile(str, [:diff_compiler, :compile, node.environment, node.name]) do
-        baseline_dest = options[:baseline_log].to_s
-        preview_dest = options[:preview_log].to_s
-        begin
+    baseline_dest = options[:baseline_log].to_s
+    preview_dest = options[:preview_log].to_s
 
-          # Baseline compilation
-          #
-          Puppet::Util::Log.close_all()
-          Puppet::Util::Log.newdestination(baseline_dest)
-          Puppet::Util::Log.with_destination(baseline_dest) do
-            if options[:baseline_environment]
-              # Switch the node's environment (it finds and instantiates the Environment)
-              node.environment = options[:baseline_environment]
-            end
-            Puppet.override({:current_environment => node.environment}, "puppet-preview-baseline-compile") do
+    begin
+      # Baseline compilation
+      #
+      Puppet::Util::Log.close_all()
+      Puppet::Util::Log.newdestination(baseline_dest)
+      Puppet::Util::Log.with_destination(baseline_dest) do
 
-              if Puppet.future_parser?
-                raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration is only possible from an environment that is not using parser=future"
-              end
-              begin
-                baseline_catalog = Puppet::Parser::Compiler.compile(node)
-              rescue StandardError => e
-                # Log it (ends up in baseline_log)
-                Puppet.err(e.to_s)
-                raise PuppetX::Puppetlabs::Preview::BaselineCompileError, "Error while compiling the baseline catalog"
-              end
-            end
-          end
-          Puppet::Util::Log.close(baseline_dest)
-
-          # Preview compilation
-          #
-          Puppet::Util::Log.close_all()
-          Puppet::Util::Log.newdestination(preview_dest)
-          Puppet::Util::Log.with_destination(preview_dest) do
-
-            # Switch the node's environment (it finds and instantiates the Environment)
-            node.environment = options[:preview_environment]
-
-            # optional migration checking in preview
-            # override environment with specified env for preview
-            overrides = { :current_environment => node.environment }
-            if (checker = options[:migration_checker])
-              overrides[:migration_checker] = checker
-            end
-
-            Puppet.override(overrides, "puppet-preview-compile") do
-
-              unless Puppet.future_parser?
-                raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration preview is only possible when the target env is configured with parser=future"
-              end
-
-              begin
-                preview_catalog = Puppet::Parser::Compiler.compile(node)
-              rescue Puppet::Error => e
-                raise PuppetX::Puppetlabs::Preview::PreviewCompileError, "Error while compiling the preview catalog"
-
-              rescue StandardError => e
-                # Log it (ends up in preview_log)
-                Puppet.err(e.to_s)
-                raise PuppetX::Puppetlabs::Preview::PreviewCompileError, "Error while compiling the preview catalog"
-              end
-
-              if checker
-                Puppet::Pops::IssueReporter.assert_and_report(checker.acceptor,
-                  :emit_warnings     => true,
-                  :max_warnings      => Float::INFINITY,
-                  :max_errors        => Float::INFINITY,
-                  :max_deprecations  => Float::INFINITY
-                  )
-              end
-            end
-          end
-          Puppet::Util::Log.newdestination(:console)
-          Puppet::Util::Log.close(preview_dest)
-        rescue Puppet::Error => detail
-          Puppet.err(detail.to_s) if networked?
-          raise
-        ensure
-          Puppet::Util::Log.close(baseline_dest)
-          Puppet::Util::Log.close(preview_dest)
+        if options[:baseline_environment]
+          # Switch the node's environment (it finds and instantiates the Environment)
+          node.environment = options[:baseline_environment]
         end
+
+        Puppet::Util::Profiler.profile(baseline_dest, [:diff_compiler, :compile_baseline, node.environment, node.name]) do
+          Puppet.override({:current_environment => node.environment}, "puppet-preview-baseline-compile") do
+
+            if Puppet.future_parser?
+              raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration is only possible from an environment that is not using parser=future"
+            end
+            begin
+              baseline_catalog = Puppet::Parser::Compiler.compile(node)
+            rescue StandardError => e
+              # Log it (ends up in baseline_log)
+              Puppet.err(e.to_s)
+              raise PuppetX::Puppetlabs::Preview::BaselineCompileError, "Error while compiling the baseline catalog"
+            end
+          end
+        end
+        Puppet::Util::Log.close(baseline_dest)
       end
+
+      # Preview compilation
+      #
+      Puppet::Util::Log.close_all()
+      Puppet::Util::Log.newdestination(preview_dest)
+      Puppet::Util::Log.with_destination(preview_dest) do
+
+        node.environment = options[:preview_environment]
+
+        Puppet::Util::Profiler.profile(preview_dest, [:diff_compiler, :compile_preview, node.environment, node.name]) do
+          # Switch the node's environment (it finds and instantiates the Environment)
+
+          # optional migration checking in preview
+          # override environment with specified env for preview
+          overrides = { :current_environment => node.environment }
+          if (checker = options[:migration_checker])
+            overrides[:migration_checker] = checker
+          end
+
+          Puppet.override(overrides, "puppet-preview-compile") do
+
+            unless Puppet.future_parser?
+              raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration preview is only possible when the target env is configured with parser=future"
+            end
+
+            begin
+              preview_catalog = Puppet::Parser::Compiler.compile(node)
+            rescue Puppet::Error => e
+              raise PuppetX::Puppetlabs::Preview::PreviewCompileError, "Error while compiling the preview catalog"
+
+            rescue StandardError => e
+              # Log it (ends up in preview_log)
+              Puppet.err(e.to_s)
+              raise PuppetX::Puppetlabs::Preview::PreviewCompileError, "Error while compiling the preview catalog"
+            end
+
+            if checker
+              Puppet::Pops::IssueReporter.assert_and_report(checker.acceptor,
+                :emit_warnings     => true,
+                :max_warnings      => Float::INFINITY,
+                :max_errors        => Float::INFINITY,
+                :max_deprecations  => Float::INFINITY
+              )
+            end
+          end
+        end
+        Puppet::Util::Log.newdestination(:console)
+        Puppet::Util::Log.close(preview_dest)
+      end
+    rescue Puppet::Error => detail
+      Puppet.err(detail.to_s) if networked?
+      raise
+    ensure
+      Puppet::Util::Log.close(baseline_dest)
+      Puppet::Util::Log.close(preview_dest)
     end
 
-      {:baseline =>  baseline_catalog, :preview => preview_catalog}
+    {:baseline =>  baseline_catalog, :preview => preview_catalog}
   end
 
   # Turn our host name into a node object.
