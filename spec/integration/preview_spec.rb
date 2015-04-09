@@ -130,6 +130,16 @@ EOS
     end
   end
 
+  it 'should output valid json from --view diff' do
+    env_path = File.join(testdir_simple, 'environments')
+    on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --view diff"),
+                {:catch_failures => true} do |r|
+      expect(r.stderr).to    be_empty
+      expect(r.exit_code).to be_zero
+      JSON.parse(r.stdout)
+    end
+  end
+
   it 'should fail to run and exit 1 if no node given' do
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test --environmentpath #{env_path}"), :acceptable_exit_codes => [1] do |r|
