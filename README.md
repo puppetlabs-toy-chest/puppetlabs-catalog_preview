@@ -13,7 +13,7 @@ Catalog Preview
 
 Overview
 ---
-A PE only module providing catalog preview and migration features.
+A PE-only module providing catalog preview and migration features.
 
 If you need additional guidance beyond this README, please see
 [preview-help](lib/puppet_x/puppetlabs/preview/api/documentation/preview-help.md) and
@@ -30,10 +30,10 @@ The help for the catalog-delta is viewable on the command line with:
 Module Description
 ---
 The Catalog Preview module compiles two catalogs, one in an *baseline environment* and one in a 
-*preview environment*.  It then computes a diff between the two. Preview produces the two catalogs, 
-the diff, and the log output from each compilation for inspection. The primary purpose of the module 
-is to serve as an aid for migration from the current 3.x parser to the 4.x (or "future") parser, but 
-the preview command can also help in various change management and refactoring scenarios.
+*preview environment*.  It computes a diff between the two, then saves the two catalogs, the diff, 
+and the log output from each compilation for inspection. The primary purpose of the module is to 
+serve as an aid for migration from the current 3.x parser to the 4.x (or "future") parser, but the 
+`puppet preview` command can also help in various change management and refactoring scenarios.
 
 The idea is to have the original "baseline" environment unchanged and configured with the 3.x parser
 (what is currently in production) in addition to a "preview" environment. The preview environment
