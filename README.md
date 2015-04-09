@@ -1,4 +1,4 @@
-preview
+Catalog Preview
 ===
 #### Table of Contents
 
@@ -13,7 +13,7 @@ preview
 
 Overview
 ---
-A PE only module providing catalog preview and migration features.
+A PE-only module providing catalog preview and migration features.
 
 If you need additional guidance beyond this README, please see
 [preview-help](lib/puppet_x/puppetlabs/preview/api/documentation/preview-help.md) and
@@ -29,32 +29,37 @@ The help for the catalog-delta is viewable on the command line with:
 
 Module Description
 ---
-The preview module compiles two catalogs, one in an *baseline environment*, and one in a *preview environment*.
-It then computes a diff between the two. Preview produces the two catalogs, the diff, and the log 
-output from each compilation for inspection. The primary purpose of the preview module is to serve
-as an aid for migration from the current 3.x parser to the 4.x (or "future") parser, but
-the preview command can also help in various change management and refactoring scenarios.
+The Catalog Preview module compiles two catalogs, one in an *baseline environment* and one in a 
+*preview environment*.  It computes a diff between the two, then saves the two catalogs, the diff, 
+and the log output from each compilation for inspection. The primary purpose of the module is to 
+serve as an aid for migration from the current 3.x parser to the 4.x (or "future") parser, but the 
+`puppet preview` command can also help in various change management and refactoring scenarios.
 
 The idea is to have the original "baseline" environment unchanged and configured with the 3.x parser
 (what is currently in production) in addition to a "preview" environment. The preview environment
 should be pointed at a branch of the original environment but be configured via `environment.conf`
-to use the future parser. This way, backwards incompatible changes can be made in the preview environment without affecting production. The user can use the diff, catalog, and log outputs
+to use the future parser. This way, backwards incompatible changes can be made in the preview 
+environment without affecting production. The user can use the diff, catalog, and log outputs
 provided by preview to make changes to the preview environment until they feel it is ready to
 move into production, thus aiding with migration to the 4.x parser.
 
-Other scenarios are supported the same way, the baseline and preview environments can be any
-mix of future and current parser, but the `--migrate` option (providing specific migration checking)
-can only be used when the baseline environment is using current parser (3.x), and the preview
-environment is using future parser (4.x).
+Other scenarios are supported the same way. For example, the baseline and preview environments can 
+be any mix of future and current parser, but the `--migrate` option (providing specific migration 
+checking) can only be used when the baseline environment is using current parser (3.x), and the 
+preview environment is using future parser (4.x).
 
 Setup
 ---
-Prior to using preview, you must ensure you are running a version of puppet that is 3.8.0 or greater, but less than 4.0.0 (since the 3.x parser no longer exists in 4.0). As mentioned above, you will need to have two environments: your current production environment (configured with the 3.x) and a preview environment, which is pointed at a branch of your current environment and configured to use the future parser via the `environment.conf`.
+Prior to using the Catalog Preview module, you must ensure you are running a version of puppet that 
+is 3.8.0 or greater, but less than 4.0.0 (since the 3.x parser no longer exists in 4.0). As 
+mentioned above, you will need to have two environments: your current production environment 
+(configured with the 3.x) and a preview environment, which is pointed at a branch of your current 
+environment and configured to use the future parser via the `environment.conf`.
 
-Prior to performing a migration preview, you should have:
+Prior to performing a migration preview, you should:
 
-* Addressed all deprecations in the production environment
-* Ensure that stringified facts is `false` on your agents
+* Address all deprecations in the production environment
+* Ensure that `stringify_facts` is `false` on your agents
 
 Usage
 ---
