@@ -4,7 +4,7 @@ require 'json'
 describe 'preview subcommand' do
   it 'should be able to run --help' do
     on master, puppet('preview --help'), {:catch_failures => true} do |r|
-      expect(r.stdout).to match(/^puppet-preview\(8\).*SYNOPSIS.*USAGE.*DESCRIPTION.*OPTIONS.*AUTHOR.*COPYRIGHT/m)
+      expect(r.stdout).to match(/^puppet-preview\(8\).*SYNOPSIS.*USAGE.*DESCRIPTION.*OPTIONS.*COPYRIGHT/m)
       expect(r.stderr).to    be_empty
       expect(r.exit_code).to be_zero
     end
