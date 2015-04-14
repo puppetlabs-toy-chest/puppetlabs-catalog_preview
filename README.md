@@ -167,6 +167,8 @@ The following options are available for the `puppet preview` command
   are considered equal if they represent the same number. This can be turned off
   with `--diff_string_numeric`, but turning this off may result in many conflicts
   being reported that need no action.
+  For details about the migration specific warnings see
+  [this wiki page](https://github.com/puppetlabs/puppetlabs-catalog_preview/wiki)
 
 * **--diff_string_numeric:**
   Makes a difference in type between a string and a numeric value (that are equal numerically)
