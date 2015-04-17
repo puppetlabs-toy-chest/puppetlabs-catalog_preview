@@ -451,6 +451,9 @@ Output:
     # uses the v4 API which returns properly structured and typed facts.
     if Puppet::Node::Facts.indirection.terminus_class.to_s == 'puppetdb'
       Puppet::Node::Facts.indirection.terminus_class = :diff_puppetdb
+      # Ensure we don't accidentally use any facts that were cached from the
+      # PuppetDB v3 API.
+      Puppet::Node::Facts.indirection.cache_class = false
     end
   end
 
