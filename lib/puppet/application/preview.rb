@@ -231,12 +231,12 @@ class Puppet::Application::Preview < Puppet::Application
         Puppet.log_exception(@exception)
 
       when 2
-        display_log(options[:baseline_log], :pretty_json)
+        display_log(options[:baseline_log])
         $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
         Puppet.err(@exception.message)
 
       when 3
-        display_log(options[:preview_log], :pretty_json)
+        display_log(options[:preview_log])
         $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
         Puppet.err(@exception.message)
 
@@ -258,9 +258,9 @@ class Puppet::Application::Preview < Puppet::Application
     when :diff
         display_file(options[:catalog_diff])
     when :baseline_log
-      display_file(options[:baseline_log])
+      display_file(options[:baseline_log], :pretty_json)
     when :preview_log
-      display_file(options[:preview_log])
+      display_file(options[:preview_log], :pretty_json)
     when :baseline
       display_file(options[:baseline_catalog])
     when :preview
@@ -315,10 +315,20 @@ class Puppet::Application::Preview < Puppet::Application
     CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp).to_hash
   end
 
-  def display_file(file)
+  # Displayes a file, and if the argument pretty_json is truthy the file is loaded and displayed as
+  # pretty json
+  #
+  def display_file(file, pretty_json=false)
+    if pretty_json
+      Puppet::FileSystem.open(file, nil, 'rb') do |input|
+        json = JSON.load(input)
+        $stdout.puts(PSON::pretty_generate(json, :allow_nan => true, :max_nesting => false))
+      end
+    else
     Puppet::FileSystem.open(file, nil, 'rb') do |source|
       FileUtils.copy_stream(source, $stdout)
       puts "" # ensure a new line at the end
+    end
     end
   end
 
@@ -331,7 +341,9 @@ class Puppet::Application::Preview < Puppet::Application
     end
   end
 
-  def display_log(file_name, pretty_json = false)
+  # Displays colorized essential information from the log (severity, message, and location)
+  #
+  def display_log(file_name)
     data = JSON.load(file_name)
     # Output only the bare essentials
     # TODO: PRE-16 (the stacktrace is in the message)
