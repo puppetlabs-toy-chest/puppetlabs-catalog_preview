@@ -61,6 +61,11 @@ class Puppet::Application::Preview < Puppet::Application
 
   option("--verbose_diff", "-vd")
 
+  option("--nodes NODES_FILE") do |arg|
+    # Each line in the given file is a node name or space separated node names
+    options[:nodes] = (arg == '-' ? $stdin.each_line : File.foreach(arg)).map {|line| line.chomp!.split() }.flatten
+  end
+
   CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
 
   def help
@@ -92,11 +97,16 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def run_command
-    options[:node] = command_line.args.shift
+    options[:node] = command_line.args
+    unless options[:nodes].is_a?(Array)
+      options[:nodes] = []
+    end
+    options[:nodes] += command_line.args
+    options[:nodes] = options[:nodes].uniq
 
     if options[:schema]
-      if options[:node]
-        raise "A node was given but no compilation will be done when running with the --schema option"
+      unless options[:nodes].empty?
+        raise "One or more nodes were given but no compilation will be done when running with the --schema option"
       end
 
       if options[:schema] == :catalog
@@ -113,8 +123,8 @@ class Puppet::Application::Preview < Puppet::Application
         display_file(help_path)
       end
     else
-      unless options[:node]
-        raise "No node to perform preview compilation given"
+      if options[:nodes].empty?
+        raise "No node(s) given to perform preview compilation for"
       end
 
       if options[:last]
@@ -132,17 +142,39 @@ class Puppet::Application::Preview < Puppet::Application
           raise "--diff_string_numeric can only be used in combination with --migrate"
         end
         compile
+        # TODO: Reporting on the result of compiling one or multiple nodes should be done here
+        #       A method should be added that does that - called from here.
+
+        assert_and_exit
       end
     end
   end
 
+  # Asserts the aggregate state and exits in accordance with the --assert option and state of all catalog diffs
+  def assert_and_exit
+    # TODO: This is old code - obviously not working because this method does not have access to the
+    #       catalog_delta. It should instead check the new (to be added) node status hash. If there is a node with
+    #       a failed state, the exit should be 1, otherwise 0, 4 or 5 depending on if --assert is used, and
+    #       if all catalogs are at the asserted state or better.
+    #
+    case options[:assert]
+    when :equal
+      # TODO: all nodes must have the state equal, or exit is 4
+      @exit_code = catalog_delta[:preview_equal] ? 0 : 4
+    when :compliant
+      # TODO: all nodes must have the state compliant or equal, or exit is 5
+      @exit_code = catalog_delta[:preview_compliant] ? 0 : 5
+    else
+      # TODO: no node must have failed baseline or preview, or exit is 1
+
+      # Exit 0 otherwise
+      @exit_code = 0
+    end
+
+    exit(@exit_code)
+  end
+
   def compile
-    @exit_code = 1 # assume something will go wrong in general
-    prepare_output
-
-    # Compilation start time
-    timestamp = Time.now.iso8601(9)
-
     # COMPILE
     #
     Puppet[:catalog_terminus] = :diff_compiler
@@ -154,6 +186,74 @@ class Puppet::Application::Preview < Puppet::Application
     # TODO: Is there a better way to disable the cache ?
     #
     Puppet::Resource::Catalog.indirection.cache_class = false
+
+    # TODO: This now loops over the nodes and compiles them. It only stops for a general error unrelated to compilation.
+    #       It should update the node status map as its result. (A map with info about node result that should be added)
+    #
+    options[:nodes].each do |node|
+      options[:node] = node
+      begin
+        # This call produces a catalog_delta, or sets @exit_code to something other than 0
+        #
+        catalog_delta = compile_diff()
+
+        # TODO: The resulting exit code is produced by the compile_diff, and it can be used here
+        #       to output the log to the console if there was a failure (users get to see them scroll by).
+        #       as well as setting the status (basline_failed, or preview_failed) for the node in the node info hash
+        case @exit_code
+        when 0
+          # TODO: This case means we have a catalog_delta
+        when 1
+          Puppet.log_exception(@exception)
+          # TODO: This is the general error case we should break the loop when this happens and exit
+          Puppet::Util::Log.force_flushqueue()
+          exit(@exit_code)
+
+        when 2
+          # TODO: This is the baseline_failed case - associate with node and output to console
+          display_log(options[:baseline_log], :pretty_json)
+          $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
+          Puppet.err(@exception.message)
+
+        when 3
+          # TODO: This is the preview_failed case - associate with node and output to console
+          display_log(options[:preview_log], :pretty_json)
+          $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
+          Puppet.err(@exception.message)
+
+        end
+
+        # TODO: This now Set exit code for assertion status - it should not:
+        #       - This information needs to be associated with the node being
+        #         compiled to allow a summary across nodes to be output at the end
+        #       - The result of the assertion should be for all nodes, and done based on the aggregated
+        #         information (i.e. not done here).
+        case options[:assert]
+        when :equal
+          @exit_code = catalog_delta[:preview_equal] ? 0 : 4
+        when :compliant
+          @exit_code = catalog_delta[:preview_compliant] ? 0 : 5
+        else
+          @exit_code = 0
+        end
+
+        # TODO: This will display information per compiled node. It should not do that until all nodes have been processed
+        #       It should then either do a single node summary (as it does now), a new summary report ( a list of nodes
+        #       and status), or later one of the new --view options. Probably fix this by just removing the call here.
+        #       and instead reading the catalog_delta back from disk when reporting (for the single node case).
+        #
+        view(catalog_delta)
+
+      end
+    end
+  end
+
+  def compile_diff
+    prepare_output
+
+    # Compilation start time
+    timestamp = Time.now.iso8601(9)
+    @exit_code = 0
 
     begin
 
@@ -193,17 +293,7 @@ class Puppet::Application::Preview < Puppet::Application
         of.write(PSON::pretty_generate(catalog_delta, :allow_nan => true, :max_nesting => false))
       end
 
-      view(catalog_delta)
-
-      # Set exit code for assertion status
-      case options[:assert]
-      when :equal
-        @exit_code = catalog_delta[:preview_equal] ? 0 : 4
-      when :compliant
-        @exit_code = catalog_delta[:preview_compliant] ? 0 : 5
-      else
-        @exit_code = 0
-      end
+      catalog_delta
 
     rescue PuppetX::Puppetlabs::Preview::GeneralError => e
       @exit_code = 1
@@ -225,24 +315,6 @@ class Puppet::Application::Preview < Puppet::Application
       terminate_logs
       Puppet::Util::Log.close_all()
       Puppet::Util::Log.newdestination(:console)
-
-      case @exit_code
-      when 1
-        Puppet.log_exception(@exception)
-
-      when 2
-        display_log(options[:baseline_log])
-        $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
-        Puppet.err(@exception.message)
-
-      when 3
-        display_log(options[:preview_log])
-        $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
-        Puppet.err(@exception.message)
-
-      end
-      Puppet::Util::Log.force_flushqueue()
-      exit(@exit_code)
     end
   end
 
