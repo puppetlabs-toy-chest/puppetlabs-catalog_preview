@@ -271,10 +271,6 @@ You can also get help for the catalog-delta with:
 puppet preview --schema help
 ~~~
 
-If you need additional guidance beyond this README, please see
-[preview-help](lib/puppet_x/puppetlabs/preview/api/documentation/preview-help.md) and
-[catalog-diff](lib/puppet_x/puppetlabs/preview/api/documentation/catalog-delta.md) for more details.
-
 ##Limitations
 
 The preview module requires a version of Puppet Enterprise version >= 3.8.0 < 4.0.0.

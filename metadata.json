@@ -1,6 +1,6 @@
 {
   "name": "puppetlabs-catalog_preview",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "puppetlabs",
   "summary": "PE-only module providing catalog preview and migration features",
   "license": "PuppetLabs-Enterprise",
