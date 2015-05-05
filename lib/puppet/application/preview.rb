@@ -258,9 +258,9 @@ class Puppet::Application::Preview < Puppet::Application
     when :diff
         display_file(options[:catalog_diff])
     when :baseline_log
-      display_file(options[:baseline_log], :pretty_json)
+      display_file(options[:baseline_log], true)
     when :preview_log
-      display_file(options[:preview_log], :pretty_json)
+      display_file(options[:preview_log], true)
     when :baseline
       display_file(options[:baseline_catalog])
     when :preview
@@ -315,7 +315,7 @@ class Puppet::Application::Preview < Puppet::Application
     CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp).to_hash
   end
 
-  # Displayes a file, and if the argument pretty_json is truthy the file is loaded and displayed as
+  # Displays a file, and if the argument pretty_json is truthy the file is loaded and displayed as
   # pretty json
   #
   def display_file(file, pretty_json=false)
