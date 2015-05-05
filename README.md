@@ -1,4 +1,4 @@
-Catalog Preview
+[parser_config]: https://docs.puppetlabs.com/puppet/latest/reference/config_file_environment.html#parser
 
 #catalog_preview
 
@@ -29,9 +29,9 @@ The catalog_preview module is a Puppet Enterprise-only module that provides cata
 
 The primary purpose of the module is to serve as an aid for migration from the Puppet 3.x parser to the Puppet 4.x parser. The catalog_preview module compiles two catalogs, one in a *baseline environment*, using the current or 3.x parser, and one in a *preview environment*, using the 4.x or "future" parser. The module computes a diff between the two environments, and then saves the two catalogs, the diff, and the log output from each compilation for inspection. 
 
-You'll point your preview environment at a branch of your current environment, but you'll evaluate it with the future parser. This way, backwards-incompatible changes can be made in the preview environment without affecting production. You can then use the diff, catalog, and log outputs provided by preview to make changes to the preview environment until you feel it is ready to move into production.
+You'll point your preview environment at a branch of the environment you want to migrate, and then [configure][parser_config] the preview environment to use the 4.x ("future") parser. This way, backwards-incompatible changes can be made in the preview environment without affecting production. You can then use the diff, catalog, and log outputs provided by preview to make changes to the preview environment until you feel it is ready to move into production.
 
-Other scenarios are supported in the same way. For example, the module's `puppet preview` command can help in various change management and refactoring scenarios. The baseline and preview environments can be any mix of future and current parser, allowing you compare configurations even if you're not comparing different parsers.
+Other scenarios are supported in the same way. For example, the module's `puppet preview` command can help in various change management and refactoring scenarios. The baseline and preview environments can be any mix of future and current parser, allowing you to compare configurations even if you're not performing a 3.x to 4.x migration.
 
 However, the `--migrate` option---which provides the specific migration checking that is the primary purpose of this module---can only be used when the baseline environment is using current parser (3.x), and the preview environment is using future parser (4.x).
 
@@ -46,9 +46,9 @@ To get started, you'll need:
   * Your current production environment, using the 3.x (current) parser.
   * A preview environment, using the 4.x (future) parser.
 
-As mentioned above, your current production environment should be configured to use the 3.x or current parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or 4.x, parser. Configure which parser each environment uses via the [`parser`](https://docs.puppetlabs.com/puppet/latest/reference/config_file_environment.html#parser) setting in each environment's `environment.conf`.
+As mentioned above, your current production environment should be configured to use the 3.x or current parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or 4.x, parser. Configure which parser each environment uses via the [`parser`][parser_config] setting in each environment's `environment.conf`.
 
-Note that your PE version must be less than version 4.0.0, because the future parser is the only parser available in 4.0.0, so no comparison can be made.
+Note that your PE version must be less than version 4.0.0, because the future parser is the only parser available in 4.0.0, so no migration can be made.
  
 ###Installation
 
@@ -61,7 +61,7 @@ Install the catalog_preview module with `puppet module install puppetlabs-catalo
 Before you perform a migration preview, you should:
 
 * Address all deprecations in the production environment.
-* Ensure that `stringify_facts` is `false` on your agents. (Note that in PE 3.7 and greater, `stringify_facts` defaults to 'true'. You can set [`stringify_facts = false`](https://docs.puppetlabs.com/puppet/3.7/reference/deprecated_settings.html#stringifyfacts--true) in puppet.conf.)
+* Ensure that `stringify_facts` in puppet.conf is `false` on your agents. (In PE 3.8 and greater, `stringify_facts` defaults to 'false'.)
 
 ###Evaluating environments with the `puppet preview` command
 
@@ -96,7 +96,7 @@ environment (i.e., changes that work for both parsers), it's valuable to have a 
 
 ####Viewing reports
 
-By default, the `puppet preview` command outputs a summary report of the difference between the two catalogs on 'stdout'. This can be changed with [`--view`](#view-summary-ARG) to instead view one of the catalogs, the diff, or one of the compilation logs. Use the `--last` option with `--view` to view a result from the previous run obtained for the node instead of performing new compilations and diff. Note that `--last` does not reload the information and can therefore not display a summary.
+By default, the `puppet preview` command outputs a summary report of the difference between the two catalogs on 'stdout'. This can be changed with [`--view`](#--view) to instead view one of the catalogs, the diff, or one of the compilation logs. Use the `--last` option with `--view` to view a result from the previous run obtained for the node instead of performing new compilations and diff. Note that `--last` does not reload the information and can therefore not display a summary.
 
 `puppet preview --last --view baseline_log`
 
@@ -205,7 +205,7 @@ Prints a help message listing the options for the `puppet preview` command.
 
 #####`--last`
 
-Use the last result obtained for the node instead of performing new compilations and diff. Must be used along with the [`--view`](#view-arg) option. (Cannot be combined with `--view none` or `--view summary`).
+Use the last result obtained for the node instead of performing new compilations and diff. Must be used along with the [`--view`](#--view) option. (Cannot be combined with `--view none` or `--view summary`).
 
 #####`--migrate`
 
@@ -240,9 +240,9 @@ Makes trusted node data obtained from a fact terminus retain its authentication 
 
 Prints the Puppet version number.
 
-#####`--view 'ARG'` 
+#####`--view` 
 
-Specifies what will be output on stdout. Accepts the following arguments:
+Specifies what will be output on stdout. Must be used with one of the following arguments:
 
 * `summary`: The summary report
 * `diff`: The catalog diff
