@@ -5,6 +5,14 @@ require 'puppet/util/colors'
 require 'puppet/pops'
 
 class Puppet::Application::Preview < Puppet::Application
+
+  CATALOG_DELTA = 0
+  GENERAL_ERROR = 1
+  BASELINE_FAILED = 2
+  PREVIEW_FAILED = 3
+  NOT_EQUAL = 4
+  NOT_COMPLIANT = 5
+
   run_mode :master
 
   option("--debug", "-d")
@@ -94,6 +102,8 @@ class Puppet::Application::Preview < Puppet::Application
 
     # save ARGV to protect us from it being smashed later by something
     @argv = ARGV.dup
+
+    @data_map = {}
   end
 
   def run_command
@@ -142,33 +152,32 @@ class Puppet::Application::Preview < Puppet::Application
           raise "--diff_string_numeric can only be used in combination with --migrate"
         end
         compile
-        # TODO: Reporting on the result of compiling one or multiple nodes should be done here
-        #       A method should be added that does that - called from here.
+
+        stats = report_results
+
+        if options[:view] == :summary && options[:nodes].length > 1
+          multi_node_summary(stats)
+        end
 
         assert_and_exit
       end
     end
   end
 
-  # Asserts the aggregate state and exits in accordance with the --assert option and state of all catalog diffs
   def assert_and_exit
-    # TODO: This is old code - obviously not working because this method does not have access to the
-    #       catalog_delta. It should instead check the new (to be added) node status hash. If there is a node with
-    #       a failed state, the exit should be 1, otherwise 0, 4 or 5 depending on if --assert is used, and
-    #       if all catalogs are at the asserted state or better.
-    #
+    @exit_code =  @data_map.reduce(0) do |result, entry|
+      exit_code = entry[1][:exit_code]
+      break(BASELINE_FAILED) if exit_code == BASELINE_FAILED
+      exit_code > result ? exit_code : result
+    end
+
+    exit(@exit_code) unless @exit_code == CATALOG_DELTA
+
     case options[:assert]
     when :equal
-      # TODO: all nodes must have the state equal, or exit is 4
-      @exit_code = catalog_delta[:preview_equal] ? 0 : 4
+      @exit_code = NOT_EQUAL if @data_map.any? { |_, status| !status[:preview_equal] }
     when :compliant
-      # TODO: all nodes must have the state compliant or equal, or exit is 5
-      @exit_code = catalog_delta[:preview_compliant] ? 0 : 5
-    else
-      # TODO: no node must have failed baseline or preview, or exit is 1
-
-      # Exit 0 otherwise
-      @exit_code = 0
+      @exit_code = NOT_COMPLIANT if @data_map.any? { |_, status| !(status[:preview_equal] || status[:preview_compliant]) }
     end
 
     exit(@exit_code)
@@ -187,62 +196,36 @@ class Puppet::Application::Preview < Puppet::Application
     #
     Puppet::Resource::Catalog.indirection.cache_class = false
 
-    # TODO: This now loops over the nodes and compiles them. It only stops for a general error unrelated to compilation.
-    #       It should update the node status map as its result. (A map with info about node result that should be added)
-    #
     options[:nodes].each do |node|
+
       options[:node] = node
       begin
         # This call produces a catalog_delta, or sets @exit_code to something other than 0
         #
         catalog_delta = compile_diff()
 
-        # TODO: The resulting exit code is produced by the compile_diff, and it can be used here
-        #       to output the log to the console if there was a failure (users get to see them scroll by).
-        #       as well as setting the status (basline_failed, or preview_failed) for the node in the node info hash
         case @exit_code
-        when 0
-          # TODO: This case means we have a catalog_delta
-        when 1
+        when CATALOG_DELTA
+          @data_map[node] = {:exit_code => @exit_code, :preview_equal => catalog_delta[:preview_equal], :preview_compliant => catalog_delta[:preview_compliant]}
+        when GENERAL_ERROR
           Puppet.log_exception(@exception)
-          # TODO: This is the general error case we should break the loop when this happens and exit
           Puppet::Util::Log.force_flushqueue()
           exit(@exit_code)
-
-        when 2
-          # TODO: This is the baseline_failed case - associate with node and output to console
+        when BASELINE_FAILED
           display_log(options[:baseline_log], :pretty_json)
           $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
           Puppet.err(@exception.message)
-
-        when 3
-          # TODO: This is the preview_failed case - associate with node and output to console
+          @data_map[node] = {:exit_code => @exit_code}
+        when PREVIEW_FAILED
           display_log(options[:preview_log], :pretty_json)
           $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
           Puppet.err(@exception.message)
-
+          @data_map[node] = {:exit_code => @exit_code}
         end
 
-        # TODO: This now Set exit code for assertion status - it should not:
-        #       - This information needs to be associated with the node being
-        #         compiled to allow a summary across nodes to be output at the end
-        #       - The result of the assertion should be for all nodes, and done based on the aggregated
-        #         information (i.e. not done here).
-        case options[:assert]
-        when :equal
-          @exit_code = catalog_delta[:preview_equal] ? 0 : 4
-        when :compliant
-          @exit_code = catalog_delta[:preview_compliant] ? 0 : 5
-        else
-          @exit_code = 0
+        if options[:nodes].length == 1
+          view(catalog_delta)
         end
-
-        # TODO: This will display information per compiled node. It should not do that until all nodes have been processed
-        #       It should then either do a single node summary (as it does now), a new summary report ( a list of nodes
-        #       and status), or later one of the new --view options. Probably fix this by just removing the call here.
-        #       and instead reading the catalog_delta back from disk when reporting (for the single node case).
-        #
-        view(catalog_delta)
 
       end
     end
@@ -591,6 +574,71 @@ Output:
     setup_node_cache
 
     setup_ssl
+  end
+
+  # Sorts the map of nodes accordingly and commutes statistics
+  def report_results
+    @sorted_map = @data_map.sort { |a, b| node_compare(a[0], a[1], b[0], b[1]) }
+
+    stats = @data_map.reduce(Hash.new(0)) do | result, entry |
+      node_data = entry[1]
+      case node_data[:exit_code]
+      when BASELINE_FAILED
+        result[:baseline_failed] += 1
+      when PREVIEW_FAILED
+        result[:preview_failed] += 1
+      when CATALOG_DELTA
+        result[:catalog_diff] += 1
+
+        if node_data[:preview_equal]
+          result[:equal] += 1
+        elsif node_data[:preview_compliant]
+          result[:compliant] += 1
+        end
+      end
+      result
+    end
+  end
+
+  def node_compare(node_a, node_a_data, node_b, node_b_data)
+    strata_a = node_strata(node_a_data)
+    strata_b = node_strata(node_b_data)
+    strata_a == strata_b ? node_a <=> node_b : strata_a <=> strata_b
+  end
+
+  # Given a node determine where it fits in this hierarchy:
+  #   0) baseline failed
+  #   1) preview failed
+  #   2) catalog delta, equal, compliant = false
+  #   3) catalog delta, comliant = true
+  #   4) catalog delta, equal = true
+  def node_strata(node_data)
+    if node_data[:preview_equal]
+      return 4
+    elsif node_data[:preview_compliant]
+      return 3
+    elsif node_data[:exit_code] == CATALOG_DELTA
+      return 2
+    elsif node_data[:exit_code] == PREVIEW_FAILED
+      return 1
+    else
+      return 0
+    end
+  end
+
+  #TODO: This only reports a catalog as equal or compliant if the
+  # user was running with the --assert flag
+  def multi_node_summary(stats)
+    $stdout.puts <<-TEXT
+
+Summary:
+  Total Number of Nodes...: #{@data_map.length}
+  Baseline Failed.........: #{stats[:baseline_failed]}
+  Preview Failed..........: #{stats[:preview_failed]}
+  Catalogs with Difference: #{stats[:catalog_diff]}
+  Compliant Catalogs......: #{stats[:compliant]}
+  Equal Catalogs..........: #{stats[:equal]}
+      TEXT
   end
 
 end
