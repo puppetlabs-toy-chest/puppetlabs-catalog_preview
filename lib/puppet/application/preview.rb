@@ -153,11 +153,7 @@ class Puppet::Application::Preview < Puppet::Application
         end
         compile
 
-        stats = report_results
-
-        if options[:view] == :summary && options[:nodes].length > 1
-          multi_node_summary(stats)
-        end
+        report_results
 
         assert_and_exit
       end
@@ -203,6 +199,8 @@ class Puppet::Application::Preview < Puppet::Application
         # This call produces a catalog_delta, or sets @exit_code to something other than 0
         #
         catalog_delta = compile_diff()
+        #TODO: temporary solution for keeping track of single node delta
+        @latest_catalog_delta = catalog_delta
 
         case @exit_code
         when CATALOG_DELTA
@@ -222,11 +220,6 @@ class Puppet::Application::Preview < Puppet::Application
           Puppet.err(@exception.message)
           @data_map[node] = {:exit_code => @exit_code}
         end
-
-        if options[:nodes].length == 1
-          view(catalog_delta)
-        end
-
       end
     end
   end
@@ -576,7 +569,7 @@ Output:
     setup_ssl
   end
 
-  # Sorts the map of nodes accordingly and commutes statistics
+  # Sorts the map of nodes accordingly and computes statistics
   def report_results
     @sorted_map = @data_map.sort { |a, b| node_compare(a[0], a[1], b[0], b[1]) }
 
@@ -597,6 +590,14 @@ Output:
         end
       end
       result
+    end
+
+    if options[:nodes].length > 1
+      if options[:view] == :summary || options[:view] == nil
+        multi_node_summary(stats)
+      end
+    else
+      view(@latest_catalog_delta)
     end
   end
 
@@ -626,8 +627,6 @@ Output:
     end
   end
 
-  #TODO: This only reports a catalog as equal or compliant if the
-  # user was running with the --assert flag
   def multi_node_summary(stats)
     $stdout.puts <<-TEXT
 
@@ -638,6 +637,7 @@ Summary:
   Catalogs with Difference: #{stats[:catalog_diff]}
   Compliant Catalogs......: #{stats[:compliant]}
   Equal Catalogs..........: #{stats[:equal]}
+
       TEXT
   end
 
