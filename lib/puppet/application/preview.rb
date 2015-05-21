@@ -5,6 +5,14 @@ require 'puppet/util/colors'
 require 'puppet/pops'
 
 class Puppet::Application::Preview < Puppet::Application
+
+  CATALOG_DELTA = 0
+  GENERAL_ERROR = 1
+  BASELINE_FAILED = 2
+  PREVIEW_FAILED = 3
+  NOT_EQUAL = 4
+  NOT_COMPLIANT = 5
+
   run_mode :master
 
   option("--debug", "-d")
@@ -61,6 +69,11 @@ class Puppet::Application::Preview < Puppet::Application
 
   option("--verbose_diff", "-vd")
 
+  option("--nodes NODES_FILE") do |arg|
+    # Each line in the given file is a node name or space separated node names
+    options[:nodes] = (arg == '-' ? $stdin.each_line : File.foreach(arg)).map {|line| line.chomp!.split() }.flatten
+  end
+
   CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
 
   def help
@@ -89,14 +102,21 @@ class Puppet::Application::Preview < Puppet::Application
 
     # save ARGV to protect us from it being smashed later by something
     @argv = ARGV.dup
+
+    @data_map = {}
   end
 
   def run_command
-    options[:node] = command_line.args.shift
+    options[:node] = command_line.args
+    unless options[:nodes].is_a?(Array)
+      options[:nodes] = []
+    end
+    options[:nodes] += command_line.args
+    options[:nodes] = options[:nodes].uniq
 
     if options[:schema]
-      if options[:node]
-        raise "A node was given but no compilation will be done when running with the --schema option"
+      unless options[:nodes].empty?
+        raise "One or more nodes were given but no compilation will be done when running with the --schema option"
       end
 
       if options[:schema] == :catalog
@@ -113,8 +133,8 @@ class Puppet::Application::Preview < Puppet::Application
         display_file(help_path)
       end
     else
-      unless options[:node]
-        raise "No node to perform preview compilation given"
+      if options[:nodes].empty?
+        raise "No node(s) given to perform preview compilation for"
       end
 
       if options[:last]
@@ -132,17 +152,34 @@ class Puppet::Application::Preview < Puppet::Application
           raise "--diff_string_numeric can only be used in combination with --migrate"
         end
         compile
+
+        report_results
+
+        assert_and_exit
       end
     end
   end
 
+  def assert_and_exit
+    @exit_code =  @data_map.reduce(0) do |result, entry|
+      exit_code = entry[1][:exit_code]
+      break(BASELINE_FAILED) if exit_code == BASELINE_FAILED
+      exit_code > result ? exit_code : result
+    end
+
+    exit(@exit_code) unless @exit_code == CATALOG_DELTA
+
+    case options[:assert]
+    when :equal
+      @exit_code = NOT_EQUAL if @data_map.any? { |_, status| !status[:preview_equal] }
+    when :compliant
+      @exit_code = NOT_COMPLIANT if @data_map.any? { |_, status| !(status[:preview_equal] || status[:preview_compliant]) }
+    end
+
+    exit(@exit_code)
+  end
+
   def compile
-    @exit_code = 1 # assume something will go wrong in general
-    prepare_output
-
-    # Compilation start time
-    timestamp = Time.now.iso8601(9)
-
     # COMPILE
     #
     Puppet[:catalog_terminus] = :diff_compiler
@@ -154,6 +191,45 @@ class Puppet::Application::Preview < Puppet::Application
     # TODO: Is there a better way to disable the cache ?
     #
     Puppet::Resource::Catalog.indirection.cache_class = false
+
+    options[:nodes].each do |node|
+
+      options[:node] = node
+      begin
+        # This call produces a catalog_delta, or sets @exit_code to something other than 0
+        #
+        catalog_delta = compile_diff()
+        #TODO: temporary solution for keeping track of single node delta
+        @latest_catalog_delta = catalog_delta
+
+        case @exit_code
+        when CATALOG_DELTA
+          @data_map[node] = {:exit_code => @exit_code, :preview_equal => catalog_delta[:preview_equal], :preview_compliant => catalog_delta[:preview_compliant]}
+        when GENERAL_ERROR
+          Puppet.log_exception(@exception)
+          Puppet::Util::Log.force_flushqueue()
+          exit(@exit_code)
+        when BASELINE_FAILED
+          display_log(options[:baseline_log], :pretty_json)
+          $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
+          Puppet.err(@exception.message)
+          @data_map[node] = {:exit_code => @exit_code}
+        when PREVIEW_FAILED
+          display_log(options[:preview_log], :pretty_json)
+          $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
+          Puppet.err(@exception.message)
+          @data_map[node] = {:exit_code => @exit_code}
+        end
+      end
+    end
+  end
+
+  def compile_diff
+    prepare_output
+
+    # Compilation start time
+    timestamp = Time.now.iso8601(9)
+    @exit_code = 0
 
     begin
 
@@ -193,17 +269,7 @@ class Puppet::Application::Preview < Puppet::Application
         of.write(PSON::pretty_generate(catalog_delta, :allow_nan => true, :max_nesting => false))
       end
 
-      view(catalog_delta)
-
-      # Set exit code for assertion status
-      case options[:assert]
-      when :equal
-        @exit_code = catalog_delta[:preview_equal] ? 0 : 4
-      when :compliant
-        @exit_code = catalog_delta[:preview_compliant] ? 0 : 5
-      else
-        @exit_code = 0
-      end
+      catalog_delta
 
     rescue PuppetX::Puppetlabs::Preview::GeneralError => e
       @exit_code = 1
@@ -225,24 +291,6 @@ class Puppet::Application::Preview < Puppet::Application
       terminate_logs
       Puppet::Util::Log.close_all()
       Puppet::Util::Log.newdestination(:console)
-
-      case @exit_code
-      when 1
-        Puppet.log_exception(@exception)
-
-      when 2
-        display_log(options[:baseline_log])
-        $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
-        Puppet.err(@exception.message)
-
-      when 3
-        display_log(options[:preview_log])
-        $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
-        Puppet.err(@exception.message)
-
-      end
-      Puppet::Util::Log.force_flushqueue()
-      exit(@exit_code)
     end
   end
 
@@ -519,6 +567,78 @@ Output:
     setup_node_cache
 
     setup_ssl
+  end
+
+  # Sorts the map of nodes accordingly and computes statistics
+  def report_results
+    @sorted_map = @data_map.sort { |a, b| node_compare(a[0], a[1], b[0], b[1]) }
+
+    stats = @data_map.reduce(Hash.new(0)) do | result, entry |
+      node_data = entry[1]
+      case node_data[:exit_code]
+      when BASELINE_FAILED
+        result[:baseline_failed] += 1
+      when PREVIEW_FAILED
+        result[:preview_failed] += 1
+      when CATALOG_DELTA
+        result[:catalog_diff] += 1
+
+        if node_data[:preview_equal]
+          result[:equal] += 1
+        elsif node_data[:preview_compliant]
+          result[:compliant] += 1
+        end
+      end
+      result
+    end
+
+    if options[:nodes].length > 1
+      if options[:view] == :summary || options[:view] == nil
+        multi_node_summary(stats)
+      end
+    else
+      view(@latest_catalog_delta)
+    end
+  end
+
+  def node_compare(node_a, node_a_data, node_b, node_b_data)
+    strata_a = node_strata(node_a_data)
+    strata_b = node_strata(node_b_data)
+    strata_a == strata_b ? node_a <=> node_b : strata_a <=> strata_b
+  end
+
+  # Given a node determine where it fits in this hierarchy:
+  #   0) baseline failed
+  #   1) preview failed
+  #   2) catalog delta, equal, compliant = false
+  #   3) catalog delta, comliant = true
+  #   4) catalog delta, equal = true
+  def node_strata(node_data)
+    if node_data[:preview_equal]
+      return 4
+    elsif node_data[:preview_compliant]
+      return 3
+    elsif node_data[:exit_code] == CATALOG_DELTA
+      return 2
+    elsif node_data[:exit_code] == PREVIEW_FAILED
+      return 1
+    else
+      return 0
+    end
+  end
+
+  def multi_node_summary(stats)
+    $stdout.puts <<-TEXT
+
+Summary:
+  Total Number of Nodes...: #{@data_map.length}
+  Baseline Failed.........: #{stats[:baseline_failed]}
+  Preview Failed..........: #{stats[:preview_failed]}
+  Catalogs with Difference: #{stats[:catalog_diff]}
+  Compliant Catalogs......: #{stats[:compliant]}
+  Equal Catalogs..........: #{stats[:equal]}
+
+      TEXT
   end
 
 end

@@ -22,7 +22,7 @@ puppet preview [
     [--trusted]
     [--baseline_environment <ENV-NAME> | --be <ENV-NAME>]
     --preview_environment <ENV-NAME> | --pe <ENV-NAME>
-    <NODE-NAME>
+    <NODE-NAME>+ | --nodes <FILE> <NODE_NAME>*
   ]|[--schema catalog|catalog_delta|log|help]
    |[-h|--help]
    |[-V|--version]
@@ -150,6 +150,8 @@ Note that all settings (such as 'log_level') affect both compilations.
 * <NODE-NAME>
   This specifies for which node the preview should produce output. The node must
   have previously requested a catalog from the master to make its facts available.
+  At least one node name must be specifie, either given on the command line or
+  via the '--nodes' option.
 
 * --schema catalog | catalog_delta | log | help
   Outputs the json-schema for the puppet catalog, catalog_delta, or log. The option
@@ -175,6 +177,13 @@ Note that all settings (such as 'log_level') affect both compilations.
 * --last
   Use the last result obtained for the node instead of performing new compilations
   and diff. (Cannot be combined with --view none or --view summary).
+  
+* --nodes <FILE>
+  Specifies a file to read node-names from. If the file name is '-' file names are read
+  from standard in. Each white-space separated sequence of characters is taken as a node name.
+  This may be combined with additional nodes given on the command line. Duplicate entries (in given  
+  file, or on command line) are skipped.
+  
 
 EXAMPLE
 -------
