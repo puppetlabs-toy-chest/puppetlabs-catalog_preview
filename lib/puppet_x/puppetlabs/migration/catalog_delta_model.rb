@@ -1,82 +1,10 @@
+require_relative 'model_object'
+
 module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
-  # The super class of all elements in the CatalogDelta model
-  #
-  # @abstract
-  # @api public
-  class ModelObject
-    # Creates a hash from the instance variables of this object. The keys will be symbols
-    # corresponding to the attribute names (without leading '@'). The process of creating
-    # a hash is recursive in the sens that all ModelObject instances found by traversing
-    # the values of the instance variables will be converted too.
-    #
-    # @return [Hash<Symbol,Object>] a Symbol keyed hash with all attributes in this object
-    #
-    # @api public
-    def to_hash
-      hash = {}
-      instance_variables.each do |iv|
-        val = hashify(instance_variable_get(iv))
-        hash[:"#{iv.to_s[1..-1]}"] = val unless val.nil?
-      end
-      hash
-    end
-
-    # Asserts that _value_ is of class _expected_type_ and raises an ArgumentError when that's not the case
-    #
-    # @param expected_type [Class]
-    # @param value [Object]
-    # @param default [Object]
-    # @return [Object] the _value_ argument or _default_ argument when _value_ is nil
-    #
-    # @api private
-    def assert_type(expected_type, value, default = nil)
-      value = default if value.nil?
-      raise ArgumentError, "Expected an instance of #{expected_type.name}. Got #{value.class.name}" unless value.nil? || value.is_a?(expected_type)
-      value
-    end
-    private :assert_type
-
-    # Asserts that _value_ is a boolean and raises an ArgumentError when that's not the case
-    #
-    # @param value [Object]
-    # @param default [Boolean]
-    # @return [Boolean] the _value_ argument or _default_ argument when _value_ is nil
-    #
-    # @api private
-    def assert_boolean(value, default)
-      value = default if value.nil?
-      raise ArgumentError, "Expected an instance of Boolean. Got #{value.class.name}" unless value == true || value == false
-      value
-    end
-    private :assert_boolean
-
-    # Converts ModelObject to Hash and traverses Array and Hash objects to
-    # call this method recursively on each element. Object that are not
-    # ModelObject, Array, or Hash are returned verbatim
-    #
-    # @param val [Object] The value to hashify
-    # @return [Object] the val argument, possibly converted
-    #
-    # @api private
-    def hashify(val)
-      case val
-      when ModelObject
-        val.to_hash
-      when Hash
-        Hash.new(val.each_pair {|k, v| [k, hashify(v)]})
-      when Array
-        val.map {|v| hashify(v) }
-      else
-        val
-      end
-    end
-    private :hashify
-  end
-
   # Denotes a line in a file
   #
   # @api public
-  class Location < ModelObject
+  class Location < PuppetX::Puppetlabs::Migration::ModelObject
     # @!attribute [r] file
     #   @api public
     #   @return [String] the file name
@@ -99,7 +27,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
   #
   # @abstract
   # @api public
-  class Diff < ModelObject
+  class Diff < PuppetX::Puppetlabs::Migration::ModelObject
     # @!attribute [r] diff_id
     #   @api public
     #   @return [Integer] the id of this element
@@ -119,7 +47,8 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
 
     # Calls #assign_ids(id) all elements in the array while keeping track of the assigned id
     #
-    # @param id [Integer] The id to set
+    # @param start [Integer] The first id to assign
+    # @param array [Array<Diff>] The elements that will receive a new id
     # @return [Integer] The incremented id
     #
     # @api private
@@ -283,6 +212,21 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     def clear_attributes
       @attributes = nil
     end
+
+    def initialize_from_hash(hash)
+      hash.each_pair do |k, v|
+        k = :"@#{k}"
+        instance_variable_set(k,
+          case k
+          when :@location
+            v = Location.from_hash(v)
+          when :@attributes
+            v.map { |rh| Attribute.from_hash(rh) }
+          else
+            v
+          end)
+      end
+    end
   end
 
   # Represents a resource conflict between a resource in the baseline and a resource with the
@@ -371,12 +315,28 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       start = super
       start = assign_ids_on_each(start, added_attributes)
       start = assign_ids_on_each(start, missing_attributes)
-      start = assign_ids_on_each(start, conflicting_attributes)
-      start
+      assign_ids_on_each(start, conflicting_attributes)
     end
 
     def compliant?
       @missing_attribute_count == 0 && @conflicting_attributes.all? { |ca| ca.compliant? }
+    end
+
+    def initialize_from_hash(hash)
+      hash.each_pair do |k, v|
+        k = :"@#{k}"
+        instance_variable_set(k,
+          case k
+          when :@baseline_location, :@preview_location
+            v = Location.from_hash(v)
+          when :@added_attributes, :@missing_attributes
+            v.map { |rh| Attribute.from_hash(rh) }
+          when :@conflicting_attributes
+            v.map { |rh| AttributeConflict.from_hash(rh) }
+           else
+            v
+          end)
+      end
     end
   end
 
@@ -621,14 +581,30 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       assign_ids(1)
     end
 
+    def initialize_from_hash(hash)
+      hash.each_pair do |k, v|
+        k = :"@#{k}"
+        instance_variable_set(k,
+          case k
+          when :@added_resources, :@missing_resources
+            v.map { |rh| Resource.from_hash(rh) }
+          when :@conflicting_resources
+            v.map { |rh| ResourceConflict.from_hash(rh) }
+          when :@added_edges, :@missing_edges
+            v.map { |rh| Edge.from_hash(rh) }
+          else
+            v
+          end)
+      end
+    end
+
     def assign_ids(start)
       start = 1
       start = assign_ids_on_each(start, added_resources)
       start = assign_ids_on_each(start, missing_resources)
       start = assign_ids_on_each(start, conflicting_resources)
       start = assign_ids_on_each(start, added_edges)
-      start = assign_ids_on_each(start, missing_edges)
-      start
+      assign_ids_on_each(start, missing_edges)
     end
 
     # @param br [Resource] Baseline resource
@@ -741,7 +717,6 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     private :create_resources
 
     # @param resource [Hash] a Resource hash
-    # @param verbose [Boolean]
     # @return [Resource]
     # @api private
     def create_resource(resource)
