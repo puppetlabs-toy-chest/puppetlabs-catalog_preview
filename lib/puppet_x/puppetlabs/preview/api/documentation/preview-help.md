@@ -14,7 +14,7 @@ puppet preview [
     [--assert equal|compliant]
     [-d|--debug]
     [-l|--last]
-    [-m|--migrate [--diff_string_numeric]]
+    [-m <MIGRATION>|--migrate <MIGRATION> [--diff_string_numeric]]
     [--preview_outputdir <PATH-TO-OUTPUT-DIR>]
     [--skip_tags]
     [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
@@ -62,6 +62,11 @@ of future compatibility flagging puppet code that needs to be reviewed. This
 feature was introduced to help with the migration from puppet 3.x to puppet 4.x.
 and requires that the '--preview_env' references an environment configured
 to use the future parser in its environment.conf.
+
+The wanted kind of migration checks to perform must be given with the '--migrate' option.
+This version of preview support the migration kind '3.8/4.0'. The version of Puppet used
+with this version of --preview must also support this migration kind (which Puppet does between the versions >= 3.8.0 and < 4.0.0 does, but not Puppet 4.0.0 and later). Newer versions of Puppet
+may contain additional new migration strategies.
 
 All output (except the summary report intended for human use) is written in
 JSON format to allow further processing with tools like 'jq' (JSON query).
@@ -126,17 +131,19 @@ Note that all settings (such as 'log_level') affect both compilations.
   catalogs, or one of the two logs. The option 'status' displays a one line status of compliance.
   The option 'none' turns off output to stdout.
 
-* --migrate
+* --migrate <MIGRATION>
   Turns on migration validation for the preview compilation. Validation result
   is produced to the preview log file or optionally to stdout with '--view preview_log'.
   When --migrate is on, values where one value is a string and the other numeric
   are considered equal if they represent the same number. This can be turned off
   with --diff_string_numeric, but turning this off may result in many conflicts
-  being reported that need no action.
+  being reported that need no action. The <MIGRATION> value is required. Currently only
+  '3.8/4.0' which requires a Puppet version between >= 3.8.0 and < 4.0.0. The preview module
+  may be used with versions later than 4.0.0, but can then not accept the '3.8/4.0' migration.
 
 * --diff_string_numeric
   Makes a difference in type between a string and a numeric value (that are equal numerically)
-  be a conflicting diff. Can only be combined with --migrate.
+  be a conflicting diff. Can only be combined with '--migrate 3.8/4.0'.
 
 * --assert equal | compliant
   Modifies the exit code to be 4 if catalogs are not equal and 5 if the preview
@@ -189,7 +196,7 @@ EXAMPLE
 -------
 To perform a full migration preview that exists with failure if catalogs are not equal:
 
-    puppet preview --preview_env future_production --migrate --assert=equal mynode
+    puppet preview --preview_env future_production --migrate 3.8/4.0 --assert=equal mynode
     
 To perform a preview that exits with failure if preview catalog is not compliant:
 

@@ -13,6 +13,9 @@ class Puppet::Application::Preview < Puppet::Application
   NOT_EQUAL = 4
   NOT_COMPLIANT = 5
 
+  MIGRATION_3to4 = '3.8/4.0'.freeze
+  RUN_HELP = "Run 'puppet preview --help for more details".freeze
+
   run_mode :master
 
   option("--debug", "-d")
@@ -29,21 +32,30 @@ class Puppet::Application::Preview < Puppet::Application
     if %w{summary diff baseline preview baseline_log preview_log none status}.include?(arg)
       options[:view] = arg.to_sym
     else
-      raise "The --view option only accepts a restricted list of arguments. Run 'puppet preview --help' for more details"
+      raise "The --view option only accepts a restricted list of arguments.\n#{RUNHELP}"
     end
   end
 
   option("--last", "-l")
 
-  option("--migrate", "-m") do |arg|
+  option("--migrate MIGRATION", "-m MIGRATION") do |arg|
+    if MIGRATION_3to4 == arg
+      options[:migrate] = arg
+    else
+      raise "The '#{arg}' is not a migration kind supported by this version of catalog preview. #{RUNHELP}"
+    end
     options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+    # Puppet 3.8.0's MigrationChecker does not have the method 'available_migrations' (but it still supports the 3to4 migration)
+    unless Puppet::PUPPETVERSION == '3.8.0' || options[:migration_checker].available_migrations()[MIGRATION_3to4]
+      raise "The (#{Puppet::PUPPETVERSION}) version of Puppet does not support the '#{arg}' migration kind.\n#{RUNHELP}"
+    end
   end
 
   option("--assert OPTION") do |arg|
     if %w{equal compliant}.include?(arg)
       options[:assert] = arg.to_sym
     else
-      raise "The --assert option only accepts 'equal' or 'compliant' as arguments.\nRun 'puppet preview --help' for more details"
+      raise "The --assert option only accepts 'equal' or 'compliant' as arguments.\n#{RUNHELP}"
     end
   end
 
@@ -51,7 +63,7 @@ class Puppet::Application::Preview < Puppet::Application
     if %w{catalog catalog_delta log help}.include?(arg)
       options[:schema] = arg.to_sym
     else
-      raise "The --schema option only accepts 'catalog', 'catalog_delta', 'log', or 'help' as arguments.\nRun 'puppet preview --help' for more details"
+      raise "The --schema option only accepts 'catalog', 'catalog_delta', 'log', or 'help' as arguments.\n#{RUNHELP}"
     end
   end
 
@@ -147,8 +159,8 @@ class Puppet::Application::Preview < Puppet::Application
           raise "No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known"
         end
 
-        if options[:diff_string_numeric] && !options[:migration_checker]
-          raise "--diff_string_numeric can only be used in combination with --migrate"
+        if options[:diff_string_numeric] && !options[:migration_checker] && !option[:migrate] == MIGRATION_3to4
+          raise "--diff_string_numeric can only be used in combination with --migrate 3.8/4.0"
         end
         compile
 
