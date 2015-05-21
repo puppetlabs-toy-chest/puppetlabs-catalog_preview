@@ -161,6 +161,9 @@ describe 'CatalogDelta' do
         'tags' => ['file', 'class'],
         'file' => '/etc/puppet/environments/production/manifests/site.pp',
         'line' => 1,
+        'exported' => false,
+        'parameters' => {
+        }
       }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
     expect(delta.conflicting_resource_count).to eq(1)
@@ -469,6 +472,57 @@ describe 'CatalogDelta' do
     expect(delta.preview_equal?).to be(false)
     expect(delta.preview_compliant?).to be(false)
     expect(delta.string_numeric_diff_ignored?).to be(false)
+  end
+
+
+  it 'can be created from a hash' do
+    pv = preview_hash
+    pv['resources'][1] = {
+      'type' => 'File',
+      'title' => '/tmp/bartest',
+      'tags' => ['file', 'class'],
+      'file' => '/etc/puppet/environments/production/manifests/site.pp',
+      'line' => 2,
+      'exported' => false,
+      'parameters' => {
+        'ensure' => 'purged',
+        'added' => 'Just arrived'
+      }
+    }
+    pv['resources'].pop
+    pv['resources'].push(
+      {
+        'type' => 'File',
+        'title' => '/tmp/baztest',
+        'tags' => ['file', 'class'],
+        'file' => '/etc/puppet/environments/production/manifests/site.pp',
+        'line' => 4,
+      }
+    )
+    pv['edges'].pop
+    pv['edges'].push(
+      {
+        'source' => 'Class[main]',
+        'target' => 'File[/tmp/bartest]'
+      }
+    )
+
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
+    first_hash = delta.to_hash
+
+    delta_from_hash = CatalogDelta.from_hash(first_hash)
+    expect(delta_from_hash.added_resources).to contain_exactly(be_a(Resource))
+    expect(delta_from_hash.missing_resources).to contain_exactly(be_a(Resource))
+    expect(delta_from_hash.conflicting_resources).to contain_exactly(be_a(ResourceConflict))
+    rc = delta_from_hash.conflicting_resources[0]
+    expect(rc.added_attributes).to contain_exactly(be_a(Attribute))
+    expect(rc.missing_attributes).to include(be_a(Attribute))
+    expect(rc.conflicting_attributes).to contain_exactly(be_a(AttributeConflict))
+    expect(delta_from_hash.added_edges).to contain_exactly(be_a(Edge))
+    expect(delta_from_hash.missing_edges).to contain_exactly(be_a(Edge))
+
+    second_hash = delta_from_hash.to_hash
+    expect(first_hash).to eq(second_hash)
   end
 end
 end
