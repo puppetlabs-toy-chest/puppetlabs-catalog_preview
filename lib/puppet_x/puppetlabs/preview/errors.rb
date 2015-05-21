@@ -11,4 +11,7 @@ module PuppetX::Puppetlabs::Preview
 
   class PreviewCompileError < PreviewError
   end
+
+  class QueryError < PreviewError
+  end
 end

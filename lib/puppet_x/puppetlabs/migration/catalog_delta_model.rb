@@ -1,10 +1,20 @@
 require_relative 'model_object'
 
 module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
+  class DeltaEntity
+    include PuppetX::Puppetlabs::Migration::ModelObject
+
+    def self.from_hash(hash)
+      instance = allocate
+      instance.initialize_from_hash(hash)
+      instance
+    end
+  end
+
   # Denotes a line in a file
   #
   # @api public
-  class Location < PuppetX::Puppetlabs::Migration::ModelObject
+  class Location < DeltaEntity
     # @!attribute [r] file
     #   @api public
     #   @return [String] the file name
@@ -27,7 +37,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
   #
   # @abstract
   # @api public
-  class Diff < PuppetX::Puppetlabs::Migration::ModelObject
+  class Diff < DeltaEntity
     # @!attribute [r] diff_id
     #   @api public
     #   @return [Integer] the id of this element
@@ -144,7 +154,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @param baseline_value [Object]
     # @param preview_value [Object]
     # @param compliant [Boolean]
-   def initialize(name, baseline_value, preview_value, compliant)
+    def initialize(name, baseline_value, preview_value, compliant)
       @name = name
       @baseline_value = baseline_value
       @preview_value = preview_value
@@ -219,7 +229,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
         instance_variable_set(k,
           case k
           when :@location
-            v = Location.from_hash(v)
+            Location.from_hash(v)
           when :@attributes
             v.map { |rh| Attribute.from_hash(rh) }
           else
@@ -328,12 +338,12 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
         instance_variable_set(k,
           case k
           when :@baseline_location, :@preview_location
-            v = Location.from_hash(v)
+            Location.from_hash(v)
           when :@added_attributes, :@missing_attributes
             v.map { |rh| Attribute.from_hash(rh) }
           when :@conflicting_attributes
             v.map { |rh| AttributeConflict.from_hash(rh) }
-           else
+          else
             v
           end)
       end
@@ -763,3 +773,4 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     private :create_attributes
   end
 end
+
