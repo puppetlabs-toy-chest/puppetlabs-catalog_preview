@@ -1,15 +1,11 @@
 module PuppetX::Puppetlabs::Migration
+  TRANSIENT_PREFIX = '@_'.freeze
+
   # The super class of all elements in the Overview and CatalogDelta models
   #
   # @abstract
   # @api public
-  class ModelObject
-    def self.from_hash(hash)
-      instance = allocate
-      instance.initialize_from_hash(hash)
-      instance
-    end
-
+  module ModelObject
     # Creates a hash from the persistent instance variables of this object. The keys will be symbols
     # corresponding to the attribute names (without leading '@'). The process of creating
     # a hash is recursive in the sens that all ModelObject instances found by traversing
@@ -21,8 +17,10 @@ module PuppetX::Puppetlabs::Migration
     def to_hash
       hash = {}
       instance_variables.each do |iv|
+        iv_name = iv.to_s
+        next if iv_name.start_with?(TRANSIENT_PREFIX)
         val = hashify(instance_variable_get(iv))
-        hash[:"#{iv.to_s[1..-1]}"] = val unless val.nil?
+        hash[:"#{iv_name[1..-1]}"] = val unless val.nil?
       end
       hash
     end
