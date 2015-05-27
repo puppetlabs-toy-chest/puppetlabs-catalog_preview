@@ -204,7 +204,7 @@ class Puppet::Application::Preview < Puppet::Application
 
         case @exit_code
         when CATALOG_DELTA
-          @data_map[node] = {:exit_code => @exit_code, :preview_equal => catalog_delta[:preview_equal], :preview_compliant => catalog_delta[:preview_compliant]}
+          @data_map[node] = {:exit_code => @exit_code, :preview_equal => catalog_delta.preview_equal, :preview_compliant => catalog_delta.preview_compliant}
         when GENERAL_ERROR
           Puppet.log_exception(@exception)
           Puppet::Util::Log.force_flushqueue()
@@ -266,7 +266,7 @@ class Puppet::Application::Preview < Puppet::Application
       catalog_delta = catalog_diff(timestamp, baseline_hash, preview_hash)
 
       Puppet::FileSystem.open(options[:catalog_diff], 0640, 'wb') do |of|
-        of.write(PSON::pretty_generate(catalog_delta, :allow_nan => true, :max_nesting => false))
+        of.write(PSON::pretty_generate(catalog_delta.to_hash, :allow_nan => true, :max_nesting => false))
       end
 
       catalog_delta
@@ -360,7 +360,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
-    CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp).to_hash
+    CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp)
   end
 
   # Displays a file, and if the argument pretty_json is truthy the file is loaded and displayed as
@@ -416,40 +416,40 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def display_summary(delta)
-    compliant_count = delta[:conflicting_resources].count {|r| r[:compliant] }
-    compliant_attr_count = delta[:conflicting_resources].reduce(0) do |memo, r|
+    compliant_count = delta.conflicting_resources.count {|r| r[:compliant] }
+    compliant_attr_count = delta.conflicting_resources.reduce(0) do |memo, r|
       memo + r[:conflicting_attributes].count {|a| a[:compliant] }
     end
 
     $stdout.puts <<-TEXT
 
 Catalog:
-  Versions......: #{delta[:version_equal] ? 'equal' : 'different' }
-  Preview.......: #{delta[:preview_equal] ? 'equal' : delta[:preview_compliant] ? 'compliant' : 'different'}
-  Tags..........: #{delta[:tags_ignored] ? 'ignored' : 'compared'}
-  String/Numeric: #{delta[:string_numeric_diff_ignored] ? 'numerically compared' : 'type significant compare'}
+  Versions......: #{delta.version_equal ? 'equal' : 'different' }
+  Preview.......: #{delta.preview_equal ? 'equal' : delta.preview_compliant ? 'compliant' : 'different'}
+  Tags..........: #{delta.tags_ignored ? 'ignored' : 'compared'}
+  String/Numeric: #{delta.string_numeric_diff_ignored ? 'numerically compared' : 'type significant compare'}
 
 Resources:
-  Baseline......: #{delta[:baseline_resource_count]}
-  Preview.......: #{delta[:preview_resource_count]}
-  Equal.........: #{delta[:equal_resource_count]}
+  Baseline......: #{delta.baseline_resource_count}
+  Preview.......: #{delta.preview_resource_count}
+  Equal.........: #{delta.equal_resource_count}
   Compliant.....: #{compliant_count}
-  Missing.......: #{delta[:missing_resource_count]}
-  Added.........: #{delta[:added_resource_count]}
-  Conflicting...: #{delta[:conflicting_resource_count] - compliant_count}
+  Missing.......: #{delta.missing_resource_count}
+  Added.........: #{delta.added_resource_count}
+  Conflicting...: #{delta.conflicting_resource_count - compliant_count}
 
 Attributes:
-  Equal.........: #{delta[:equal_attribute_count]}
+  Equal.........: #{delta.equal_attribute_count}
   Compliant.....: #{compliant_attr_count}
-  Missing.......: #{delta[:missing_attribute_count]}
-  Added.........: #{delta[:added_attribute_count]}
-  Conflicting...: #{delta[:conflicting_attribute_count] - compliant_attr_count}
+  Missing.......: #{delta.missing_attribute_count}
+  Added.........: #{delta.added_attribute_count}
+  Conflicting...: #{delta.conflicting_attribute_count - compliant_attr_count}
 
 Edges:
-  Baseline......: #{delta[:baseline_edge_count]}
-  Preview.......: #{delta[:preview_edge_count]}
-  Missing.......: #{count_of(delta[:missing_edges])}
-  Added.........: #{count_of(delta[:added_edges])}
+  Baseline......: #{delta.baseline_edge_count}
+  Preview.......: #{delta.preview_edge_count}
+  Missing.......: #{count_of(delta.missing_edges)}
+  Added.........: #{count_of(delta.added_edges)}
 
 Output:
   For node......: #{Puppet[:preview_outputdir]}/#{options[:node]}
@@ -458,8 +458,8 @@ Output:
   end
 
   def display_status(delta)
-    preview_equal     = !!(delta[:preview_equal])
-    preview_compliant = !!(delta[:preview_compliant])
+    preview_equal     = delta.preview_equal
+    preview_compliant = delta.preview_compliant
     status = preview_equal ? "equal" : preview_compliant ? "not equal but compliant" : "neither equal nor compliant"
     color = preview_equal || preview_compliant ? :green : :hred
     $stdout.puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
