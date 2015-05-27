@@ -83,6 +83,25 @@ module PuppetX::Puppetlabs::Migration
         self
       end
 
+      # Adds a failing node described by the given arguments to to the overview
+      #
+      # @param node_name [String] name of node
+      # @param baseline_env [String] name of baseline environment
+      # @param preview_env [String] name of preview environment
+      # @param timestamp [String] timestamp of the failure (produced with {DateTime#iso8601(9)})
+      # @param exit_code [Integer] the exit code
+      # @return [Factory] itself
+      #
+      # @api public
+      def merge_failure(node_name, baseline_env, preview_env, timestamp, exit_code)
+        baseline_env_id = environment(baseline_env)
+        preview_env_id = environment(preview_env)
+        complex_key_entity(Node, node_name, baseline_env_id, preview_env_id, timestamp, :error, exit_code) do |node|
+          node.baseline_env_id == baseline_env_id && node.preview_env_id == preview_env_id && node.timestamp == timestamp
+        end
+        self
+      end
+
       # Returns the id of the {Environment} entity that corresponds to the given name. A new
       # entity will be created if needed.
       #
@@ -159,9 +178,8 @@ module PuppetX::Puppetlabs::Migration
             end
         timestamp = catalog_delta.timestamp
 
-        complex_key_entity(Node, catalog_delta.node_name, baseline_env_id, preview_env_id, severity, timestamp) do |node|
-          node.baseline_env_id == baseline_env_id && node.preview_env_id == preview_env_id &&
-              node.severity == severity && node.timestamp == timestamp
+        complex_key_entity(Node, catalog_delta.node_name, baseline_env_id, preview_env_id, timestamp, severity, 0) do |node|
+          node.baseline_env_id == baseline_env_id && node.preview_env_id == preview_env_id && node.timestamp == timestamp
         end
       end
 

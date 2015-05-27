@@ -199,16 +199,18 @@ module PuppetX::Puppetlabs::Migration
     class Node < NamedEntity
       attr_reader :baseline_env_id
       attr_reader :preview_env_id
-      attr_reader :severity
       attr_reader :timestamp
+      attr_reader :severity
+      attr_reader :exit_code
 
       # @api private
-      def initialize(id, name, baseline_env_id, preview_env_id, severity, timestamp)
+      def initialize(id, name, baseline_env_id, preview_env_id, timestamp, severity, exit_code)
         super(id, name)
         @baseline_env_id = baseline_env_id
         @preview_env_id = preview_env_id
-        @severity = severity
         @timestamp = timestamp
+        @severity = severity
+        @exit_code = exit_code
       end
 
       # @api private

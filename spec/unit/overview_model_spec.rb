@@ -375,10 +375,12 @@ END_JSON
       end
 
       context 'when dealing with several deltas' do
-        let!(:overview) { Factory.new.merge(catalog_delta).merge(compliant_catalog_delta).merge(ok_catalog_delta).merge(fine_catalog_delta).merge(great_catalog_delta).create_overview }
+        let(:now) { Time.now.iso8601(9) }
+        let!(:overview) { Factory.new.merge(catalog_delta).merge(compliant_catalog_delta).merge(ok_catalog_delta).merge(fine_catalog_delta).merge(great_catalog_delta)
+                            .merge_failure('fail.example.com', 'production', 'preview', now, 2).create_overview }
 
         it 'can produce summary list' do
-          summary = Hash[[ :equal, :compliant, :different ].map do |severity|
+          summary = Hash[[ :equal, :compliant, :different, :error ].map do |severity|
                 [severity, overview.of_class(Node).select { |n| n.severity == severity }.sort.map do |n|
                     { :name => n.name,
                       :baseline_env => n.baseline_env.name,
@@ -391,6 +393,7 @@ END_JSON
           expect(summary[:equal].size).to eq(3)
           expect(summary[:compliant].size).to eq(1)
           expect(summary[:different].size).to eq(1)
+          expect(summary[:error].size).to eq(1)
 
           # Check that the equal entries were sorted by node name
           expect(summary[:equal].map { |entry| entry[:name] }).to eq(%w(fine.example.com great.example.com ok.example.com))
