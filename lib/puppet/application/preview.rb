@@ -210,12 +210,12 @@ class Puppet::Application::Preview < Puppet::Application
           Puppet::Util::Log.force_flushqueue()
           exit(@exit_code)
         when BASELINE_FAILED
-          display_log(options[:baseline_log], :pretty_json)
+          display_log(options[:baseline_log])
           $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
           Puppet.err(@exception.message)
           @data_map[node] = {:exit_code => @exit_code}
         when PREVIEW_FAILED
-          display_log(options[:preview_log], :pretty_json)
+          display_log(options[:preview_log])
           $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
           Puppet.err(@exception.message)
           @data_map[node] = {:exit_code => @exit_code}
