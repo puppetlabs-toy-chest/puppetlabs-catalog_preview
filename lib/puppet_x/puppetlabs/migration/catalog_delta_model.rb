@@ -404,6 +404,11 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     #   @return [Integer] number of resources in preview
     attr_reader :preview_resource_count
 
+    # @!attribute [r] equal_resource_count
+    #   @api public
+    #   @return [Integer] number of resources that are equal between baseline and preview
+    attr_reader :equal_resource_count
+
     # @!attribute [r] added_resource_count
     #   @api public
     #   @return [Integer] number of resources added in preview
@@ -428,6 +433,11 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     #   @api public
     #   @return [Integer] number of edges only present in baseline
     attr_reader :missing_edge_count
+
+    # @!attribute [r] equal_resource_count
+    #   @api public
+    #   @return [Integer] total number of attributes that are equal between baseline and preview
+    attr_reader :equal_attribute_count
 
     # @!attribute [r] added_resource_count
     #   @api public

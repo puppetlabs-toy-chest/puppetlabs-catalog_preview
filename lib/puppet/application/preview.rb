@@ -75,6 +75,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
+  OverviewModel = PuppetX::Puppetlabs::Migration::OverviewModel
 
   def help
     path = ::File.expand_path( "../../../puppet_x/puppetlabs/preview/api/documentation/preview-help.md", __FILE__)
@@ -102,8 +103,6 @@ class Puppet::Application::Preview < Puppet::Application
 
     # save ARGV to protect us from it being smashed later by something
     @argv = ARGV.dup
-
-    @data_map = {}
   end
 
   def run_command
@@ -161,8 +160,9 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def assert_and_exit
-    @exit_code =  @data_map.reduce(0) do |result, entry|
-      exit_code = entry[1][:exit_code]
+    nodes = @overview.of_class(OverviewModel::Node)
+    @exit_code =  nodes.reduce(0) do |result, node|
+      exit_code = node.exit_code
       break(BASELINE_FAILED) if exit_code == BASELINE_FAILED
       exit_code > result ? exit_code : result
     end
@@ -171,9 +171,9 @@ class Puppet::Application::Preview < Puppet::Application
 
     case options[:assert]
     when :equal
-      @exit_code = NOT_EQUAL if @data_map.any? { |_, status| !status[:preview_equal] }
+      @exit_code = NOT_EQUAL if nodes.any? { |node| node.severity != :equal }
     when :compliant
-      @exit_code = NOT_COMPLIANT if @data_map.any? { |_, status| !(status[:preview_equal] || status[:preview_compliant]) }
+      @exit_code = NOT_COMPLIANT if nodes.any? { |node| node.severity != :equal && node.severity != :compliant }
     end
 
     exit(@exit_code)
@@ -192,43 +192,32 @@ class Puppet::Application::Preview < Puppet::Application
     #
     Puppet::Resource::Catalog.indirection.cache_class = false
 
+    factory = OverviewModel::Factory.new
     options[:nodes].each do |node|
 
       options[:node] = node
       begin
         # This call produces a catalog_delta, or sets @exit_code to something other than 0
         #
-        catalog_delta = compile_diff()
+        timestamp = Time.now.iso8601(9)
+        catalog_delta = compile_diff(timestamp)
         #TODO: temporary solution for keeping track of single node delta
         @latest_catalog_delta = catalog_delta
 
-        case @exit_code
-        when CATALOG_DELTA
-          @data_map[node] = {:exit_code => @exit_code, :preview_equal => catalog_delta.preview_equal, :preview_compliant => catalog_delta.preview_compliant}
-        when GENERAL_ERROR
-          Puppet.log_exception(@exception)
-          Puppet::Util::Log.force_flushqueue()
-          exit(@exit_code)
-        when BASELINE_FAILED
-          display_log(options[:baseline_log])
-          $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
-          Puppet.err(@exception.message)
-          @data_map[node] = {:exit_code => @exit_code}
-        when PREVIEW_FAILED
-          display_log(options[:preview_log])
-          $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
-          Puppet.err(@exception.message)
-          @data_map[node] = {:exit_code => @exit_code}
+        if @exit_code == CATALOG_DELTA
+          factory.merge(catalog_delta)
+        else
+          factory.merge_failure(node, options[:baseline_environment], options[:preview_environment], timestamp, @exit_code)
         end
       end
     end
+    @overview = factory.create_overview
   end
 
-  def compile_diff
+  def compile_diff(timestamp)
     prepare_output
 
     # Compilation start time
-    timestamp = Time.now.iso8601(9)
     @exit_code = 0
 
     begin
@@ -424,10 +413,10 @@ class Puppet::Application::Preview < Puppet::Application
     $stdout.puts <<-TEXT
 
 Catalog:
-  Versions......: #{delta.version_equal ? 'equal' : 'different' }
-  Preview.......: #{delta.preview_equal ? 'equal' : delta.preview_compliant ? 'compliant' : 'different'}
-  Tags..........: #{delta.tags_ignored ? 'ignored' : 'compared'}
-  String/Numeric: #{delta.string_numeric_diff_ignored ? 'numerically compared' : 'type significant compare'}
+  Versions......: #{delta.version_equal? ? 'equal' : 'different' }
+  Preview.......: #{delta.preview_equal? ? 'equal' : delta.preview_compliant ? 'compliant' : 'different'}
+  Tags..........: #{delta.tags_ignored? ? 'ignored' : 'compared'}
+  String/Numeric: #{delta.string_numeric_diff_ignored? ? 'numerically compared' : 'type significant compare'}
 
 Resources:
   Baseline......: #{delta.baseline_resource_count}
@@ -458,8 +447,8 @@ Output:
   end
 
   def display_status(delta)
-    preview_equal     = delta.preview_equal
-    preview_compliant = delta.preview_compliant
+    preview_equal     = delta.preview_equal?
+    preview_compliant = delta.preview_compliant?
     status = preview_equal ? "equal" : preview_compliant ? "not equal but compliant" : "neither equal nor compliant"
     color = preview_equal || preview_compliant ? :green : :hred
     $stdout.puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
@@ -571,28 +560,26 @@ Output:
 
   # Sorts the map of nodes accordingly and computes statistics
   def report_results
-    @sorted_map = @data_map.sort { |a, b| node_compare(a[0], a[1], b[0], b[1]) }
+    nodes = @overview.of_class(OverviewModel::Node)
+    if nodes.length > 1
+      stats = nodes.reduce(Hash.new(0)) do | result, node |
+        case node.exit_code
+        when BASELINE_FAILED
+          result[:baseline_failed] += 1
+        when PREVIEW_FAILED
+          result[:preview_failed] += 1
+        when CATALOG_DELTA
+          result[:catalog_diff] += 1
 
-    stats = @data_map.reduce(Hash.new(0)) do | result, entry |
-      node_data = entry[1]
-      case node_data[:exit_code]
-      when BASELINE_FAILED
-        result[:baseline_failed] += 1
-      when PREVIEW_FAILED
-        result[:preview_failed] += 1
-      when CATALOG_DELTA
-        result[:catalog_diff] += 1
-
-        if node_data[:preview_equal]
-          result[:equal] += 1
-        elsif node_data[:preview_compliant]
-          result[:compliant] += 1
+          if node.severity == :equal
+            result[:equal] += 1
+          elsif node.severity == :compliant
+            result[:compliant] += 1
+          end
         end
+        result
       end
-      result
-    end
 
-    if options[:nodes].length > 1
       if options[:view] == :summary || options[:view] == nil
         multi_node_summary(stats)
       end
@@ -631,7 +618,7 @@ Output:
     $stdout.puts <<-TEXT
 
 Summary:
-  Total Number of Nodes...: #{@data_map.length}
+  Total Number of Nodes...: #{@overview.of_class(OverviewModel::Node).length}
   Baseline Failed.........: #{stats[:baseline_failed]}
   Preview Failed..........: #{stats[:preview_failed]}
   Catalogs with Difference: #{stats[:catalog_diff]}
