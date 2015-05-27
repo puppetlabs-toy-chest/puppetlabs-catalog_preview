@@ -594,7 +594,8 @@ Output:
 
     if options[:nodes].length > 1
       if options[:view] == :summary || options[:view] == nil
-        multi_node_summary(stats)
+        multi_node_summary
+        multi_node_abstract(stats)
       end
     else
       view(@latest_catalog_delta)
@@ -627,7 +628,7 @@ Output:
     end
   end
 
-  def multi_node_summary(stats)
+  def multi_node_abstract(stats)
     $stdout.puts <<-TEXT
 
 Summary:
@@ -639,6 +640,26 @@ Summary:
   Equal Catalogs..........: #{stats[:equal]}
 
       TEXT
+  end
+
+  def multi_node_summary
+    puts ""
+    @sorted_map.each do |node_name, node_data|
+      case node_data[:exit_code]
+      when BASELINE_FAILED
+        $stdout.puts Colorizer.new.colorize(:red, "BASELINE FAILED: #{node_name}")
+      when PREVIEW_FAILED
+        $stdout.puts Colorizer.new.colorize(:red, "PREVIEW FAILED: #{node_name}")
+      when CATALOG_DELTA
+        if node_data[:preview_equal]
+          $stdout.puts Colorizer.new.colorize(:green, "EQUAL CATALOG: #{node_name}")
+        elsif node_data[:preview_compliant]
+          $stdout.puts "COMPLIANT CATALOG: #{node_name}"
+        else
+          $stdout.puts "CATALOG DELTA: #{node_name}"
+        end
+      end
+    end
   end
 
 end
