@@ -163,7 +163,7 @@ class Puppet::Application::Preview < Puppet::Application
     nodes = @overview.of_class(OverviewModel::Node)
     @exit_code =  nodes.reduce(0) do |result, node|
       exit_code = node.exit_code
-      break(BASELINE_FAILED) if exit_code == BASELINE_FAILED
+      break exit_code if exit_code == BASELINE_FAILED
       exit_code > result ? exit_code : result
     end
 
@@ -201,13 +201,27 @@ class Puppet::Application::Preview < Puppet::Application
         #
         timestamp = Time.now.iso8601(9)
         catalog_delta = compile_diff(timestamp)
-        #TODO: temporary solution for keeping track of single node delta
-        @latest_catalog_delta = catalog_delta
 
         if @exit_code == CATALOG_DELTA
           factory.merge(catalog_delta)
+          @latest_catalog_delta = catalog_delta
         else
           factory.merge_failure(node, options[:baseline_environment], options[:preview_environment], timestamp, @exit_code)
+          @latest_catalog_delta = nil
+          case @exit_code
+          when GENERAL_ERROR
+            Puppet.log_exception(@exception)
+            Puppet::Util::Log.force_flushqueue()
+            exit(@exit_code)
+          when BASELINE_FAILED
+            display_log(options[:baseline_log])
+            $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
+            Puppet.err(@exception.message)
+          when PREVIEW_FAILED
+            display_log(options[:preview_log])
+            $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
+            Puppet.err(@exception.message)
+          end
         end
       end
     end
@@ -414,7 +428,7 @@ class Puppet::Application::Preview < Puppet::Application
 
 Catalog:
   Versions......: #{delta.version_equal? ? 'equal' : 'different' }
-  Preview.......: #{delta.preview_equal? ? 'equal' : delta.preview_compliant ? 'compliant' : 'different'}
+  Preview.......: #{delta.preview_equal? ? 'equal' : delta.preview_compliant? ? 'compliant' : 'different'}
   Tags..........: #{delta.tags_ignored? ? 'ignored' : 'compared'}
   String/Numeric: #{delta.string_numeric_diff_ignored? ? 'numerically compared' : 'type significant compare'}
 
@@ -561,7 +575,7 @@ Output:
   # Sorts the map of nodes accordingly and computes statistics
   def report_results
     nodes = @overview.of_class(OverviewModel::Node)
-    if nodes.length > 1
+    if nodes.length > 1 || @latest_catalog_delta.nil?
       stats = nodes.reduce(Hash.new(0)) do | result, node |
         case node.exit_code
         when BASELINE_FAILED
