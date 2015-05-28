@@ -20,6 +20,9 @@ describe 'preview subcommand' do
   testdir_simple            = master.tmpdir('preview')
   testdir_broken_production = master.tmpdir('preview_broken_production')
   testdir_broken_test       = master.tmpdir('preview_broken_test')
+  # Do not use parser=future in environment configurations for version >= 4.0.0 since it has been removed
+  use_future_parer          = Puppet.version? =~ /^3.1/ ? 'parser=future' : ''
+
   pp = <<-EOS
 File {
   ensure => directory,
@@ -51,14 +54,14 @@ file {
 file { '#{testdir_simple}/environments/test/environment.conf':
   ensure => file,
   content => 'environment_timeout = 0
-  parser=future
+  #{use_future_parser}
   ',
   mode => "0640",
 }
 file { '#{testdir_broken_test}/environments/test/environment.conf':
   ensure => file,
   content => 'environment_timeout = 0
-  parser=future
+  #{use_future_parser}
   ',
   mode => "0640",
 }
@@ -127,6 +130,12 @@ EOS
     end
   end
 
+  # TODO: TESTS TO ADD
+  # TODO: same as for one node, but for multiple nodes (just given on the command line)
+  # TODO: same as for multiple nodes but for nodes from a file (--nodes filename)
+  # TODO: same as for multiple nodes but for nodes from stdin (--nodes -)
+  # TODO: same as for multiple nodes mixing explicitly given nodes with those given with --nodes (unique set)
+
   it 'should output valid json from --view diff' do
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --view diff"),
@@ -145,7 +154,7 @@ EOS
 
   it 'should exit with 2 when baseline compilation fails' do
     env_path = File.join(testdir_broken_production, 'environments')
-    on master, puppet("preview --preview_environment test --migrate #{node_name} --environmentpath #{env_path}"),
+    on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [2] do |r|
       expect(r.stderr).not_to    be_empty
     end
@@ -153,7 +162,7 @@ EOS
 
   it 'should exit with 3 when preview compilation fails' do
     env_path = File.join(testdir_broken_test, 'environments')
-    on master, puppet("preview --preview_environment test --migrate #{node_name} --environmentpath #{env_path}"),
+    on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [3] do |r|
       expect(r.stderr).not_to    be_empty
     end
@@ -170,4 +179,24 @@ EOS
     on master, puppet("preview --preview_environment test --assert compliant --migrate nonesuch --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [5]
   end
+
+  if Puppet.version =~ /^3\./ # constrained to >= 3.8.0 in dependencies
+
+    it "accepts --migrate 3.8/4.0" do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment test --migrate 3.8/4.0 #{node_name} --environmentpath #{env_path}"),
+                  { :catch_failures => true } do |r|
+        expect(r.stderr).to    be_empty
+        expect(r.exit_code).to be_zero
+      end
+    end
+  else
+
+    it "errors with exit 1 on --migrate 3.8/4.0" do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment test --migrate 3.8/4.0 #{node_name} --environmentpath #{env_path}"),
+                  :acceptable_exit_codes => [1]
+    end
+  end
+
 end
