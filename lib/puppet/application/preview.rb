@@ -46,8 +46,8 @@ class Puppet::Application::Preview < Puppet::Application
     end
     options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
     # Puppet 3.8.0's MigrationChecker does not have the method 'available_migrations' (but it still supports the 3to4 migration)
-    unless Puppet::PUPPETVERSION == '3.8.0' || options[:migration_checker].available_migrations()[MIGRATION_3to4]
-      raise "The (#{Puppet::PUPPETVERSION}) version of Puppet does not support the '#{arg}' migration kind.\n#{RUNHELP}"
+    unless Puppet.version == '3.8.0' || options[:migration_checker].available_migrations()[MIGRATION_3to4]
+      raise "The (#{Puppet.version}) version of Puppet does not support the '#{arg}' migration kind.\n#{RUNHELP}"
     end
   end
 
