@@ -186,7 +186,6 @@ EOS
       env_path = File.join(testdir_simple, 'environments')
       on master, puppet("preview --preview_environment test --migrate 3.8/4.0 #{node_name} --environmentpath #{env_path}"),
                   { :catch_failures => true } do |r|
-        expect(r.stderr).to    be_empty
         expect(r.exit_code).to be_zero
       end
     end
