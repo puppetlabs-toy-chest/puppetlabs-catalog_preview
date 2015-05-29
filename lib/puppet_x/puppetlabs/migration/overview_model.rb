@@ -1,6 +1,5 @@
 require_relative 'overview_model/query'
 require_relative 'overview_model/factory'
-require_relative 'overview_model/report'
 
 module PuppetX::Puppetlabs::Migration
   module OverviewModel
@@ -166,7 +165,6 @@ module PuppetX::Puppetlabs::Migration
           end
         end
         @entities = entities.freeze
-        @entities_per_class = entities_per_class.freeze
       end
     end
 
