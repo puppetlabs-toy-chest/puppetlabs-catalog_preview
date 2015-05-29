@@ -62,6 +62,7 @@ module PuppetX::Puppetlabs::Migration
 
         catalog_delta.conflicting_resources.each do |cr|
           resource_conflict_id = resource_conflict_issue(cr)
+          node_issue(node_id, resource_conflict_id)
           cr.added_attributes.each do |aa|
             attribute_issue(resource_conflict_id, aa, AttributeAdded)
           end
@@ -132,7 +133,7 @@ module PuppetX::Puppetlabs::Migration
       #
       # @api public
       def attribute(name)
-        single_key_entity(Environment, name)
+        single_key_entity(Attribute, name)
       end
 
       # Returns the id of the {SourceFile} entity that corresponds to the given path. A new

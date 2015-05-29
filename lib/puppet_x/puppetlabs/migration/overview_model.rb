@@ -1,5 +1,6 @@
 require_relative 'overview_model/query'
 require_relative 'overview_model/factory'
+require_relative 'overview_model/report'
 
 module PuppetX::Puppetlabs::Migration
   module OverviewModel
@@ -7,6 +8,11 @@ module PuppetX::Puppetlabs::Migration
     EMPTY_HASH = {}.freeze
     EMPTY_ARRAY = [].freeze
     UNDEFINED_ID = -1
+
+    CATALOG_DELTA = 0
+    GENERAL_ERROR = 1
+    BASELINE_FAILED = 2
+    PREVIEW_FAILED = 3
 
     # Abstract base class for all entities in the overview model.
     #
@@ -118,12 +124,6 @@ module PuppetX::Puppetlabs::Migration
       # @api public
       def initialize(entities)
         @entities = entities.freeze
-        epc_hash = {}
-        entities.values.each do |entity|
-          c_hash = (epc_hash[entity.class] ||= {})
-          c_hash[entity.id] = entity
-        end
-        @entities_per_class = epc_hash.freeze
       end
 
       def to_hash
@@ -151,24 +151,18 @@ module PuppetX::Puppetlabs::Migration
       #
       # @api public
       def raw_of_class(entity_class)
-        hash = @entities_per_class[entity_class]
-        hash.nil? ? EMPTY_ARRAY : hash.values
+        @entities.values.select {|e| e.is_a?(entity_class)}
       end
 
       def initialize_from_hash(hash)
         entities = {}
-        entities_per_class = {}
-
         emap = hash['entities'] || hash[:entities]
         if emap.is_a?(Hash)
           mod = OverviewModel
           emap.each do |id, ea|
             id = id.to_i # since JSON converts integer keys to strings
             eclass = mod.const_get(ea[0])
-            entity = eclass.from_hash(ea[1].merge('_id' => id))
-            entities[id] = entity
-            c_hash = (entities_per_class[eclass] ||= {})
-            c_hash[id] = entity
+            entities[id] = eclass.from_hash(ea[1].merge('_id' => id))
           end
         end
         @entities = entities.freeze
