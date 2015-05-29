@@ -40,7 +40,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
         super unless args.empty?
         if many = @entity.many_relationship(name)
           entities = resolve_next(@entity, many)
-          entities.nil? ? EMPTY_ARRAY : entities.map { |entity| Wrapper.new(@overview, entity) }
+          WrappingArray.new(entities.nil? ? EMPTY_ARRAY : entities.map { |entity| Wrapper.new(@overview, entity) })
         elsif one = @entity.one_relationship(name)
           one == UNDEFINED_ID ? nil : Wrapper.new(@overview, @overview[one])
         else
