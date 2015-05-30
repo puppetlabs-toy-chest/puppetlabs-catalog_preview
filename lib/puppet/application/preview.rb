@@ -595,40 +595,52 @@ Output:
       end
 
       if options[:view] == :summary || options[:view] == nil
-        multi_node_summary(stats)
+        multi_node_abstract(stats)
+        multi_node_summary
       end
     else
       view(@latest_catalog_delta)
     end
   end
 
-  def node_compare(node_a, node_a_data, node_b, node_b_data)
-    strata_a = node_strata(node_a_data)
-    strata_b = node_strata(node_b_data)
-    strata_a == strata_b ? node_a <=> node_b : strata_a <=> strata_b
-  end
+  def multi_node_summary
+    summary = Hash[[ :equal, :compliant, :different, :error ].map do |severity|
+      [severity, @overview.of_class(OverviewModel::Node).select { |n| n.severity == severity }.sort.map do |n|
+        { :name => n.name,
+          :baseline_env => n.baseline_env.name,
+          :preview_env => n.preview_env.name,
+          :exit_code => n.exit_code
+        }
+      end]
+    end]
 
-  # Given a node determine where it fits in this hierarchy:
-  #   0) baseline failed
-  #   1) preview failed
-  #   2) catalog delta, equal, compliant = false
-  #   3) catalog delta, comliant = true
-  #   4) catalog delta, equal = true
-  def node_strata(node_data)
-    if node_data[:preview_equal]
-      return 4
-    elsif node_data[:preview_compliant]
-      return 3
-    elsif node_data[:exit_code] == CATALOG_DELTA
-      return 2
-    elsif node_data[:exit_code] == PREVIEW_FAILED
-      return 1
-    else
-      return 0
+    summary.each do |category, nodes|
+      case category
+      when :error
+        nodes.each do |node|
+          if node[:exit_code] == BASELINE_FAILED
+            $stdout.puts Colorizer.new.colorize(:red, "baseline failed (#{node[:baseline_env]}): #{node[:name]}")
+          else
+            $stdout.puts Colorizer.new.colorize(:red, "preview failed (#{node[:preview_env]}): #{node[:name]}")
+          end
+        end
+      when :different
+        nodes.each do |node|
+          $stdout.puts "catalog delta: #{node[:name]}"
+        end
+      when :compliant
+        nodes.each do |node|
+          $stdout.puts "compliant: #{node[:name]}"
+        end
+      when :equal
+        nodes.each do |node|
+          $stdout.puts Colorizer.new.colorize(:green, "equal: #{node[:name]}")
+        end
+      end
     end
   end
 
-  def multi_node_summary(stats)
+  def multi_node_abstract(stats)
     $stdout.puts <<-TEXT
 
 Summary:
