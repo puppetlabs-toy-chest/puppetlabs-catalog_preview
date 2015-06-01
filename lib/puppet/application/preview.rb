@@ -26,7 +26,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option("--view OPTION") do |arg|
-    if %w{summary diff baseline preview baseline_log preview_log none status failed_nodes diff_nodes}.include?(arg)
+    if %w{overview summary diff baseline preview baseline_log preview_log none status failed_nodes diff_nodes}.include?(arg)
       options[:view] = arg.to_sym
     else
       raise "The --view option only accepts a restricted list of arguments. Run 'puppet preview --help' for more details"
