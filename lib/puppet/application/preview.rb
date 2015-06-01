@@ -26,7 +26,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option("--view OPTION") do |arg|
-    if %w{summary diff baseline preview baseline_log preview_log none status}.include?(arg)
+    if %w{overview summary diff baseline preview baseline_log preview_log none status}.include?(arg)
       options[:view] = arg.to_sym
     else
       raise "The --view option only accepts a restricted list of arguments. Run 'puppet preview --help' for more details"
@@ -460,6 +460,11 @@ Output:
       TEXT
   end
 
+  def display_overview(overview, format)
+    report = new OverviewModel::Report(overview)
+    @stdout.puts(report.to_s)
+  end
+
   def display_status(delta)
     preview_equal     = delta.preview_equal?
     preview_compliant = delta.preview_compliant?
@@ -574,6 +579,11 @@ Output:
 
   # Sorts the map of nodes accordingly and computes statistics
   def report_results
+    if options[:view] == :overview
+      display_overview(@overview, :json)
+      return
+    end
+
     nodes = @overview.of_class(OverviewModel::Node)
     if nodes.length > 1 || @latest_catalog_delta.nil?
       stats = nodes.reduce(Hash.new(0)) do | result, node |

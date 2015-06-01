@@ -1,0 +1,147 @@
+{
+    "produced_by": "puppet preview 3.8.0",
+    "timestamp": "2015-05-21T18:09:01.000869134+02:00",
+    "baseline_catalog": "/path/to/baseline/catalog",
+    "preview_catalog": "/path/to/preview/catalog",
+    "node_name": "different.example.com",
+    "tags_ignored": true,
+    "string_numeric_diff_ignored": false,
+    "baseline_env": "production",
+    "preview_env": "preview",
+    "version_equal": true,
+    "baseline_resource_count": 3,
+    "preview_resource_count": 3,
+    "added_resources": [
+        {
+            "location": {
+                "file": "/etc/puppet/environments/production/manifests/site.pp",
+                "line": 4
+            },
+            "type": "File",
+            "title": "/tmp/baztest",
+            "diff_id": 1
+        }
+    ],
+    "added_resource_count": 1,
+    "added_attribute_count": 3,
+    "missing_resources": [
+        {
+            "location": {
+                "file": "/etc/puppet/environments/production/manifests/site.pp",
+                "line": 3
+            },
+            "type": "File",
+            "title": "/tmp/fumtest",
+            "diff_id": 2
+        }
+    ],
+    "missing_resource_count": 1,
+    "missing_attribute_count": 11,
+    "equal_resource_count": 1,
+    "equal_attribute_count": 12,
+    "conflicting_attribute_count": 1,
+    "conflicting_resources": [
+        {
+            "baseline_location": {
+                "file": "/etc/puppet/environments/production/manifests/site.pp",
+                "line": 2
+            },
+            "preview_location": {
+                "file": "/etc/puppet/environments/production/manifests/site.pp",
+                "line": 2
+            },
+            "type": "File",
+            "title": "/tmp/bartest",
+            "equal_attribute_count": 9,
+            "added_attributes": [
+                {
+                    "name": "added",
+                    "value": "Just arrived",
+                    "diff_id": 4
+                }
+            ],
+            "added_attribute_count": 1,
+            "missing_attributes": [
+                {
+                    "name": "array",
+                    "value": [
+                        "a",
+                        "b",
+                        "c",
+                        "c"
+                    ],
+                    "diff_id": 5
+                },
+                {
+                    "name": "before",
+                    "value": "#<Set:0x00000003b20220>",
+                    "diff_id": 6
+                },
+                {
+                    "name": "after",
+                    "value": "#<Set:0x00000003b1be00>",
+                    "diff_id": 7
+                },
+                {
+                    "name": "subscribe",
+                    "value": "#<Set:0x00000003b1bb80>",
+                    "diff_id": 8
+                },
+                {
+                    "name": "notify",
+                    "value": "#<Set:0x00000003b1b9f0>",
+                    "diff_id": 9
+                },
+                {
+                    "name": "hash",
+                    "value": {
+                        "a": "A",
+                        "b": [
+                            1,
+                            2
+                        ]
+                    },
+                    "diff_id": 10
+                },
+                {
+                    "name": "mol",
+                    "value": "42",
+                    "diff_id": 11
+                }
+            ],
+            "missing_attribute_count": 7,
+            "conflicting_attributes": [
+                {
+                    "name": "ensure",
+                    "baseline_value": "present",
+                    "preview_value": "purged",
+                    "compliant": false,
+                    "diff_id": 12
+                }
+            ],
+            "conflicting_attribute_count": 1,
+            "diff_id": 3
+        }
+    ],
+    "conflicting_resource_count": 1,
+    "baseline_edge_count": 1,
+    "preview_edge_count": 1,
+    "added_edges": [
+        {
+            "source": "Class[main]",
+            "target": "File[/tmp/bartest]",
+            "diff_id": 13
+        }
+    ],
+    "added_edge_count": 1,
+    "missing_edges": [
+        {
+            "source": "Class[main]",
+            "target": "File[/tmp/footest]",
+            "diff_id": 14
+        }
+    ],
+    "missing_edge_count": 1,
+    "preview_compliant": false,
+    "preview_equal": false
+}

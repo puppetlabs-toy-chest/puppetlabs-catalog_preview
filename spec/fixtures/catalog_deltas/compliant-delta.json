@@ -1,0 +1,43 @@
+{
+    "produced_by": "puppet preview 3.8.0",
+    "timestamp": "2015-05-25T18:01:22.753510131+02:00",
+    "baseline_catalog": "/path/to/baseline/catalog",
+    "preview_catalog": "/path/to/preview/catalog",
+    "node_name": "compliant.example.com",
+    "tags_ignored": true,
+    "string_numeric_diff_ignored": false,
+    "baseline_env": "production",
+    "preview_env": "preview",
+    "version_equal": true,
+    "baseline_resource_count": 3,
+    "preview_resource_count": 4,
+    "added_resources": [
+        {
+            "location": {
+                "file": "/etc/puppet/environments/production/manifests/site.pp",
+                "line": 4
+            },
+            "type": "File",
+            "title": "/tmp/baztest",
+            "diff_id": 1
+        }
+    ],
+    "added_resource_count": 1,
+    "added_attribute_count": 2,
+    "missing_resources": [],
+    "missing_resource_count": 0,
+    "missing_attribute_count": 0,
+    "equal_resource_count": 3,
+    "equal_attribute_count": 17,
+    "conflicting_attribute_count": 0,
+    "conflicting_resources": [],
+    "conflicting_resource_count": 0,
+    "baseline_edge_count": 1,
+    "preview_edge_count": 1,
+    "added_edges": [],
+    "added_edge_count": 0,
+    "missing_edges": [],
+    "missing_edge_count": 0,
+    "preview_compliant": true,
+    "preview_equal": false
+}
