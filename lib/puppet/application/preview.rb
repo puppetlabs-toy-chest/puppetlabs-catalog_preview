@@ -477,8 +477,8 @@ Output:
   end
 
   def display_overview(overview, format)
-    report = new OverviewModel::Report(overview)
-    @stdout.puts(report.to_s)
+    report = OverviewModel::Report.new(overview)
+    $stdout.puts(report.to_s)
   end
 
   def display_status(delta)

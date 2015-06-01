@@ -131,8 +131,10 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
         else
           get_hash(failures, :preview, 0)[:total] += 1
         end
+        stats[:failures] = failures
       else
         get_hash(stats, node.severity, 0)[:total] += 1
+        stats[:failures] = {}
       end
     end
 
