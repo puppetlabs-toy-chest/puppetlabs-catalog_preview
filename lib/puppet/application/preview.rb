@@ -29,7 +29,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option("--view OPTION") do |arg|
-    if %w{overview summary diff baseline preview baseline_log preview_log none status}.include?(arg)
+    if %w{overview summary diff baseline preview baseline_log preview_log none status failed_nodes diff_nodes}.include?(arg)
       options[:view] = arg.to_sym
     else
       raise "The --view option only accepts a restricted list of arguments.\n#{RUNHELP}"
@@ -146,6 +146,10 @@ class Puppet::Application::Preview < Puppet::Application
     else
       if options[:nodes].empty?
         raise "No node(s) given to perform preview compilation for"
+      end
+
+      if options[:nodes].size == 1 && (options[:view] == :failed_nodes || options[:view] == :diff_nodes)
+        raise "The 'failed_nodes' and 'diff_nodes' options for --view are only available when compiling multiple nodes"
       end
 
       if options[:last]
@@ -619,6 +623,8 @@ Output:
       if options[:view] == :summary || options[:view] == nil
         multi_node_abstract(stats)
         multi_node_summary
+      elsif options[:view] == :diff_nodes || options[:view] == :failed_nodes
+        print_node_list
       end
     else
       view(@latest_catalog_delta)
@@ -674,6 +680,28 @@ Summary:
   Equal Catalogs..........: #{stats[:equal]}
 
       TEXT
+  end
+
+  def print_node_list
+    nodes = Hash[[ :equal, :compliant, :different, :error ].map do |severity|
+      [severity, @overview.of_class(OverviewModel::Node).select { |n| n.severity == severity }.sort.map do |n|
+        n.name
+      end]
+    end]
+
+    nodes[:error].each do |node|
+      $stdout.puts node
+    end
+    if options[:view] == :diff_nodes
+      nodes[:different].each do |node|
+        $stdout.puts node
+      end
+      if options[:assert] == :equal
+        nodes[:compliant].each do |node|
+          $stdout.puts node
+        end
+      end
+    end
   end
 
 end

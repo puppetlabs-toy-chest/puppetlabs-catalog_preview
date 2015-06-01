@@ -17,7 +17,7 @@ puppet preview [
     [-m <MIGRATION>|--migrate <MIGRATION> [--diff_string_numeric]]
     [--preview_outputdir <PATH-TO-OUTPUT-DIR>]
     [--skip_tags]
-    [--view summary|baseline|preview|diff|baseline_log|preview_log|none]
+    [--view summary|baseline|preview|diff|baseline_log|preview_log|none|failed_nodes|diff_nodes]
     [-vd|--verbose_diff]
     [--trusted]
     [--baseline_environment <ENV-NAME> | --be <ENV-NAME>]
@@ -126,10 +126,12 @@ Note that all settings (such as 'log_level') affect both compilations.
   Uses facts obtained from the configured facts terminus to compile the catalog.
   Note that the puppet setting '-environment' cannot be used to achieve the same effect.
 
-* --view summary | diff | baseline | preview | baseline_log | preview_log | status | none
+* --view summary | diff | baseline | preview | baseline_log | preview_log | status | none | failed_nodes | diff_nodes
   Specifies what will be output on stdout; the catalog diff, one of the two
   catalogs, or one of the two logs. The option 'status' displays a one line status of compliance.
-  The option 'none' turns off output to stdout.
+  The option 'none' turns off output to stdout. When running with multiple nodes, failed_nodes will
+  output a list of all nodes that failed compilation. diff_nodes will list all non-compliant nodes,
+  and if --assert equal is used, it will print all non-equal nodes.
 
 * --migrate <MIGRATION>
   Turns on migration validation for the preview compilation. Validation result
