@@ -166,9 +166,17 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
         Puppet::Util::Profiler.profile(baseline_dest, [:diff_compiler, :compile_baseline, node.environment, node.name]) do
           Puppet.override({:current_environment => node.environment}, "puppet-preview-baseline-compile") do
 
-            if Puppet.future_parser?
-              raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration is only possible from an environment that is not using parser=future"
+            # Assert state if migration 3.8/4.0 is turned on
+            if options[:migrate] == Puppet::Application::Preview::MIGRATION_3to4
+              unless Puppet.version =~ /^3\./
+                raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration 3.8/4.0 is not supported with this version of Puppet"
+              end
+              if Puppet.future_parser?
+                raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration is only possible from an environment that is not using parser=future"
+              end
             end
+
+            # Do the compilation
             begin
               baseline_catalog = Puppet::Parser::Compiler.compile(node)
             rescue StandardError => e
