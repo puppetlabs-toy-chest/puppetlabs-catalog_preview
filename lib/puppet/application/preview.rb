@@ -14,7 +14,7 @@ class Puppet::Application::Preview < Puppet::Application
   NOT_COMPLIANT = 5
 
   MIGRATION_3to4 = '3.8/4.0'.freeze
-  RUN_HELP = "Run 'puppet preview --help for more details".freeze
+  RUNHELP = "Run 'puppet preview --help for more details".freeze
 
   run_mode :master
 

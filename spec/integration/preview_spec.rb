@@ -21,7 +21,7 @@ describe 'preview subcommand' do
   testdir_broken_production = master.tmpdir('preview_broken_production')
   testdir_broken_test       = master.tmpdir('preview_broken_test')
   # Do not use parser=future in environment configurations for version >= 4.0.0 since it has been removed
-  use_future_parer          = Puppet.version? =~ /^3.1/ ? 'parser=future' : ''
+  use_future_parser          = Puppet.version =~ /^3\./ ? 'parser=future' : ''
 
   pp = <<-EOS
 File {
@@ -170,13 +170,13 @@ EOS
 
   it 'should exit with 4 when -assert equal is used and catalogs are not equal' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment test --assert equal --migrate #{node_name} --environmentpath #{env_path}"),
+    on master, puppet("preview --preview_environment test --assert equal --migrate 3.8/4.0 #{node_name} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [4]
   end
 
   it 'should exit with 5 when -assert compliant is used and preview is not compliant' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment test --assert compliant --migrate nonesuch --environmentpath #{env_path}"),
+    on master, puppet("preview --preview_environment test --assert compliant --migrate 3.8/4.0 nonesuch --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [5]
   end
 
