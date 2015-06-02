@@ -182,7 +182,7 @@ EOS
 
   if Puppet.version =~ /^3\./ # constrained to >= 3.8.0 in dependencies
 
-    it "accepts --migrate 3.8/4.0" do
+    it 'accepts --migrate 3.8/4.0' do
       env_path = File.join(testdir_simple, 'environments')
       on master, puppet("preview --preview_environment test --migrate 3.8/4.0 #{node_name} --environmentpath #{env_path}"),
                   { :catch_failures => true } do |r|
@@ -191,7 +191,7 @@ EOS
     end
   else
 
-    it "errors with exit 1 on --migrate 3.8/4.0" do
+    it 'errors with exit 1 on --migrate 3.8/4.0' do
       env_path = File.join(testdir_simple, 'environments')
       on master, puppet("preview --preview_environment test --migrate 3.8/4.0 #{node_name} --environmentpath #{env_path}"),
                   :acceptable_exit_codes => [1]

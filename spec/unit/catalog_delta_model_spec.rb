@@ -42,7 +42,7 @@ describe 'CatalogDelta' do
             'notify' => %w(a b c),
             'tags' => %w(a b c),
             'hash' => { 'a' => 'A', 'b' => [1,2]},
-            'mol' => "42"
+            'mol' => '42'
           }
         },
         {
@@ -289,7 +289,7 @@ describe 'CatalogDelta' do
 
   it 'considers missing resources to be different and not compliant' do
     pv = preview_hash
-    pv['resources'].pop()
+    pv['resources'].pop
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
     expect(delta.preview_equal?).to be(false)
     expect(delta.preview_compliant?).to be(false)
@@ -312,7 +312,7 @@ describe 'CatalogDelta' do
 
   it 'considers missing edges to be different and not compliant' do
     pv = preview_hash
-    pv['edges'].pop()
+    pv['edges'].pop
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
     expect(delta.preview_equal?).to be(false)
     expect(delta.preview_compliant?).to be(false)

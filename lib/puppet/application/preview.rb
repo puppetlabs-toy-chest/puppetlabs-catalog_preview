@@ -18,17 +18,17 @@ class Puppet::Application::Preview < Puppet::Application
 
   run_mode :master
 
-  option("--debug", "-d")
+  option('--debug', '-d')
 
-  option("--baseline_environment ENV_NAME,", "--be ENV_NAME") do |arg|
+  option('--baseline_environment ENV_NAME,', '--be ENV_NAME') do |arg|
     options[:baseline_environment] = arg
   end
 
-  option("--preview_environment ENV_NAME", "--pe ENV_NAME") do |arg|
+  option('--preview_environment ENV_NAME', '--pe ENV_NAME') do |arg|
     options[:preview_environment] = arg
   end
 
-  option("--view OPTION") do |arg|
+  option('--view OPTION') do |arg|
     if %w{overview summary diff baseline preview baseline_log preview_log none status failed_nodes diff_nodes}.include?(arg)
       options[:view] = arg.to_sym
     else
@@ -36,9 +36,9 @@ class Puppet::Application::Preview < Puppet::Application
     end
   end
 
-  option("--last", "-l")
+  option('--last', '-l')
 
-  option("--migrate MIGRATION", "-m MIGRATION") do |arg|
+  option('--migrate MIGRATION', '-m MIGRATION') do |arg|
     if MIGRATION_3to4 == arg
       options[:migrate] = arg
     else
@@ -46,12 +46,12 @@ class Puppet::Application::Preview < Puppet::Application
     end
     options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
     # Puppet 3.8.0's MigrationChecker does not have the method 'available_migrations' (but it still supports the 3to4 migration)
-    unless Puppet.version == '3.8.0' || options[:migration_checker].available_migrations()[MIGRATION_3to4]
+    unless Puppet.version == '3.8.0' || options[:migration_checker].available_migrations[MIGRATION_3to4]
       raise "The (#{Puppet.version}) version of Puppet does not support the '#{arg}' migration kind.\n#{RUNHELP}"
     end
   end
 
-  option("--assert OPTION") do |arg|
+  option('--assert OPTION') do |arg|
     if %w{equal compliant}.include?(arg)
       options[:assert] = arg.to_sym
     else
@@ -59,7 +59,7 @@ class Puppet::Application::Preview < Puppet::Application
     end
   end
 
-  option("--schema CATALOG") do |arg|
+  option('--schema CATALOG') do |arg|
     if %w{catalog catalog_delta log help}.include?(arg)
       options[:schema] = arg.to_sym
     else
@@ -67,30 +67,30 @@ class Puppet::Application::Preview < Puppet::Application
     end
   end
 
-  option("--skip_tags")
+  option('--skip_tags')
 
-  option("--diff_string_numeric")
+  option('--diff_string_numeric')
 
-  option("--trusted") do |arg|
+  option('--trusted') do |_|
     unless Puppet.features.root?
-      raise "The --trusted option is only available when running as root"
+      raise 'The --trusted option is only available when running as root'
     end
     # Allow root to keep authenticated in resurrected trusted data
     options[:trusted] = true
   end
 
-  option("--verbose_diff", "-vd")
+  option('--verbose_diff', '-vd')
 
-  option("--nodes NODES_FILE") do |arg|
+  option('--nodes NODES_FILE') do |arg|
     # Each line in the given file is a node name or space separated node names
-    options[:nodes] = (arg == '-' ? $stdin.each_line : File.foreach(arg)).map {|line| line.chomp!.split() }.flatten
+    options[:nodes] = (arg == '-' ? $stdin.each_line : File.foreach(arg)).map {|line| line.chomp!.split }.flatten
   end
 
   CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
   OverviewModel = PuppetX::Puppetlabs::Migration::OverviewModel
 
   def help
-    path = ::File.expand_path( "../../../puppet_x/puppetlabs/preview/api/documentation/preview-help.md", __FILE__)
+    path = ::File.expand_path( '../../../puppet_x/puppetlabs/preview/api/documentation/preview-help.md', __FILE__)
     Puppet::FileSystem.read(path)
   end
 
@@ -109,7 +109,7 @@ class Puppet::Application::Preview < Puppet::Application
 
   def preinit
     Signal.trap(:INT) do
-      $stderr.puts "Canceling startup"
+      $stderr.puts 'Canceling startup'
       exit(0)
     end
 
@@ -127,25 +127,25 @@ class Puppet::Application::Preview < Puppet::Application
 
     if options[:schema]
       unless options[:nodes].empty?
-        raise "One or more nodes were given but no compilation will be done when running with the --schema option"
+        raise 'One or more nodes were given but no compilation will be done when running with the --schema option'
       end
 
       if options[:schema] == :catalog
-        catalog_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/schemas/catalog.json", __FILE__)
+        catalog_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/catalog.json', __FILE__)
         display_file(catalog_path)
       elsif options[:schema] == :catalog_delta
-        delta_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/schemas/catalog-delta.json", __FILE__)
+        delta_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/catalog-delta.json', __FILE__)
         display_file(delta_path)
       elsif options[:schema] == :log
-        log_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/schemas/log.json", __FILE__)
+        log_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/log.json', __FILE__)
         display_file(log_path)
       else
-        help_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/documentation/catalog-delta.md", __FILE__)
+        help_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/documentation/catalog-delta.md', __FILE__)
         display_file(help_path)
       end
     else
       if options[:nodes].empty?
-        raise "No node(s) given to perform preview compilation for"
+        raise 'No node(s) given to perform preview compilation for'
       end
 
       if options[:nodes].size > 1 && %w{diff baseline preview baseline_log preview_log status}.include?(options[:view].to_s)
@@ -164,11 +164,11 @@ class Puppet::Application::Preview < Puppet::Application
         last
       else
         unless options[:preview_environment]
-          raise "No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known"
+          raise 'No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known'
         end
 
         if options[:diff_string_numeric] && !options[:migration_checker] && !option[:migrate] == MIGRATION_3to4
-          raise "--diff_string_numeric can only be used in combination with --migrate 3.8/4.0"
+          raise '--diff_string_numeric can only be used in combination with --migrate 3.8/4.0'
         end
         compile
 
@@ -231,15 +231,15 @@ class Puppet::Application::Preview < Puppet::Application
           case @exit_code
           when GENERAL_ERROR
             Puppet.log_exception(@exception)
-            Puppet::Util::Log.force_flushqueue()
+            Puppet::Util::Log.force_flushqueue
             exit(@exit_code)
           when BASELINE_FAILED
             display_log(options[:baseline_log])
-            $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
+            $stderr.puts Colorizer.new.colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
             Puppet.err(@exception.message)
           when PREVIEW_FAILED
             display_log(options[:preview_log])
-            $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
+            $stderr.puts Colorizer.new.colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
             Puppet.err(@exception.message)
           end
         end
@@ -312,7 +312,7 @@ class Puppet::Application::Preview < Puppet::Application
 
     ensure
       terminate_logs
-      Puppet::Util::Log.close_all()
+      Puppet::Util::Log.close_all
       Puppet::Util::Log.newdestination(:console)
     end
   end
@@ -360,11 +360,11 @@ class Puppet::Application::Preview < Puppet::Application
     Puppet::FileSystem.chmod(0750, options[:node_output_dir])
 
     # Construct file name for this diff
-    options[:baseline_catalog] = Puppet::FileSystem.pathname(File.join(node_output_dir, "baseline_catalog.json"))
-    options[:baseline_log]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "baseline_log.json"))
-    options[:preview_catalog]  = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_catalog.json"))
-    options[:preview_log]      = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_log.json"))
-    options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "catalog_diff.json"))
+    options[:baseline_catalog] = Puppet::FileSystem.pathname(File.join(node_output_dir, 'baseline_catalog.json'))
+    options[:baseline_log]     = Puppet::FileSystem.pathname(File.join(node_output_dir, 'baseline_log.json'))
+    options[:preview_catalog]  = Puppet::FileSystem.pathname(File.join(node_output_dir, 'preview_catalog.json'))
+    options[:preview_log]      = Puppet::FileSystem.pathname(File.join(node_output_dir, 'preview_log.json'))
+    options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, 'catalog_diff.json'))
   end
 
   def prepare_output
@@ -398,15 +398,15 @@ class Puppet::Application::Preview < Puppet::Application
     else
     Puppet::FileSystem.open(file, nil, 'rb') do |source|
       FileUtils.copy_stream(source, $stdout)
-      puts "" # ensure a new line at the end
+      puts '' # ensure a new line at the end
     end
     end
   end
 
   def level_label(level)
     case level
-    when :err, "err"
-      "ERROR"
+    when :err, 'err'
+      'ERROR'
     else
       level.to_s.upcase
     end
@@ -430,7 +430,7 @@ class Puppet::Application::Preview < Puppet::Application
       elsif file
         message << "at #{entry['file']}"
       end
-      $stderr.puts  Colorizer.new().colorize(:hred, message)
+      $stderr.puts  Colorizer.new.colorize(:hred, message)
     end
   end
 
@@ -488,7 +488,7 @@ Output:
   def display_status(delta)
     preview_equal     = delta.preview_equal?
     preview_compliant = delta.preview_compliant?
-    status = preview_equal ? "equal" : preview_compliant ? "not equal but compliant" : "neither equal nor compliant"
+    status = preview_equal ? 'equal' : preview_compliant ? 'not equal but compliant' : 'neither equal nor compliant'
     color = preview_equal || preview_compliant ? :green : :hred
     $stdout.puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
   end
@@ -581,7 +581,7 @@ Output:
   end
 
   def setup
-    raise Puppet::Error.new("Puppet preview is not supported on Microsoft Windows") if Puppet.features.microsoft_windows?
+    raise Puppet::Error.new('Puppet preview is not supported on Microsoft Windows') if Puppet.features.microsoft_windows?
 
     setup_logs
 
