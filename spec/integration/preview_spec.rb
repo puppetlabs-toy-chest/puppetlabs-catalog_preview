@@ -1,3 +1,4 @@
+require 'puppet'
 require 'spec_helper_integration'
 require 'json'
 
