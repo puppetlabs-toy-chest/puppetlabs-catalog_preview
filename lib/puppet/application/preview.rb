@@ -157,8 +157,15 @@ class Puppet::Application::Preview < Puppet::Application
       end
 
       if options[:last]
-        if %w{summary none}.include?(options[:view].to_s)
-          raise "--view #{options[:view].to_s} can not be combined with the --last option"
+        if options[:view] == :summary || options[:view] == nil
+          #TODO: Add support for --last --view summary for a single node, right now it will fail
+          if options[:nodes].size > 1
+            raise "--last is not supported with --view summary when running with multiple nodes"
+          elsif options[:nodes].empty?
+            raise "When running --last with --view summary, a node must be provided"
+          end
+        elsif options[:view] == :none
+          raise "--last can not be combined with --view none"
         end
 
         last
@@ -407,6 +414,7 @@ class Puppet::Application::Preview < Puppet::Application
   # pretty json
   #
   def display_file(file, pretty_json=false)
+    raise "Preview data for node '#{options[:node]}' does not exist" unless File.exists?(file)
     if pretty_json
       Puppet::FileSystem.open(file, nil, 'rb') do |input|
         json = JSON.load(input)
