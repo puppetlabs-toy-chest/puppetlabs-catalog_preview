@@ -147,7 +147,8 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
     #
     def top_ten
       nodes = @overview.of_class(Node)
-      nodes.sort {|a, b| b.issues.size <=> a.issues.size }.take(10).map {|n| { :name => n.name, :issue_count => n.issues.size }}
+      issues_map = nodes.map {|n| { :name => n.name, :issue_count => n.issues.size }}
+      issues_map.sort {|a, b| b[:issue_count] <=> a[:issue_count] }.take(10)
     end
 
     # Builds the hash that represents all catalog changes

@@ -146,6 +146,28 @@ EOS
     end
   end
 
+  it 'should output valid json from --view baseline_log' do
+    env_path = File.join(testdir_broken_production, 'environments')
+    on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [2] do |r|
+    end
+    on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --last --view baseline_log"),
+      {:catch_failures => true, :acceptable_exit_codes => [0]} do |r|
+      JSON.parse(r.stdout)
+    end
+  end
+
+  it 'should output valid json from --view preview_log' do
+    env_path = File.join(testdir_broken_test, 'environments')
+    on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [3] do |r|
+    end
+    on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --last --view preview_log"),
+      {:catch_failures => true, :acceptable_exit_codes => [0]} do |r|
+      JSON.parse(r.stdout)
+    end
+  end
+
   it 'should fail to run and exit 1 if no node given' do
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test --environmentpath #{env_path}"), :acceptable_exit_codes => [1] do |r|

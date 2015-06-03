@@ -1,5 +1,43 @@
 module PuppetX::Puppetlabs::Migration::OverviewModel
   module Query
+    # @abstract
+    class RelationalStep
+      # Evaluates the filter on the given _entity_ and returns the result
+      #
+      # @param instance [Entity] the entity to use when evaluating
+      # @return [Object] the result of the evaluation
+      def evaluate(instance)
+        nil
+      end
+    end
+
+    # Returns the first element of a collection
+    #
+    class ScalarValue < RelationalStep
+      # @param collection [Array<Entity>] The collection
+      # @return [Entity,nil] The entity or nil
+      def evaluate(collection)
+         collection.is_a?(Array) ? collection.first : nil
+      end
+    end
+
+    # A filter that checks if the given _member_ has the given _value_
+    #
+    class MemberEqualFilter < RelationalStep
+      # @param member [Symbol] name of the member method
+      # @param value [Object] expected value of the member
+      def initialize(member, value)
+        @member = member
+        @value = value
+      end
+
+      # @param instance [Entity] The instance to check
+      # @return [Entity,nil] The entity or nil
+      def evaluate(instance)
+        instance.send(@member) == @value ? instance : nil
+      end
+    end
+
     # Wraps an {Entity} and gives it the ability to navigate its relationships as they were
     # normal attributes of the class.
     #
@@ -36,11 +74,36 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
 
       alias eql? ==
 
+      def is_scalar(relationship)
+        relationship.is_a?(Array) && relationship.last.is_a?(ScalarValue)
+      end
+
+      # Should not be needed but Minitest::Assertions adds this method even though
+      # respond_to_missing? is implemented
+      def message
+        dispatch(:message)
+      end
+
       def method_missing(name, *args)
-        super unless args.empty?
+        args.empty? ? dispatch(name) : super
+      end
+
+      def respond_to_missing?(name, include_private)
+        !(@entity.many_relationship(name).nil? && @entity.one_relationship(name).nil? && !@entity.respond_to?(name))
+      end
+
+      def dispatch(name)
         if many = @entity.many_relationship(name)
-          entities = resolve_next(@entity, many)
-          WrappingArray.new(entities.nil? ? EMPTY_ARRAY : entities.map { |entity| Wrapper.new(@overview, entity) })
+          result = resolve_next(@entity, many)
+          if is_scalar(many)
+            result.nil? ? nil : Wrapper.new(@overview, result)
+          else
+            if result.is_a?(Array)
+              WrappingArray.new(result.map { |entity| Wrapper.new(@overview, entity) })
+            else
+              EMPTY_ARRAY
+            end
+          end
         elsif one = @entity.one_relationship(name)
           one == UNDEFINED_ID ? nil : Wrapper.new(@overview, @overview[one])
         else
@@ -49,22 +112,28 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
       end
 
       def resolve_next(base, nxt)
-        return base.map { |entity| resolve_next(entity, nxt) } if base.is_a?(Array)
-
-        case nxt
-        when Symbol
-          id = base.send(nxt)
-          id.nil? ? nil : @overview[id]
-        when Array
-          nxt.inject(base) do |entity, n|
-            break nil if entity.nil?
-            resolve_next(entity, n)
-          end
-        when UnboundMethod
-          id = base.id
-          @overview.raw_of_class(nxt.owner).select { |entity| nxt.bind(entity).call == id }
+        if base.is_a?(Array)
+          result = base.map { |entity| resolve_next(entity, nxt) }
+          result.compact!
+          result
         else
-          nil
+          case nxt
+          when Symbol
+            id = base.send(nxt)
+            id.nil? ? nil : @overview[id]
+          when RelationalStep
+            nxt.evaluate(base)
+          when Array
+            nxt.inject(base) do |entity, n|
+              break nil if entity.nil?
+              resolve_next(entity, n)
+            end
+          when UnboundMethod
+            id = base.id
+            @overview.raw_of_class(nxt.owner).select { |entity| nxt.bind(entity).call == id }
+          else
+            nil
+          end
         end
       end
     end
@@ -156,8 +225,21 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
         wrap(super)
       end
 
+      # Should not be needed but Minitest::Assertions adds this method even though
+      # respond_to_missing? is implemented
+      def message
+        dispatch(:message)
+      end
+
+      def respond_to_missing?(name, include_private)
+        true # We dispatch all unknown messages to each instance
+      end
+
       def method_missing(name, *args)
-        super unless args.empty?
+        args.empty? ? dispatch(name) : super
+      end
+
+      def dispatch(name)
         arr = map { |entity| entity.send(name) }
         arr.compact!
         arr.flatten!

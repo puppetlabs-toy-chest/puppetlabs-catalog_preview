@@ -1,0 +1,17 @@
+[
+  {
+    "level": "err",
+    "message": "Illegal attempt to assign to 'a Name'. Not an assignable reference",
+    "source": "Puppet",
+    "tags": [
+      "err"
+    ],
+    "time": "2015-06-03T05:55:19.133433903-07:00",
+    "file": "/tmp/preview_broken_test.YE0REF/environments/test/manifests/init.pp",
+    "line": 3,
+    "pos": 5,
+    "issue_code": "ILLEGAL_ASSIGNMENT",
+    "environment": "test",
+    "node": "failed.example.com"
+  }
+]

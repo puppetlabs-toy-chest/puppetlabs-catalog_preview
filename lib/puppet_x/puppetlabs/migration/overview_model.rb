@@ -1,3 +1,4 @@
+require_relative 'model_object'
 require_relative 'overview_model/query'
 require_relative 'overview_model/factory'
 require_relative 'overview_model/report'
@@ -190,35 +191,28 @@ module PuppetX::Puppetlabs::Migration
     #
     # @api public
     class Node < NamedEntity
-      attr_reader :baseline_env_id
-      attr_reader :preview_env_id
       attr_reader :timestamp
       attr_reader :severity
       attr_reader :exit_code
 
       # @api private
-      def initialize(id, name, baseline_env_id, preview_env_id, timestamp, severity, exit_code)
+      def initialize(id, name, timestamp, severity, exit_code)
         super(id, name)
-        @baseline_env_id = baseline_env_id
-        @preview_env_id = preview_env_id
         @timestamp = timestamp
         @severity = severity
         @exit_code = exit_code
       end
 
       # @api private
-      def one_relationship(name)
-        case name
-        when :baseline_env
-          baseline_env_id || UNDEFINED_ID
-        when :preview_env
-          preview_env_id || UNDEFINED_ID
-        end
-      end
-
-      # @api private
       def self.many_rels_hash
         {
+          :baseline_compilation => [Compilation.instance_method(:node_id), Query::MemberEqualFilter.new(:baseline?, true), Query::ScalarValue],
+          :preview_compilation => [Compilation.instance_method(:node_id), Query::MemberEqualFilter.new(:baseline?, false), Query::ScalarValue],
+          :baseline_env => [Compilation.instance_method(:node_id), Query::MemberEqualFilter.new(:baseline?, true), :environment_id, Query::ScalarValue],
+          :preview_env => [Compilation.instance_method(:node_id), Query::MemberEqualFilter.new(:baseline?, false), :environment_id, Query::ScalarValue],
+          :log_entries => [Compilation.instance_method(:node_id), LogEntry.instance_method(:compilation_id)],
+          :baseline_log_entries => [Compilation.instance_method(:node_id), Query::MemberEqualFilter.new(:baseline?, true), LogEntry.instance_method(:compilation_id)],
+          :preview_log_entries => [Compilation.instance_method(:node_id), Query::MemberEqualFilter.new(:baseline?, false), LogEntry.instance_method(:compilation_id)],
           :issues => [IssueOnNode.instance_method(:node_id), :node_issue_id],
 
           # for access to the intermediate entity that represents the many-to-many relationship. Used
@@ -232,8 +226,12 @@ module PuppetX::Puppetlabs::Migration
     class Environment < NamedEntity
       def self.many_rels_hash
         {
-          :baseline_nodes => Node.instance_method(:baseline_env_id),
-          :preview_nodes => Node.instance_method(:preview_env_id)
+          :compilations => Compilation.instance_method(:environment_id),
+          :baseline_compilations => [Compilation.instance_method(:environment_id), Query::MemberEqualFilter.new(:baseline?, true)],
+          :preview_compilations => [Compilation.instance_method(:environment_id), Query::MemberEqualFilter.new(:baseline?, false)],
+          :nodes =>  [Compilation.instance_method(:environment_id), :node_id],
+          :baseline_nodes => [Compilation.instance_method(:environment_id), Query::MemberEqualFilter.new(:baseline?, true), :node_id],
+          :preview_nodes => [Compilation.instance_method(:environment_id), Query::MemberEqualFilter.new(:baseline?, false), :node_id]
         }
       end
     end
@@ -270,11 +268,13 @@ module PuppetX::Puppetlabs::Migration
     class Location < Entity
       attr_reader :file_id
       attr_reader :line
+      attr_reader :pos
 
-      def initialize(id, file_id, line)
+      def initialize(id, file_id, line, pos)
         super(id)
         @file_id = file_id
         @line = line
+        @pos = pos
       end
 
       def one_relationship(name)
@@ -284,8 +284,117 @@ module PuppetX::Puppetlabs::Migration
       def self.many_rels_hash
         {
           :resources => ResourceIssue.instance_method(:location_id),
-          :preview_resources => ResourceConflict.instance_method(:preview_location_id)
+          :preview_resources => ResourceConflict.instance_method(:preview_location_id),
+          :log_entries => LogEntry.instance_method(:location_id)
         }
+      end
+    end
+
+    class Compilation < Entity
+      attr_reader :node_id
+      attr_reader :environment_id
+      attr_reader :baseline
+
+      def initialize(id, node_id, environment_id, baseline)
+        super(id)
+        @node_id = node_id
+        @environment_id = environment_id
+        @baseline = baseline
+      end
+
+      def one_relationship(name)
+        case name
+        when :node
+          node_id || UNDEFINED_ID
+        when :environment
+          environment_id || UNDEFINED_ID
+        end
+      end
+
+      def baseline?
+        @baseline
+      end
+    end
+
+    class LogLevel < NamedEntity
+      def self.many_rels_hash
+        {
+          :issues => LogIssue.instance_method(:level_id),
+          :entries => [LogIssue.instance_method(:level_id), LogMessage.instance_method(:issue_id), LogEntry.instance_method(:message_id) ]
+        }
+      end
+    end
+
+    class LogIssue < NamedEntity
+      attr_reader :level_id
+
+      def initialize(id, issue, level_id)
+        super(id, issue)
+        @level_id = level_id
+      end
+
+      def one_relationship(name)
+        case name
+        when :level
+          level_id || UNDEFINED_ID
+        end
+      end
+
+      def self.many_rels_hash
+        {
+          :messages => LogMessage.instance_method(:issue_id),
+          :entries => [LogMessage.instance_method(:issue_id), LogEntry.instance_method(:message_id) ]
+        }
+      end
+    end
+
+    class LogMessage < Entity
+      attr_reader :message
+      attr_reader :issue_id
+
+      def initialize(id, issue_id, message)
+        super(id)
+        @issue_id = issue_id
+        @message = message
+      end
+
+      def one_relationship(name)
+        case name
+        when :issue
+          issue_id || UNDEFINED_ID
+        end
+      end
+
+      def self.many_rels_hash
+        {
+          :entries => LogEntry.instance_method(:message_id),
+        }
+      end
+    end
+
+    class LogEntry < Entity
+      attr_reader :compilation_id
+      attr_reader :location_id
+      attr_reader :message_id
+      attr_reader :timestamp
+
+      def initialize(id, compilation_id, timestamp, message_id, location_id)
+        super(id)
+        @compilation_id = compilation_id
+        @timestamp = timestamp
+        @message_id = message_id
+        @location_id = location_id
+      end
+
+      def one_relationship(name)
+        case name
+        when :compilation
+          compilation_id || UNDEFINED_ID
+        when :message
+          message_id || UNDEFINED_ID
+        when :location
+          location_id || UNDEFINED_ID
+        end
       end
     end
 
