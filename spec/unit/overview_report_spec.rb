@@ -9,7 +9,7 @@ module PuppetX::Puppetlabs::Migration
 
       context 'when reporting' do
         let!(:now) { Time.now.iso8601(9) }
-        let!(:overview) { Factory.new.merge(conflicting_delta).merge_failure('fail.example.com', 'production', 'preview', now, 2).create_overview }
+        let!(:overview) { Factory.new.merge(conflicting_delta).merge_failure('fail.example.com', 'production', now, 2).create_overview }
 
         let(:report) { Report.new(overview) }
 
@@ -21,7 +21,6 @@ module PuppetX::Puppetlabs::Migration
 
         it 'can produce a text' do
           text = report.to_s
-          puts text
           expect(text).to match(/^Stats$/)
           expect(text).to match(/^Top ten nodes with most issues$/)
           expect(text).to match(/^Changes per Resource Type$/)

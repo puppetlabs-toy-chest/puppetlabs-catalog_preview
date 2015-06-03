@@ -162,6 +162,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
           # Switch the node's environment (it finds and instantiates the Environment)
           node.environment = options[:baseline_environment]
         end
+        options[:back_channel][:baseline_environment] = node.environment
 
         Puppet::Util::Profiler.profile(baseline_dest, [:diff_compiler, :compile_baseline, node.environment, node.name]) do
           Puppet.override({:current_environment => node.environment}, 'puppet-preview-baseline-compile') do

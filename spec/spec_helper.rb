@@ -7,3 +7,7 @@ end
 def load_catalog_delta(name)
   JSON.load(File.read(fixture('catalog_deltas', name)))
 end
+
+def load_compile_log(name)
+  JSON.load(File.read(fixture('compile_logs', name)))
+end

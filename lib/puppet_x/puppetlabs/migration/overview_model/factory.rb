@@ -47,11 +47,13 @@ module PuppetX::Puppetlabs::Migration
       # Adds all issues from the given _catalog_delta_ to the overview
       #
       # @param catalog_delta [CatalogDeltaModel::CatalogDelta] the delta to add
+      # @param baseline_log [Array<Hash<String,Object>>] log from the baseline compilation
+      # @param preview_log [Array<Hash<String,Object>>] log from the preview compilation
       # @return [Factory] itself
       #
       # @api public
-      def merge(catalog_delta)
-        node_id = node(catalog_delta)
+      def merge(catalog_delta, baseline_log = nil, preview_log = nil)
+        node_id = node(catalog_delta, baseline_log, preview_log)
         catalog_delta.added_resources.each do |ar|
           node_issue(node_id, resource_issue(ar, ResourceAdded))
         end
@@ -87,20 +89,36 @@ module PuppetX::Puppetlabs::Migration
       # Adds a failing node described by the given arguments to to the overview
       #
       # @param node_name [String] name of node
-      # @param baseline_env [String] name of baseline environment
-      # @param preview_env [String] name of preview environment
+      # @param env [String] name of environment where compilation failed
       # @param timestamp [String] timestamp of the failure (produced with {DateTime#iso8601(9)})
       # @param exit_code [Integer] the exit code
+      # @param log [Array<Hash<String,Object>>] log from the failing compilation
       # @return [Factory] itself
       #
       # @api public
-      def merge_failure(node_name, baseline_env, preview_env, timestamp, exit_code)
-        baseline_env_id = environment(baseline_env)
-        preview_env_id = environment(preview_env)
-        complex_key_entity(Node, node_name, baseline_env_id, preview_env_id, timestamp, :error, exit_code) do |node|
-          node.baseline_env_id == baseline_env_id && node.preview_env_id == preview_env_id && node.timestamp == timestamp
-        end
+      def merge_failure(node_name, env, timestamp, exit_code, log = nil)
+        node_id = complex_key_entity(Node, node_name, timestamp, :error, exit_code) { |node| node.timestamp == timestamp }
+        is_baseline = exit_code == BASELINE_FAILED
+        compilation_id = complex_key_entity(Compilation, node_id, environment(env), is_baseline)  { |comp| comp.baseline? == is_baseline }
+        add_log_entries(compilation_id, log) unless log.nil?
         self
+      end
+
+      # Adds log entries from the given _log_ to the {Compilation} identified by _compilation_id
+      #
+      # @param compilation_id [Integer] id of the Compliation
+      # @param log [Array<Hash<String,Object>>] log for the given compilation
+      def add_log_entries(compilation_id, log)
+        log.each do |entry|
+          level_id = single_key_entity(LogLevel, entry['level'])
+          issue_id = complex_key_entity(LogIssue, entry['issue_code'], level_id) { |li| li.level_id == level_id }
+          message = entry['message']
+          message_id = complex_key_entity(LogMessage, issue_id, message) { |lm| lm.message == message }
+          location_id = location(entry['file'], entry['line'], entry['pos'])
+          complex_key_entity(LogEntry, compilation_id, entry['time'], message_id, location_id)  do |le|
+            le.message_id == message_id && le.location_id == location_id
+          end
+        end
       end
 
       # Returns the id of the {Environment} entity that corresponds to the given name. A new
@@ -162,11 +180,13 @@ module PuppetX::Puppetlabs::Migration
       # Returns the id of the {Node} entity that corresponds to the given _catalog_delta_. A new
       # entity will be created if needed.
       #
-      # @param catalog_delta [CatalogDeltaModel::CatalogDelta]
+      # @param catalog_delta [CatalogDeltaModel::CatalogDelta] the delta to add
+      # @param baseline_log [Array<Hash<Symbol,Object>>] log from the baseline compilation
+      # @param preview_log [Array<Hash<Symbol,Object>>] log from the preview compilation
       # @return [Integer] id of found or created entity
       #
       # @api public
-      def node(catalog_delta)
+      def node(catalog_delta, baseline_log, preview_log)
         baseline_env_id = environment(catalog_delta.baseline_env)
         preview_env_id = environment(catalog_delta.preview_env)
         severity =
@@ -179,9 +199,16 @@ module PuppetX::Puppetlabs::Migration
             end
         timestamp = catalog_delta.timestamp
 
-        complex_key_entity(Node, catalog_delta.node_name, baseline_env_id, preview_env_id, timestamp, severity, 0) do |node|
-          node.baseline_env_id == baseline_env_id && node.preview_env_id == preview_env_id && node.timestamp == timestamp
+        node_id = complex_key_entity(Node, catalog_delta.node_name,timestamp, severity, 0) do |node|
+          node.timestamp == timestamp
         end
+
+        baseline_compilation_id = complex_key_entity(Compilation, node_id, baseline_env_id, true) { |comp| comp.baseline? }
+        add_log_entries(baseline_compilation_id, baseline_log) unless baseline_log.nil?
+        preview_compilation_id = complex_key_entity(Compilation, node_id, preview_env_id, false) { |comp| !comp.baseline? }
+        add_log_entries(preview_compilation_id, preview_log) unless preview_log.nil?
+
+        node_id
       end
 
       # Returns the id of the {Location} entity that corresponds to the given _loc_. A new
@@ -191,9 +218,21 @@ module PuppetX::Puppetlabs::Migration
       # @return [Integer] id of found or created entity
       #
       # @api public
-      def location(loc)
-        line = loc.line
-        complex_key_entity(Location, file(loc.file), line) { |l| l.line == line }
+      def location_from_delta(loc)
+        location(loc.file, loc.line, nil)
+      end
+
+      # Returns the id of the {Location} entity that corresponds to the given parameters. A new
+      # entity will be created if needed.
+      #
+      # @param file [String] name of file
+      # @param line [Integer] line in file
+      # @param pos [Integer] position on line
+      # @return [Integer] id of found or created entity
+      #
+      # @api public
+      def location(file, line, pos)
+        complex_key_entity(Location, file(file), line, pos) { |l| l.line == line && l.pos == pos }
       end
 
       # Returns the id of the {Resource} entity that corresponds to the given arguments. A new
@@ -266,7 +305,7 @@ module PuppetX::Puppetlabs::Migration
       # @api public
       def resource_issue(resource, issue_class)
         resource_id = resource(resource.title, resource.type)
-        location_id = location(resource.location)
+        location_id = location_from_delta(resource.location)
         complex_key_entity(issue_class, resource_id, location_id) { |i| i.location_id == location_id }
       end
 
@@ -279,8 +318,8 @@ module PuppetX::Puppetlabs::Migration
       # @api public
       def resource_conflict_issue(resource_conflict)
         resource_id = resource(resource_conflict.title, resource_conflict.type)
-        baseline_location_id = location(resource_conflict.baseline_location)
-        preview_location_id = location(resource_conflict.preview_location)
+        baseline_location_id = location_from_delta(resource_conflict.baseline_location)
+        preview_location_id = location_from_delta(resource_conflict.preview_location)
         complex_key_entity(ResourceConflict, resource_id, baseline_location_id, preview_location_id) do |i|
           i.location_id == baseline_location_id && i.preview_location_id == preview_location_id
         end

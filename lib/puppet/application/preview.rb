@@ -213,6 +213,12 @@ class Puppet::Application::Preview < Puppet::Application
     Puppet::Resource::Catalog.indirection.cache_class = false
 
     factory = OverviewModel::Factory.new
+
+    # Hash where the DiffCompiler can propagate things like the name of the compiled baseline_environment even if the
+    # compilation fails.
+    #
+    options[:back_channel] = {}
+
     options[:nodes].each do |node|
 
       options[:node] = node
@@ -223,10 +229,11 @@ class Puppet::Application::Preview < Puppet::Application
         catalog_delta = compile_diff(timestamp)
 
         if @exit_code == CATALOG_DELTA
-          factory.merge(catalog_delta)
+          baseline_log = JSON.load(File.read(options[:baseline_log]))
+          preview_log = JSON.load(File.read(options[:preview_log]))
+          factory.merge(catalog_delta, baseline_log, preview_log)
           @latest_catalog_delta = catalog_delta
         else
-          factory.merge_failure(node, options[:baseline_environment], options[:preview_environment], timestamp, @exit_code)
           @latest_catalog_delta = nil
           case @exit_code
           when GENERAL_ERROR
@@ -235,10 +242,14 @@ class Puppet::Application::Preview < Puppet::Application
             exit(@exit_code)
           when BASELINE_FAILED
             display_log(options[:baseline_log])
+            log = JSON.load(File.read(options[:baseline_log]))
+            factory.merge_failure(node, options[:back_channel][:baseline_environment], timestamp, @exit_code, log)
             $stderr.puts Colorizer.new.colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
             Puppet.err(@exception.message)
           when PREVIEW_FAILED
             display_log(options[:preview_log])
+            log = JSON.load(File.read(options[:preview_log]))
+            factory.merge_failure(node, options[:preview_environment], timestamp, @exit_code, log)
             $stderr.puts Colorizer.new.colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
             Puppet.err(@exception.message)
           end
