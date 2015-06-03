@@ -208,9 +208,14 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
           end
 
           Puppet.override(overrides, 'puppet-preview-compile') do
-
-            unless Puppet.future_parser?
-              raise PuppetX::Puppetlabs::Preview::GeneralError, 'Migration preview is only possible when the target env is configured with parser=future'
+            # Assert state if migration 3.8/4.0 is turned on
+            if options[:migrate] == Puppet::Application::Preview::MIGRATION_3to4
+              unless Puppet.version =~ /^3\./
+                raise PuppetX::Puppetlabs::Preview::GeneralError, 'Migration 3.8/4.0 is not supported with this version of Puppet'
+              end
+              unless Puppet.future_parser?
+                raise PuppetX::Puppetlabs::Preview::GeneralError, 'Migration preview is only possible when the target env is configured with parser=future'
+              end
             end
 
             begin
