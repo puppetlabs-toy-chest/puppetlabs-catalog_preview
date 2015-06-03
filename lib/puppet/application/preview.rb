@@ -144,11 +144,11 @@ class Puppet::Application::Preview < Puppet::Application
         display_file(help_path)
       end
     else
-      if options[:nodes].empty?
+      if options[:nodes].empty? && !options[:last]
         raise 'No node(s) given to perform preview compilation for'
       end
 
-      if options[:nodes].size > 1 && %w{diff baseline preview baseline_log preview_log status}.include?(options[:view].to_s)
+      if options[:nodes].size > 1 && %w{diff baseline preview baseline_log preview_log status}.include?(options[:view].to_s) && !options[:last]
         raise "The --view option '#{options[:view]}' is not supported for multiple nodes"
       end
 
@@ -318,8 +318,25 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def last
-    prepare_output_options
-    view(nil)
+    # If no nodes were specified, print everything we have
+    if options[:nodes].empty?
+      nodes = []
+      # Use the directories in preview_outputdir to get the list of nodes we
+      # have output for
+      Dir.glob(File.join(Puppet[:preview_outputdir], '*')).select.each do |dir|
+        if File.directory?(dir) 
+          nodes << dir.to_s.match(/^.*\/([^\/]*)$/)[1]
+        end
+      end
+    else
+      nodes = options[:nodes]
+    end
+
+    nodes.each do |node|
+      options[:node] = node
+      prepare_output_options
+      view(nil)
+    end
   end
 
   def view(catalog_delta)
