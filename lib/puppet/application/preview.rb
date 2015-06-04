@@ -86,6 +86,8 @@ class Puppet::Application::Preview < Puppet::Application
     options[:nodes] = (arg == '-' ? $stdin.each_line : File.foreach(arg)).map {|line| line.chomp!.split }.flatten
   end
 
+  option('--clear')
+
   CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
   OverviewModel = PuppetX::Puppetlabs::Migration::OverviewModel
 
@@ -125,6 +127,12 @@ class Puppet::Application::Preview < Puppet::Application
     options[:nodes] += command_line.args
     options[:nodes] = options[:nodes].uniq
 
+    is_clear = options[:clear]
+    if is_clear
+      raise 'The --clear and --last options cannot be used together' if options[:last]
+      clear
+    end
+
     if options[:schema]
       unless options[:nodes].empty?
         raise 'One or more nodes were given but no compilation will be done when running with the --schema option'
@@ -145,6 +153,7 @@ class Puppet::Application::Preview < Puppet::Application
       end
     else
       if options[:nodes].empty? && !options[:last]
+        exit(0) if is_clear
         raise 'No node(s) given to perform preview compilation for'
       end
 
@@ -171,6 +180,7 @@ class Puppet::Application::Preview < Puppet::Application
         last
       else
         unless options[:preview_environment]
+          exit(0) if is_clear
           raise 'No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known'
         end
 
@@ -342,7 +352,7 @@ class Puppet::Application::Preview < Puppet::Application
       # Use the directories in preview_outputdir to get the list of nodes we
       # have output for
       Dir.glob(File.join(Puppet[:preview_outputdir], '*')).select.each do |dir|
-        if File.directory?(dir) 
+        if File.directory?(dir)
           nodes << dir.to_s.match(/^.*\/([^\/]*)$/)[1]
         end
       end
@@ -354,6 +364,26 @@ class Puppet::Application::Preview < Puppet::Application
       options[:node] = node
       prepare_output_options
       view(nil)
+    end
+  end
+
+  def clear
+    # If no nodes were specified, remove everything we have
+    nodes = options[:nodes]
+    output_dir = Puppet[:preview_outputdir]
+    puts output_dir
+    if nodes.empty?
+      # Remove everything below output_dir
+      Dir.glob(File.join(output_dir, '*')).each do |f|
+        if File.directory?(f)
+          FileUtils.rmtree(f)
+        else
+          File.delete(f)
+        end
+      end
+    else
+      # Remove directory of selected nodes
+      nodes.each { |node| FileUtils.rmtree(File.join(output_dir, node)) }
     end
   end
 
