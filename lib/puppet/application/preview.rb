@@ -29,7 +29,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option('--view OPTION') do |arg|
-    if %w{overview summary diff baseline preview baseline_log preview_log none status failed_nodes diff_nodes}.include?(arg)
+    if %w{overview summary diff baseline preview baseline_log preview_log none status failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(arg)
       options[:view] = arg.to_sym
     else
       raise "The --view option only accepts a restricted list of arguments.\n#{RUNHELP}"
@@ -170,6 +170,10 @@ class Puppet::Application::Preview < Puppet::Application
 
         last
       else
+        if %w{failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(options[:view].to_s) && options[:nodes].size == 1
+          raise "The --view flag '#{options[:view]}' is only supported when running with multiple nodes"
+        end
+
         unless options[:preview_environment]
           raise 'No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known'
         end
@@ -663,7 +667,7 @@ Output:
       if options[:view] == :summary || options[:view] == nil
         multi_node_abstract(stats)
         multi_node_summary
-      elsif options[:view] == :diff_nodes || options[:view] == :failed_nodes
+      elsif %w{failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(options[:view].to_s)
         print_node_list
       end
     else
@@ -729,16 +733,29 @@ Summary:
       end]
     end]
 
-    nodes[:error].each do |node|
-      $stdout.puts node
-    end
-    if options[:view] == :diff_nodes
-      nodes[:different].each do |node|
+    if options[:view] == :equal_nodes
+      nodes[:equal].each do |node|
         $stdout.puts node
       end
-      if options[:assert] == :equal
-        nodes[:compliant].each do |node|
+    elsif options[:view] == :compliant_nodes
+      nodes[:compliant].each do |node|
+        $stdout.puts node
+      end
+      nodes[:equal].each do |node|
+        $stdout.puts node
+      end
+    else
+      nodes[:error].each do |node|
+        $stdout.puts node
+      end
+      if options[:view] == :diff_nodes
+        nodes[:different].each do |node|
           $stdout.puts node
+        end
+        if options[:assert] == :equal
+          nodes[:compliant].each do |node|
+            $stdout.puts node
+          end
         end
       end
     end
