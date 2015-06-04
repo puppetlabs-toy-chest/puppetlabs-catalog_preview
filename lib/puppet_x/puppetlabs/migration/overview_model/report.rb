@@ -9,9 +9,17 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
     # Returns a hash representing the content of the report
     # @return [Hash<Symbol,Hash>] the report hash
     def to_hash
-      { :stats => stats, :top_ten => top_ten, :changes => changes }
+      hash = {
+        :stats => stats,
+        :top_ten => top_ten,
+        :changes => changes
+      }
+      baseline = log_entries_hash(true)
+      hash[:baseline] = baseline unless baseline.empty?
+      preview = log_entries_hash(false)
+      hash[:preview] = preview unless preview.empty?
+      hash
     end
-
     # Creates and returns a formatted JSON string that represents the content of the report
     # @return [String] The JSON representation of this report
     def to_json
@@ -23,6 +31,8 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
     def to_s
       bld = StringIO.new
       stats_to_s(bld, stats)
+      log_entries_hash_to_s(bld, log_entries_hash(true), true)
+      log_entries_hash_to_s(bld, log_entries_hash(false), false)
       changes_to_s(bld, changes)
       top_ten_to_s(bld, top_ten)
       bld.string
@@ -163,6 +173,120 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
       changes
     end
 
+    # Builds the hash that represents the log entires for a compilation
+    #
+    # @param baseline [Boolean] true for baseline, false for preview
+    # @return [Hash<Symbol,Object>] the hash
+    def log_entries_hash(baseline)
+      error_counts = count_by_issue_code('err', baseline)
+      warning_counts = count_by_issue_code('warning', baseline)
+
+      hash = {}
+      unless error_counts.empty?
+        hash[:compilation_errors] = compilation_errors(baseline)
+        hash[:error_count_by_issue_code] = error_counts
+      end
+      hash[:warning_count_by_issue_code] = warning_counts unless warning_counts.empty?
+      hash
+    end
+
+    def log_entries_hash_to_s(bld, hash, baseline)
+      compilation_errors_to_s(bld, hash[:compilation_errors], baseline)
+      count_by_issue_code_to_s(bld, hash[:error_count_by_issue_code], 'err', baseline)
+      count_by_issue_code_to_s(bld, hash[:warning_count_by_issue_code], 'warning', baseline)
+    end
+
+    # Builds the array that represents baseline compiler errors per manifest sorted by affected node count.
+    #
+    # @param baseline [Boolean] true for baseline, false for preview
+    # @return [Array<Hash<Symbol,Object>>] The hash, keyed by manifest paths.
+    def compilation_errors(baseline)
+      errors = {}
+      log_entries('err', baseline).each do |le|
+        location = le.location
+        manifest_name = location.nil? ? 'General Error' : location.file.path
+        manifest_hash = get_hash(errors, manifest_name)
+        manifest_hash[:manifest] = manifest_name
+
+        nodes = (manifest_hash[:nodes] ||= Set.new)
+        nodes.add(le.compilation.node.name)
+        log_message = le.message
+        issue_code = log_message.issue.name
+        error = {
+          :message => log_message.message
+        }
+        error[:issue_code] = issue_code unless issue_code.nil?
+        unless location.nil?
+          error[:line] = location.line unless location.line.nil?
+          error[:pos] = location.pos unless location.pos.nil?
+        end
+        manifest_errors = (manifest_hash[:errors] ||= [])
+        manifest_errors << error
+      end
+      errors.map { |_, m| m[:nodes] = m[:nodes].to_a; m }.sort { |a, b| b[:nodes].size <=> a[:nodes.size] }
+    end
+
+    def compilation_errors_to_s(bld, errors, baseline)
+      return if errors.nil? || errors.empty?
+      bld.puts
+      bld << (baseline ? 'Baseline' : 'Preview') << ' compilation errors per manifest' << "\n"
+      errors.each do |error|
+        bld << '  ' << error[:manifest] << "\n"
+        bld << '    Nodes..: ' << error[:nodes].join(', ') << "\n"
+        bld << "    Issues.:\n"
+        error[:errors].each do |me|
+          issue_code = me[:issue_code]
+          line = me[:line]
+          pos = me[:pos]
+          lp = line.nil? ? nil : (pos.nil? ? "line #{line}" : "line #{line}, column #{pos}")
+          bld << '      ' << issue_code << ': ' unless issue_code.nil?
+          bld << "'" << me[:message] << "'"
+          bld << ' at ' << lp << "\n" unless lp.nil?
+        end
+      end
+    end
+
+    # Builds the array that represents counts per issue code for the given _level_
+    #
+    # @param level [String] The string 'err' och 'warning'
+    # @param baseline [Boolean] true for baseline, false for preview
+    # @return [Array<Hash<Symbol,Object>>] the created array
+    #
+    def count_by_issue_code(level, baseline)
+      issues = {}
+      log_entries(level, baseline).each do |le|
+        name = le.message.issue.name
+        hash = issues[name]
+        if hash.nil?
+          hash = {
+            :issue_code => name,
+            :count => 1
+          }
+          issues[name] = hash
+        else
+          hash[:count] += 1
+        end
+      end
+      issues.values.sort { |a, b| b[:count] <=> a[:count] }
+    end
+
+    def count_by_issue_code_to_s(bld, issues, level, baseline)
+      return if issues.nil? || issues.empty?
+      bld.puts
+      bld << (baseline ? 'Baseline' : 'Preview') << (level == 'err' ? ' Errors' : ' Warnings') << ' by issue code' << "\n"
+      issues.each do |issue|
+        bld << '  ' << issue[:issue_code] << ' (' << issue[:count] << ")\n"
+      end
+    end
+
+    # Returns all log entries found in the contained {Overview} for the given _level_ and _baseline_ arguments
+    #
+    # @param level [String] The string 'err' och 'warning'
+    # @param baseline [Boolean] true for baseline, false for preview
+    # @return [Array<LogEntry>] the found entries
+    def log_entries(level, baseline)
+      @overview.of_class(LogEntry).select { |le| le.compilation.baseline? == baseline && le.message.issue.level.name == level }
+    end
 
     # Builds the hash that represents changes per {ResourceType}
     #
@@ -170,7 +294,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
     #
     def changes_on_resource_types
       rt_changes = {}
-      @overview.of_class(ResourceType).map do |t|
+      @overview.of_class(ResourceType).each do |t|
         tc = changes_on_resource_type(t)
         rt_changes[t.name] = tc unless tc.empty?
       end

@@ -134,12 +134,12 @@ module PuppetX::Puppetlabs::Migration
           expect(overview.of_class(LogEntry).message.issue.level).not_to be_empty
         end
 
-        it 'can navigate from level to entry viea issues and messages' do
-          expect(overview.of_class(LogLevel).issues.messages.entries).not_to be_empty
+        it 'can navigate from level to entry via issues and messages' do
+          expect(overview.of_class(LogLevel).issues.messages.log_entries).not_to be_empty
         end
 
         it 'can navigate directly from level to entry' do
-          expect(overview.of_class(LogLevel).entries).not_to be_empty
+          expect(overview.of_class(LogLevel).log_entries).not_to be_empty
         end
 
         it 'contains expected data' do
