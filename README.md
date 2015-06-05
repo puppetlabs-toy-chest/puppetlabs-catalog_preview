@@ -187,16 +187,16 @@ puppet preview mynode --preview_env future_production
 puppet preview --preview_env future_production mynode 
 ~~~
 
-Clearing the data for all nodes that have equal or compliant catalogs:
+Removing the data for all nodes that have equal or compliant catalogs:
 
 ~~~
-puppet preview --last --view compliant_nodes | puppet preview --clear --nodes -
+puppet preview --last --view compliant_nodes | puppet preview --clean --nodes -
 ~~~
 
-Clearing all the data for all nodes:
+Removing all the data for all nodes:
 
 ~~~
-puppet preview --clear --last
+puppet preview --clean --last
 ~~~
 
 Running a compile, then focusing on compilation failures:
@@ -307,7 +307,7 @@ The outputs `diff`, `baseline`, `preview`, `baseline_log`, `preview_log` only wo
 
 Includes more information in the catalog diff such as attribute values in missing and added resources. Does not affect whether catalogs are considered equal or compliant.
 
-#####`--clear`
+#####`--clean`
 
 Removes the generated files under the directory specified by the setting `preview_outputdir` for one or more given nodes from the filesystem. See [Processing output](#processing-output).
 
