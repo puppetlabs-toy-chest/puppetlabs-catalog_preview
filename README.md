@@ -35,7 +35,7 @@ Other scenarios are supported in the same way. For example, the module's `puppet
 
 However, the `--migrate 3.8/4.0` option---which provides the specific migration checking that is the primary purpose of this module---can only be used when this module is used with a puppet 3.8.x version and when the baseline environment is using current parser (3.x), and the preview environment is using future parser (4.x).
 
-The expected workflow is to compile preview catalogs for one or multiple nodes, either all at once, or in several runs. Once compiled the preview command is used with the `--last` option to focus one a set of nodes (or all) using one of the available arguments to `--view` to output information that helps zoom in on issues and take action to fix any problems. The `--view overview` is the best report to use when working with multiple nodes as it correlates and aggregates the information to reduce the number of times the "same" problem is reported.
+The expected workflow is to compile preview catalogs for one or multiple nodes, either all at once, or in several runs. Once compiled the preview command is used with the `--last` option to focus on a set of nodes (or all) using one of the available arguments to `--view` to output information that helps with finding issues and taking action to fix them. The `--view overview` is the best report to use when working with multiple nodes as it correlates and aggregates the information to reduce the number of times the "same" problem is reported.
 
 ##Setup
 
