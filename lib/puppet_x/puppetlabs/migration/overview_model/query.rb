@@ -53,6 +53,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
       #
       def initialize(overview, entity)
         @overview = overview
+        raise ArgumentError unless entity.is_a?(Entity)
         @entity = entity
       end
 
@@ -99,7 +100,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
             result.nil? ? nil : Wrapper.new(@overview, result)
           else
             if result.is_a?(Array)
-              WrappingArray.new(result.map { |entity| Wrapper.new(@overview, entity) })
+              WrappingArray.from_entities(@overview, result)
             else
               EMPTY_ARRAY
             end
@@ -144,6 +145,13 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
     #
     # @api private
     class WrappingArray < Array
+      def self.from_entities(overview, entities)
+        entities.flatten!
+        entities.uniq!
+        entities.compact!
+        new(entities.map { |entity| Wrapper.new(overview, entity) })
+      end
+
       def of_class(eclass)
         select { |entity| entity.entity.is_a?(eclass) }
       end

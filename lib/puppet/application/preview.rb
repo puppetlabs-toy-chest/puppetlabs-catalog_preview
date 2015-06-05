@@ -29,7 +29,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option('--view OPTION') do |arg|
-    if %w{overview summary diff baseline preview baseline_log preview_log none status failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(arg)
+    if %w{overview overview_json summary diff baseline preview baseline_log preview_log none status failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(arg)
       options[:view] = arg.to_sym
     else
       raise "The --view option only accepts a restricted list of arguments.\n#{RUNHELP}"
@@ -546,9 +546,15 @@ Output:
       TEXT
   end
 
-  def display_overview(overview, format)
+  # Outputs the given _overview_ on `$stdout`. The output is either in JSON format
+  # or in textual form as determined by _as_json_.
+  #
+  # @param overview [OverviewModel::Overview] the model to output
+  # @param as_json [Boolean] true for JSON output, false for textual output
+  #
+  def display_overview(overview, as_json)
     report = OverviewModel::Report.new(overview)
-    $stdout.puts(report.to_s)
+    $stdout.puts(as_json ? report.to_json : report.to_s)
   end
 
   def display_status(delta)
@@ -665,8 +671,9 @@ Output:
 
   # Sorts the map of nodes accordingly and computes statistics
   def report_results
-    if options[:view] == :overview
-      display_overview(@overview, :json)
+    view_type = options[:view]
+    if view_type == :overview || view_type == :overview_json
+      display_overview(@overview, view_type == :overview_json)
       return
     end
 
@@ -690,10 +697,10 @@ Output:
         result
       end
 
-      if options[:view] == :summary || options[:view] == nil
+      if view_type == :summary || view_type == nil
         multi_node_abstract(stats)
         multi_node_summary
-      elsif %w{failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(options[:view].to_s)
+      elsif %w{failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(view_type.to_s)
         print_node_list
       end
     else

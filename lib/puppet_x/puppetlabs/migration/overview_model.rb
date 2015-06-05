@@ -288,6 +288,16 @@ module PuppetX::Puppetlabs::Migration
           :log_entries => LogEntry.instance_method(:location_id)
         }
       end
+
+      def lp_string
+        if @line.nil?
+          '--'
+        elsif @pos.nil?
+          @line.to_s
+        else
+          "#{@line}:#{@pos}"
+        end
+      end
     end
 
     class Compilation < Entity
@@ -314,13 +324,19 @@ module PuppetX::Puppetlabs::Migration
       def baseline?
         @baseline
       end
+
+      def self.many_rels_hash
+        {
+          :log_entries => LogEntry.instance_method(:compilation_id)
+        }
+      end
     end
 
     class LogLevel < NamedEntity
       def self.many_rels_hash
         {
           :issues => LogIssue.instance_method(:level_id),
-          :entries => [LogIssue.instance_method(:level_id), LogMessage.instance_method(:issue_id), LogEntry.instance_method(:message_id) ]
+          :log_entries => [LogIssue.instance_method(:level_id), LogMessage.instance_method(:issue_id), LogEntry.instance_method(:message_id) ]
         }
       end
     end
@@ -343,7 +359,7 @@ module PuppetX::Puppetlabs::Migration
       def self.many_rels_hash
         {
           :messages => LogMessage.instance_method(:issue_id),
-          :entries => [LogMessage.instance_method(:issue_id), LogEntry.instance_method(:message_id) ]
+          :log_entries => [LogMessage.instance_method(:issue_id), LogEntry.instance_method(:message_id) ]
         }
       end
     end
@@ -367,7 +383,7 @@ module PuppetX::Puppetlabs::Migration
 
       def self.many_rels_hash
         {
-          :entries => LogEntry.instance_method(:message_id),
+          :log_entries => LogEntry.instance_method(:message_id),
         }
       end
     end
