@@ -86,6 +86,8 @@ class Puppet::Application::Preview < Puppet::Application
     options[:nodes] = (arg == '-' ? $stdin.each_line : File.foreach(arg)).map {|line| line.chomp!.split }.flatten
   end
 
+  option('--clean')
+
   CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
   OverviewModel = PuppetX::Puppetlabs::Migration::OverviewModel
 
@@ -124,6 +126,11 @@ class Puppet::Application::Preview < Puppet::Application
     end
     options[:nodes] += command_line.args
     options[:nodes] = options[:nodes].uniq
+
+    if options[:clean]
+      raise '--clean can only be used with options --nodes and --debug' unless (options.keys - [:clean, :node, :nodes, :debug]).empty?
+      exit(clean)
+    end
 
     if options[:schema]
       unless options[:nodes].empty?
@@ -346,7 +353,7 @@ class Puppet::Application::Preview < Puppet::Application
       # Use the directories in preview_outputdir to get the list of nodes we
       # have output for
       Dir.glob(File.join(Puppet[:preview_outputdir], '*')).select.each do |dir|
-        if File.directory?(dir) 
+        if File.directory?(dir)
           nodes << dir.to_s.match(/^.*\/([^\/]*)$/)[1]
         end
       end
@@ -359,6 +366,25 @@ class Puppet::Application::Preview < Puppet::Application
       prepare_output_options
       view(nil)
     end
+  end
+
+  def clean
+    # If no nodes were specified, remove everything we have
+    nodes = options[:nodes]
+    output_dir = Puppet[:preview_outputdir]
+    if nodes.empty?
+      # Remove everything below output_dir
+      Dir.glob(File.join(output_dir, '*')).each do |f|
+        FileUtils.remove_entry_secure(f)
+      end
+    else
+      # Remove directory of selected nodes
+      nodes.each { |node| FileUtils.remove_entry_secure(File.join(output_dir, node)) }
+    end
+    0
+  rescue Exception => e
+    $stderr.puts("Clean operation failed: #{e.message}")
+    1
   end
 
   def view(catalog_delta)
