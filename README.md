@@ -145,19 +145,19 @@ Performs the operation on the nodes listed in 'nodesfile' and the given mynode.
 To perform a full migration preview that exits with failure if catalogs are not equal:
 
 ~~~
-puppet preview --preview_env future_production --migrate 3.8/4.0 --assert=equal mynode
+puppet preview --preview_environment future_production --migrate 3.8/4.0 --assert=equal mynode
 ~~~
     
 To perform a preview that exits with failure if preview catalog is not compliant:
 
 ~~~
-puppet preview --preview_env future_production --assert=compliant mynode
+puppet preview --preview_environment future_production --assert=compliant mynode
 ~~~
 
 To perform a preview focusing on if code changes resulted in conflicts in resources of `File` type using 'jq' to filter the output (the command is given as one line):
 
 ~~~
-puppet preview --preview_env future_production --view diff mynode | jq -f '.conflicting_resources | map(select(.type == "File"))'
+puppet preview --preview_environment future_production --view diff mynode | jq -f '.conflicting_resources | map(select(.type == "File"))'
 ~~~
 
 View the catalog schema:
@@ -175,16 +175,16 @@ puppet preview --schema catalog_diff
 Run a diff (with the default summary view) then view the preview log:
 
 ~~~
-puppet preview --preview_env future_production mynode
+puppet preview --preview_environment future_production mynode
 
-puppet preview --preview_env future_production mynode --view preview_log --last
+puppet preview --preview_environment future_production mynode --view preview_log --last
 ~~~
 
 The node name can be placed anywhere:
 
 ~~~
-puppet preview mynode --preview_env future_production
-puppet preview --preview_env future_production mynode 
+puppet preview mynode --preview_environment future_production
+puppet preview --preview_environment future_production mynode 
 ~~~
 
 Removing the data for all nodes that have equal or compliant catalogs:
@@ -202,14 +202,14 @@ puppet preview --clean --last
 Running a compile, then focusing on compilation failures:
 
 ~~~
-puppet preview --preview_env future_production --nodes node_file --view failed_nodes > failed_nodes
+puppet preview --preview_environment future_production --nodes node_file --view failed_nodes > failed_nodes
 puppet preview --last --view overview --nodes failed_nodes
 ~~~
 
 Running a compile, then focusing on catalog diffs:
 
 ~~~
-puppet preview --preview_env future_production --nodes node_file --view diff_nodes > diff_nodes
+puppet preview --preview_environment future_production --nodes node_file --view diff_nodes > diff_nodes
 puppet preview --last --view overview --nodes diff_nodes
 ~~~
 
