@@ -127,10 +127,9 @@ class Puppet::Application::Preview < Puppet::Application
     options[:nodes] += command_line.args
     options[:nodes] = options[:nodes].uniq
 
-    is_clean = options[:clean]
-    if is_clean
-      raise 'The --clean and --last options cannot be used together' if options[:last]
-      clean
+    if options[:clean]
+      raise '--clean can only be used with options --nodes and --debug' unless (options.keys - [:clean, :node, :nodes, :debug]).empty?
+      exit(clean)
     end
 
     if options[:schema]
@@ -153,7 +152,6 @@ class Puppet::Application::Preview < Puppet::Application
       end
     else
       if options[:nodes].empty? && !options[:last]
-        exit(0) if is_clean
         raise 'No node(s) given to perform preview compilation for'
       end
 
@@ -180,7 +178,6 @@ class Puppet::Application::Preview < Puppet::Application
         last
       else
         unless options[:preview_environment]
-          exit(0) if is_clean
           raise 'No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known'
         end
 
@@ -374,16 +371,16 @@ class Puppet::Application::Preview < Puppet::Application
     if nodes.empty?
       # Remove everything below output_dir
       Dir.glob(File.join(output_dir, '*')).each do |f|
-        if File.directory?(f)
-          FileUtils.rmtree(f)
-        else
-          File.delete(f)
-        end
+        FileUtils.remove_entry_secure(f)
       end
     else
       # Remove directory of selected nodes
-      nodes.each { |node| FileUtils.rmtree(File.join(output_dir, node)) }
+      nodes.each { |node| FileUtils.remove_entry_secure(File.join(output_dir, node)) }
     end
+    0
+  rescue Exception => e
+    $stderr.puts("Clean operation failed: #{e.message}")
+    1
   end
 
   def view(catalog_delta)
