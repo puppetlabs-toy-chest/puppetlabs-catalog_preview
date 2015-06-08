@@ -155,32 +155,17 @@ class Puppet::Application::Preview < Puppet::Application
         raise 'No node(s) given to perform preview compilation for'
       end
 
-      if options[:nodes].size > 1 && %w{diff baseline preview baseline_log preview_log status}.include?(options[:view].to_s) && !options[:last]
+      if options[:nodes].size > 1 && %w{diff baseline preview baseline_log preview_log }.include?(options[:view].to_s)
         raise "The --view option '#{options[:view]}' is not supported for multiple nodes"
       end
 
-      if options[:nodes].size == 1 && (options[:view] == :failed_nodes || options[:view] == :diff_nodes)
-        raise "The 'failed_nodes' and 'diff_nodes' options for --view are only available when compiling multiple nodes"
-      end
-
       if options[:last]
-        if options[:view] == :summary || options[:view] == nil
-          #TODO: Add support for --last --view summary for a single node, right now it will fail
-          if options[:nodes].size > 1
-            raise "--last is not supported with --view summary when running with multiple nodes"
-          elsif options[:nodes].empty?
-            raise "When running --last with --view summary, a node must be provided"
-          end
-        elsif options[:view] == :none
+        if options[:view] == :none
           raise "--last can not be combined with --view none"
         end
 
         last
       else
-        if %w{failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(options[:view].to_s) && options[:nodes].size == 1
-          raise "The --view flag '#{options[:view]}' is only supported when running with multiple nodes"
-        end
-
         unless options[:preview_environment]
           raise 'No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known'
         end
@@ -190,7 +175,7 @@ class Puppet::Application::Preview < Puppet::Application
         end
         compile
 
-        report_results
+        view
 
         assert_and_exit
       end
@@ -252,7 +237,6 @@ class Puppet::Application::Preview < Puppet::Application
           factory.merge(catalog_delta, baseline_log, preview_log)
           @latest_catalog_delta = catalog_delta
         else
-          @latest_catalog_delta = nil
           case @exit_code
           when GENERAL_ERROR
             Puppet.log_exception(@exception)
@@ -262,19 +246,15 @@ class Puppet::Application::Preview < Puppet::Application
             display_log(options[:baseline_log])
             log = JSON.load(File.read(options[:baseline_log]))
             factory.merge_failure(node, options[:back_channel][:baseline_environment], timestamp, @exit_code, log)
-            $stderr.puts Colorizer.new.colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
-            Puppet.err(@exception.message)
           when PREVIEW_FAILED
             display_log(options[:preview_log])
             log = JSON.load(File.read(options[:preview_log]))
             factory.merge_failure(node, options[:preview_environment], timestamp, @exit_code, log)
-            $stderr.puts Colorizer.new.colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
-            Puppet.err(@exception.message)
           end
         end
       end
+      @overview = factory.create_overview
     end
-    @overview = factory.create_overview
   end
 
   def compile_diff(timestamp)
@@ -347,25 +327,8 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def last
-    # If no nodes were specified, print everything we have
-    if options[:nodes].empty?
-      nodes = []
-      # Use the directories in preview_outputdir to get the list of nodes we
-      # have output for
-      Dir.glob(File.join(Puppet[:preview_outputdir], '*')).select.each do |dir|
-        if File.directory?(dir)
-          nodes << dir.to_s.match(/^.*\/([^\/]*)$/)[1]
-        end
-      end
-    else
-      nodes = options[:nodes]
-    end
-
-    nodes.each do |node|
-      options[:node] = node
-      prepare_output_options
-      view(nil)
-    end
+    prepare_output_options
+    view
   end
 
   def clean
@@ -387,12 +350,19 @@ class Puppet::Application::Preview < Puppet::Application
     1
   end
 
-  def view(catalog_delta)
+  def view(catalog_delta = @latest_catalog_delta)
+    if options[:last]
+      generate_last_overview
+      catalog_delta = @latest_catalog_delta
+    end
+
+    nodes = @overview.of_class(OverviewModel::Node)
+
     # Produce output as directed by the :view option
     #
     case options[:view]
     when :diff
-        display_file(options[:catalog_diff])
+      display_file(options[:catalog_diff])
     when :baseline_log
       display_file(options[:baseline_log], true)
     when :preview_log
@@ -403,12 +373,29 @@ class Puppet::Application::Preview < Puppet::Application
       display_file(options[:preview_catalog])
     when :status
       display_status(catalog_delta)
+    when :failed_nodes
+      print_node_list
+    when :diff_nodes
+      print_node_list
+    when :equal_nodes
+      print_node_list
+    when :compliant_nodes
+      print_node_list
+    when :overview
+      display_overview(@overview, false)
+    when :json_overview
+      display_overview(@overview, true)
     when :none
       # One line status if catalogs are equal or not
       display_status(catalog_delta)
     else
-      display_summary(catalog_delta)
-      display_status(catalog_delta)
+      if options[:nodes].size > 1
+        multi_node_status(generate_stats(nodes))
+        multi_node_summary
+      else
+        display_summary(catalog_delta)
+        display_status(catalog_delta)
+      end
     end
   end
 
@@ -462,10 +449,10 @@ class Puppet::Application::Preview < Puppet::Application
         $stdout.puts(PSON::pretty_generate(json, :allow_nan => true, :max_nesting => false))
       end
     else
-    Puppet::FileSystem.open(file, nil, 'rb') do |source|
-      FileUtils.copy_stream(source, $stdout)
-      puts '' # ensure a new line at the end
-    end
+      Puppet::FileSystem.open(file, nil, 'rb') do |source|
+        FileUtils.copy_stream(source, $stdout)
+        puts '' # ensure a new line at the end
+      end
     end
   end
 
@@ -543,7 +530,7 @@ Edges:
 Output:
   For node......: #{Puppet[:preview_outputdir]}/#{options[:node]}
 
-      TEXT
+  TEXT
   end
 
   # Outputs the given _overview_ on `$stdout`. The output is either in JSON format
@@ -555,6 +542,27 @@ Output:
   def display_overview(overview, as_json)
     report = OverviewModel::Report.new(overview)
     $stdout.puts(as_json ? report.to_json : report.to_s)
+  end
+
+  def generate_last_overview
+    factory = OverviewModel::Factory.new
+    options[:back_channel] = {}
+
+    options[:nodes].each do |node|
+
+      options[:node] = node
+      timestamp = Time.now.iso8601(9)
+      prepare_output_options
+
+      catalog_delta_hash = JSON.load(File.read(options[:catalog_diff]))
+      catalog_delta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta.from_hash(catalog_delta_hash)
+      baseline_log = JSON.load(File.read(options[:baseline_log]))
+      preview_log = JSON.load(File.read(options[:preview_log]))
+
+      factory.merge(catalog_delta, baseline_log, preview_log)
+      @latest_catalog_delta = catalog_delta
+    end
+    @overview = factory.create_overview
   end
 
   def display_status(delta)
@@ -669,42 +677,24 @@ Output:
     setup_ssl
   end
 
-  # Sorts the map of nodes accordingly and computes statistics
-  def report_results
-    view_type = options[:view]
-    if view_type == :overview || view_type == :overview_json
-      display_overview(@overview, view_type == :overview_json)
-      return
-    end
 
-    nodes = @overview.of_class(OverviewModel::Node)
-    if nodes.length > 1 || @latest_catalog_delta.nil?
-      stats = nodes.reduce(Hash.new(0)) do | result, node |
-        case node.exit_code
-        when BASELINE_FAILED
-          result[:baseline_failed] += 1
-        when PREVIEW_FAILED
-          result[:preview_failed] += 1
-        when CATALOG_DELTA
-          result[:catalog_diff] += 1
+  def generate_stats(nodes)
+    stats = nodes.reduce(Hash.new(0)) do | result, node |
+      case node.exit_code
+      when BASELINE_FAILED
+        result[:baseline_failed] += 1
+      when PREVIEW_FAILED
+        result[:preview_failed] += 1
+      when CATALOG_DELTA
+        result[:catalog_diff] += 1
 
-          if node.severity == :equal
-            result[:equal] += 1
-          elsif node.severity == :compliant
-            result[:compliant] += 1
-          end
+        if node.severity == :equal
+          result[:equal] += 1
+        elsif node.severity == :compliant
+          result[:compliant] += 1
         end
-        result
       end
-
-      if view_type == :summary || view_type == nil
-        multi_node_abstract(stats)
-        multi_node_summary
-      elsif %w{failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(view_type.to_s)
-        print_node_list
-      end
-    else
-      view(@latest_catalog_delta)
+    result
     end
   end
 
@@ -745,7 +735,7 @@ Output:
     end
   end
 
-  def multi_node_abstract(stats)
+  def multi_node_status(stats)
     $stdout.puts <<-TEXT
 
 Summary:
@@ -756,7 +746,7 @@ Summary:
   Compliant Catalogs......: #{stats[:compliant]}
   Equal Catalogs..........: #{stats[:equal]}
 
-      TEXT
+  TEXT
   end
 
   def print_node_list
