@@ -160,10 +160,6 @@ class Puppet::Application::Preview < Puppet::Application
       end
 
       if options[:last]
-        if options[:view] == :none
-          raise "--last can not be combined with --view none"
-        end
-
         last
       else
         unless options[:preview_environment]
@@ -386,8 +382,7 @@ class Puppet::Application::Preview < Puppet::Application
     when :json_overview
       display_overview(@overview, true)
     when :none
-      # One line status if catalogs are equal or not
-      display_status(catalog_delta)
+      # print nothing
     else
       if options[:nodes].size > 1
         multi_node_status(generate_stats(nodes))
