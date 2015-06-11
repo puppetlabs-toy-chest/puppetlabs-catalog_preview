@@ -379,7 +379,7 @@ class Puppet::Application::Preview < Puppet::Application
       print_node_list
     when :overview
       display_overview(@overview, false)
-    when :json_overview
+    when :overview_json
       display_overview(@overview, true)
     when :none
       # print nothing
@@ -487,6 +487,9 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def display_summary(delta)
+    # TODO: Use overview instead of delta here and cater for the fact that a compilation might have failed.
+    return if delta.nil?
+
     compliant_count = delta.conflicting_resources.count {|r| r.compliant? }
     compliant_attr_count = delta.conflicting_resources.reduce(0) do |memo, r|
       memo + r.conflicting_attributes.count {|a| a.compliant? }
@@ -549,18 +552,45 @@ Output:
       timestamp = Time.now.iso8601(9)
       prepare_output_options
 
-      catalog_delta_hash = JSON.load(File.read(options[:catalog_diff]))
-      catalog_delta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta.from_hash(catalog_delta_hash)
-      baseline_log = JSON.load(File.read(options[:baseline_log]))
-      preview_log = JSON.load(File.read(options[:preview_log]))
+      catalog_delta = nil
+      json = File.read(options[:catalog_diff])
+      unless json.nil? || json.empty?
+        # There will be no delta when one of the compilations failed
+        catalog_delta_hash = JSON.load(json)
+        catalog_delta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta.from_hash(catalog_delta_hash)
+      end
+      json = File.read(options[:baseline_log])
+      baseline_log = json.nil? || json.empty? ? [] : JSON.load(json)
+      json = File.read(options[:preview_log])
+      preview_log = json.nil? || json.empty? ? [] : JSON.load(json)
 
-      factory.merge(catalog_delta, baseline_log, preview_log)
+      if catalog_delta.nil?
+        baseline_err = baseline_log.any? { |le| le['level'] == 'err' }
+        preview_err = preview_log.any? { |le| le['level'] == 'err' }
+        if baseline_err
+          time = File.ctime(options[:baseline_log])
+          exit_code = BASELINE_FAILED
+          log = baseline_log
+        elsif preview_err
+          time = File.ctime(options[:preview_log])
+          exit_code = PREVIEW_FAILED
+          log = preview_log
+        else
+          raise Puppet::Error.new('Unable to recreate overview')
+        end
+        factory.merge_failure(node, time.iso8601(9), exit_code, log)
+      else
+        factory.merge(catalog_delta, baseline_log, preview_log)
+      end
       @latest_catalog_delta = catalog_delta
     end
     @overview = factory.create_overview
   end
 
   def display_status(delta)
+    # TODO: Use overview instead of delta here and cater for the fact that a compilation might have failed.
+    return if delta.nil?
+
     preview_equal     = delta.preview_equal?
     preview_compliant = delta.preview_compliant?
     status = preview_equal ? 'equal' : preview_compliant ? 'not equal but compliant' : 'neither equal nor compliant'
