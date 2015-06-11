@@ -280,7 +280,8 @@ When `--migrate 3.8/4.8` is on, values where one value is a string and the other
 
 Migration of multiple nodes at the same time is best presented with `--view overview` as that correlates and aggregates found issues and presents information in a more actionable format.
 
-For details about the migration specific warnings, see [the catalog_preview wiki page](https://github.com/puppetlabs/puppetlabs-catalog_preview/wiki).
+For details about the migration specific warnings, see the DIAGNOSTICS section in the command's
+`--help` output.
 
 #####`NODE-NAME`
 
