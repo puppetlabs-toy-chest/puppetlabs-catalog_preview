@@ -487,9 +487,9 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def display_summary(delta)
-    compliant_count = delta.conflicting_resources.count {|r| r[:compliant] }
+    compliant_count = delta.conflicting_resources.count {|r| r.compliant? }
     compliant_attr_count = delta.conflicting_resources.reduce(0) do |memo, r|
-      memo + r[:conflicting_attributes].count {|a| a[:compliant] }
+      memo + r.conflicting_attributes.count {|a| a.compliant? }
     end
 
     $stdout.puts <<-TEXT
