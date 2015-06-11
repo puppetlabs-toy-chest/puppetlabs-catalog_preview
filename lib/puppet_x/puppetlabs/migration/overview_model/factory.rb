@@ -219,7 +219,7 @@ module PuppetX::Puppetlabs::Migration
       #
       # @api public
       def location_from_delta(loc)
-        location(loc.file, loc.line, nil)
+        loc.nil? ? nil : location(loc.file, loc.line, nil)
       end
 
       # Returns the id of the {Location} entity that corresponds to the given parameters. A new

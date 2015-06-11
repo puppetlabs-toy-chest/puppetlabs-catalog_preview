@@ -150,7 +150,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
 
     def issue_location_string(issue)
       location = issue.location
-      "#{location.file.path}:#{location.line}"
+      location.nil? ? 'unknown location' : "#{location.file.path}:#{location.line}"
     end
 
     # top_ten
