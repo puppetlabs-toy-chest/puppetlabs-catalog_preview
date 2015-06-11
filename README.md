@@ -1,4 +1,4 @@
-[parser_config]: https://docs.puppetlabs.com/puppet/latest/reference/config_file_environment.html#parser
+[parser_config_38]: https://docs.puppetlabs.com/puppet/3.8/reference/config_file_environment.html#parser
 
 #catalog_preview
 
@@ -29,13 +29,15 @@ The catalog_preview module is a Puppet Enterprise-only module that provides cata
 
 The primary purpose of the module is to serve as an aid for migration from the Puppet 3.x parser to the Puppet 4.x parser. The catalog_preview module compiles two catalogs, one in a *baseline environment*, using the current or 3.x parser, and one in a *preview environment*, using the 4.x or "future" parser. The module computes a diff between the two environments, and then saves the two catalogs, the diff, and the log output from each compilation for inspection. 
 
-You'll point your preview environment at a branch of the environment you want to migrate, and then [configure][parser_config] the preview environment to use the 4.x ("future") parser. This way, backwards-incompatible changes can be made in the preview environment without affecting production. You can then use the diff, catalog, and log outputs provided by preview to make changes to the preview environment until you feel it is ready to move into production.
+You'll point your preview environment at a branch of the environment you want to migrate, and then [configure][parser_config_38] the preview environment to use the 4.x ("future") parser. This way, backwards-incompatible changes can be made in the preview environment without affecting production. You can then use the diff, catalog, and log outputs provided by preview to make changes to the preview environment until you feel it is ready to move into production.
 
 Other scenarios are supported in the same way. For example, the module's `puppet preview` command can help in various change management and refactoring scenarios. The baseline and preview environments can be any mix of future and current parser, allowing you to compare configurations even if you're not performing a 3.x to 4.x migration.
 
-However, the `--migrate 3.8/4.0` option---which provides the specific migration checking that is the primary purpose of this module---can only be used when this module is used with a puppet 3.8.x version and when the baseline environment is using current parser (3.x), and the preview environment is using future parser (4.x).
+However, the `--migrate 3.8/4.0` option---which provides the specific migration checking that is the primary purpose of this module---can only be used when this module is used with a puppet <= 4.0.0 version and when the baseline environment is using current parser (3.x), and the preview environment is using future parser (4.x).
 
 The expected workflow is to compile preview catalogs for one or multiple nodes, either all at once, or in several runs. Once compiled the preview command is used with the `--last` option to focus on a set of nodes (or all) using one of the available arguments to `--view` to output information that helps with finding issues and taking action to fix them. The `--view overview` is the best report to use when working with multiple nodes as it correlates and aggregates the information to reduce the number of times the "same" problem is reported.
+
+Also note that when this module is used with Puppet >= 4.0.0, the `parser` environment setting has been removed (since there is then only one parser and the setting does not apply).
 
 ##Setup
 
@@ -55,6 +57,17 @@ Note that your PE version must be less than version 4.0.0 to perform migration c
 ###Installation
 
 Install the catalog_preview module with `puppet module install puppetlabs-catalog_preview`.
+
+###Using R10K
+
+If you are using the R10K system to manage your code, you can use this workflow:
+
+1. clone R10K repo (to get R10K)
+2. `git checkout -b production_future`
+3. Add the line `parser = future` to `environment.conf`
+4. Git add, git commit, 
+5. `git push origin production_future`
+6. run r10k to refresh environments (you can configure your git hook to do this)
 
 ##Usage
 
@@ -101,10 +114,17 @@ environment (i.e., changes that work for both parsers), it's valuable to have a 
 ####Viewing reports
 
 By default, the `puppet preview` command outputs a report of the compilation/differences between the two catalogs on 'stdout'. If compiling for a single node a summary report of the differences is displayed, and when compiling for multiple node the summary is an aggregate status report of catalog diff status per node.
+
 This can be changed with [`--view`](#--view) to instead (for a single node) view one of the catalogs, the diff, or one of the compilation logs, or when compiling for multiple nodes, the `overview` report which correlates differences and issues across all nodes. Use the `--last` option with `--view` to view a result from the previous run obtained for one or several nodes instead of performing new compilations and diffs. Using `--last` without a list of nodes, uses the result obtain from all previous compilations.
 
-`puppet preview --last --view baseline_log mynode`
-`puppet preview --last --view baseline_log mynode1 mynode2 mynode3`
+View the log of one node:
+
+`puppet preview --last mynode --view baseline_log`
+
+View the aggregate/correlated overview for three nodes:
+
+`puppet preview --last mynode1 mynode2 mynode3 --view overview`
+
 
 ####Processing output
 
@@ -228,7 +248,7 @@ Specifies the environment for the baseline compilation. This overrides the envir
 
 #####`--preview_environment 'ENV-NAME'`
 
-Specifies the environment for the preview compilation. Uses facts obtained from the configured facts terminus to compile the catalog. If you're evaluating for migration from Puppet 3.x to Puppet 4.x, this environment's puppet.conf should be configured to use the future (4.x) parser.
+Specifies the environment for the preview compilation. Uses facts obtained from the configured facts terminus to compile the catalog. If you're evaluating for migration from Puppet 3.x to Puppet 4.x, and using PE <= 4.0.0 this environment's `puppet.conf` should be configured to use the future (4.x) parser.
 
 #####`--debug`
 
@@ -245,7 +265,8 @@ Prints a help message listing the options for the `puppet preview` command.
 
 #####`--last`
 
-Use the last result obtained for one or more nodes instead of performing new compilations and diff. Must be used along with the [`--view`](#--view) option. (Cannot be combined with `--view none`).
+Use the last result obtained for a node instead of performing new compilations and diff. Must be used along with the [`--view`](#--view) option. The command will operate on nodes given on the command line plus those given via [`--nodes`][#--nodes]. If used without any given nodes, this option will load information about all nodes for which there is preview output.
+
 
 #####`--migrate 3.8/4.0`
 
@@ -259,8 +280,7 @@ For details about the migration specific warnings, see [the catalog_preview wiki
 
 #####`NODE-NAME`
 
-This specifies for which node the preview should produce output. The node must have previously requested a catalog from the master to make its facts available.
-
+This specifies for which node the preview should produce output. The node must have previously requested a catalog from the master to make its facts available. It is possible to give multiple node names on the command line, via a file, or piping them to the command by using the [`--nodes`][#--nodes] option.
 
 #####`--preview_outputdir 'DIR'`
 
@@ -288,6 +308,7 @@ Specifies what will be output on stdout. Must be used with one of the following 
 
 * `summary`: The summary report of one catalog diff, or a summary per node if multiple are given
 * `overview`: The correlated and aggregated report of issues/diffs for multiple nodes
+* `overview_json`: The correlated and aggregated report of issues/diffs for multiple nodes in json format (experimental feature, the schema may change)
 * `diff`: The catalog diff
 * `baseline`: The baseline catalog
 * `preview`: The preview catalog
@@ -300,8 +321,7 @@ Specifies what will be output on stdout. Must be used with one of the following 
 * `compliant_nodes`: Outputs a list of nodes where catalogs where equal or compliant
 * `none`: No output
 
-The outputs `diff`, `baseline`, `preview`, `baseline_log`, `preview_log` only works for a single node. All `--view` options may be combined with the `--last` option (to avoid recompilation).
-
+The outputs `diff`, `baseline`, `preview`, `baseline_log`, `preview_log` only works for a single node. All `--view` options may be combined with the [`--last`][#--last] option (to avoid recompilation).
 
 #####`--verbose_diff`
 
