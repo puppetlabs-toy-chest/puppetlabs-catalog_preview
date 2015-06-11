@@ -246,9 +246,13 @@ Modifies the exit code to be 4 if catalogs are not equal and 5 if the preview ca
 
 Specifies the environment for the baseline compilation. This overrides the environment set for the node via an ENC. Uses facts obtained from the configured facts terminus to compile the catalog. If you're evaluating for migration from Puppet 3.x to Puppet 4.x, this environment's puppet.conf should be configured to use the current (3.x) parser. Note that the Puppet setting `--environment` **cannot** be used to achieve the same effect.
 
+Also available in short form `--be ENV-NAME`.
+
 #####`--preview_environment 'ENV-NAME'`
 
 Specifies the environment for the preview compilation. Uses facts obtained from the configured facts terminus to compile the catalog. If you're evaluating for migration from Puppet 3.x to Puppet 4.x, and using PE <= 4.0.0 this environment's `puppet.conf` should be configured to use the future (4.x) parser.
+
+Also available in short form `--be ENV-NAME`.
 
 #####`--debug`
 
