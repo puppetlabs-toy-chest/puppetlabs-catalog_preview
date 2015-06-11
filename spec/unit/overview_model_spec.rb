@@ -6,6 +6,7 @@ module PuppetX::Puppetlabs::Migration
   module OverviewModel
     describe 'Factory' do
       let!(:conflicting_delta) { CatalogDeltaModel::CatalogDelta.from_hash(load_catalog_delta('conflicting-delta.json')) }
+      let!(:conflict_without_location_delta) { CatalogDeltaModel::CatalogDelta.from_hash(load_catalog_delta('conflict-without-location-delta.json')) }
       let!(:compliant_delta) { CatalogDeltaModel::CatalogDelta.from_hash(load_catalog_delta('compliant-delta.json')) }
       let!(:equal_delta_hash) { load_catalog_delta('equal-delta.json')}
       let!(:equal_delta) { CatalogDeltaModel::CatalogDelta.from_hash(equal_delta_hash) }
@@ -47,6 +48,12 @@ module PuppetX::Puppetlabs::Migration
         factory.merge(conflicting_delta)
         overview_hash2 = factory.create_overview.to_hash
         expect(overview_hash1).to eq(overview_hash2)
+      end
+
+      it 'can merge a CatalogDelta that has resources with no file/line information' do
+        factory.merge(conflict_without_location_delta)
+        overview = factory.create_overview
+        expect(overview.of_class(ResourceIssue).select { |r| r.location.nil? }.size).to eq(1)
       end
 
       context 'when queried' do
