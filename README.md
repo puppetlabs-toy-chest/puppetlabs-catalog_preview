@@ -58,11 +58,11 @@ Note that your PE version must be less than version 4.0.0 to perform migration c
 
 Install the catalog_preview module with `puppet module install puppetlabs-catalog_preview`.
 
-###Using R10K
+###Using r10k
 
-If you are using the R10K system to manage your code, you can use this workflow:
+If you are using the r10k system to manage your code, you can use this workflow:
 
-1. clone R10K repo (to get R10K)
+1. clone r10k repo (to get r10k)
 2. `git checkout -b production_future`
 3. Add the line `parser = future` to `environment.conf`
 4. Git add, git commit, 
@@ -276,7 +276,7 @@ Use the last result obtained for a node instead of performing new compilations a
 
 Turns on migration validation for the preview compilation. Validation result is produced to the preview log file. When compiling for a single node (or using `--last` for a single node), the logs can optionally also be viewed on stdout with `--view preview_log`. 
 
-When `--migrate 3.8/4.8` is on, values where one value is a string and the other numeric are considered equal if they represent the same number. This can be turned off with `--diff_string_numeric`, but turning this off might result in many conflicts being reported that need no action.
+When `--migrate 3.8/4.0` is on, values where one value is a string and the other numeric are considered equal if they represent the same number. This can be turned off with `--diff_string_numeric`, but turning this off might result in many conflicts being reported that need no action.
 
 Migration of multiple nodes at the same time is best presented with `--view overview` as that correlates and aggregates found issues and presents information in a more actionable format.
 
