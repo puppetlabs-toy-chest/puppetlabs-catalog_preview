@@ -58,17 +58,6 @@ Note that your PE version must be less than version 4.0.0 to perform migration c
 
 Install the catalog_preview module with `puppet module install puppetlabs-catalog_preview`.
 
-###Using r10k
-
-If you are using the r10k system to manage your code, you can use this workflow:
-
-1. clone r10k repo (to get r10k)
-2. `git checkout -b production_future`
-3. Add the line `parser = future` to `environment.conf`
-4. Git add, git commit, 
-5. `git push origin production_future`
-6. run r10k to refresh environments (you can configure your git hook to do this)
-
 ##Usage
 
 ###Prerequisites
