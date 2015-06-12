@@ -368,7 +368,11 @@ class Puppet::Application::Preview < Puppet::Application
     when :preview
       display_file(options[:preview_catalog])
     when :status
-      display_status(catalog_delta)
+      if options[:nodes].size > 1
+        multi_node_status(generate_stats(nodes))
+      else
+        display_status(catalog_delta)
+      end
     when :failed_nodes
       print_node_list
     when :diff_nodes
