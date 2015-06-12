@@ -364,12 +364,6 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     #   @return [String] name of preview environment
     attr_reader :preview_env
 
-    def self.from_hash(hash)
-      instance = allocate
-      instance.initialize_from_hash(hash)
-      instance
-    end
-
     # @api public
     # @return [Boolean] `true` if tags are ignored when comparing resources
     def tags_ignored?
