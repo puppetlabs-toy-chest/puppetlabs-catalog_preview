@@ -11,6 +11,9 @@ The `--migrate` option now takes an argument (in this released always `3.8/4.0`)
 
 Short form options for `--preview_environment` (`--pe`) and `--baseline_environment` (`--be`) have been added.
 
+The `--help` command includes a description of the migration warnings that are produced in the
+preview_log and explains how to deal with such warnings.
+
 This release also updates the module's README to improve usability.
 
 ##2015-04-05 - Release 1.0.1
