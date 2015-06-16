@@ -17,7 +17,7 @@ end
 
 RSpec.configure do |c|
   unless ENV['RS_PROVISION'] == 'no' or ENV['BEAKER_provision'] == 'no'
-    puppet_sha   = ENV['PUPPET_VERSION']
+    puppet_sha   = ENV['PUPPET_VER']
     if hosts.options[:type] =~ /foss/ && puppet_sha
       install_package(master, 'git')
       tmp_repositories = []

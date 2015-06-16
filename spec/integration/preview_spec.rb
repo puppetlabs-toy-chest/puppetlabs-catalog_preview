@@ -1,4 +1,3 @@
-require 'puppet'
 require 'spec_helper_integration'
 require 'json'
 
@@ -22,7 +21,8 @@ describe 'preview subcommand' do
   testdir_broken_production = master.tmpdir('preview_broken_production')
   testdir_broken_test       = master.tmpdir('preview_broken_test')
   # Do not use parser=future in environment configurations for version >= 4.0.0 since it has been removed
-  use_future_parser          = Puppet.version =~ /^3\./ ? 'parser=future' : ''
+  puppet_version            =  on(master, 'puppet --version').stdout.chomp
+  use_future_parser         =  puppet_version =~ /^3\./ ? 'parser=future' : ''
 
   pp = <<-EOS
 File {
@@ -203,7 +203,7 @@ EOS
                 :acceptable_exit_codes => [5]
   end
 
-  if Puppet.version =~ /^3\./ # constrained to >= 3.8.0 in dependencies
+  if puppet_version =~ /^3\./ # constrained to >= 3.8.0 in dependencies
 
     it 'accepts --migrate 3.8/4.0' do
       env_path = File.join(testdir_simple, 'environments')
