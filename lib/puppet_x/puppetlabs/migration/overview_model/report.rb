@@ -64,7 +64,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
       when ResourceAdded
         :added_resources
       when ResourceConflict
-        :conflicting_resources
+        issue.compliant? ? :compliant_resources : :conflicting_resources
       when EdgeMissing
         :missing_edges
       when EdgeAdded
@@ -74,7 +74,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
       when AttributeAdded
         :added_in
       when AttributeConflict
-        :conflicting_in
+        issue.compliant? ? :compliant_in : :conflicting_in
       end
     end
 
@@ -112,7 +112,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
         total_and_percent(bld, failures[:preview], nc_width)
       end
       bld << '  Conflicting..........: '
-      total_and_percent(bld, stats[:different], nc_width)
+      total_and_percent(bld, stats[:conflicting], nc_width)
       bld << '  Compliant............: '
       total_and_percent(bld, stats[:compliant], nc_width)
       bld << '  Equal................: '
@@ -229,7 +229,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
     def compilation_errors_to_s(bld, errors, baseline)
       return if errors.nil? || errors.empty?
       bld.puts
-      bld << (baseline ? 'Baseline' : 'Preview') << ' compilation errors per manifest' << "\n"
+      bld << (baseline ? 'Baseline' : 'Preview') << ' Errors (by manifest)' << "\n"
       errors.each do |error|
         bld << '  ' << error[:manifest] << "\n"
         bld << '    Nodes..: ' << error[:nodes].join(', ') << "\n"
@@ -256,15 +256,28 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
       issues = {}
       log_entries(level, baseline).each do |le|
         name = le.message.issue.name
+        no_issue_code = name.nil?
+        name = le.message.message if no_issue_code
         hash = issues[name]
         if hash.nil?
           hash = {
-            :issue_code => name,
+            no_issue_code ? :message : :issue_code => name,
             :count => 1
           }
           issues[name] = hash
         else
           hash[:count] += 1
+        end
+        location = le.location
+        unless location.nil?
+          manifest_name = location.file.path
+          manifests = get_hash(hash, :manifests)
+          manifests[manifest_name] ||= []
+          line = location.line
+          unless line.nil?
+            pos = location.pos
+            manifests[manifest_name] << (pos.nil? ? line.to_s : "#{line}:#{pos}")
+          end
         end
       end
       issues.values.sort { |a, b| b[:count] <=> a[:count] }
@@ -273,9 +286,30 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
     def count_by_issue_code_to_s(bld, issues, level, baseline)
       return if issues.nil? || issues.empty?
       bld.puts
-      bld << (baseline ? 'Baseline' : 'Preview') << (level == 'err' ? ' Errors' : ' Warnings') << ' by issue code' << "\n"
+      count_by_issue_code_or_message_to_s(bld, issues, level, baseline, ' (by issue)', :issue_code)
+      count_by_issue_code_or_message_to_s(bld, issues, level, baseline, ' (by message)', :message)
+    end
+
+    def count_by_issue_code_or_message_to_s(bld, issues, level, baseline, txt, sym)
+      issues = issues.select { |issue| issue.include?(sym) }
+      return if issues.empty?
+      bld << (baseline ? 'Baseline' : 'Preview') << (level == 'err' ? ' Errors' : ' Warnings') << txt << "\n"
       issues.each do |issue|
-        bld << '  ' << issue[:issue_code] << ' (' << issue[:count] << ")\n"
+        bld << '  ' << issue[sym] << ' (' << issue[:count] << ")\n"
+        manifests = issue[:manifests]
+        unless manifests.nil?
+          manifests.each_pair do |manifest, locations|
+            bld << '    ' << manifest
+            case locations.size
+            when 0
+            when 1
+              bld << ':' << locations[0]
+            else
+              bld << ':' << '[' << locations.join(',') << ']'
+            end
+            bld << "\n"
+          end
+        end
       end
     end
 
@@ -352,27 +386,36 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
       bld.puts('Changes per Resource Type')
       changes.each_pair do |type_name, per_type|
         bld << '  ' << type_name << "\n"
-        { :missing_resources => 'Missing', :added_resources => 'Added', :conflicting_resources => 'Conflicting' }.each_pair do |key, key_text|
+        { :missing_resources => '(conflict missing)',
+          :added_resources => '(compliant added)',
+          :compliant_resources => '(compliant diff)',
+          :conflicting_resources => '(conflict diff)'
+        }.each_pair do |key, key_text|
           per_key = per_type[key]
           next if per_key.nil?
           per_key.each_pair do |title, title_entry|
             title_entry.each_pair do |location, nodes|
-              bld << '    ' << key_text << " title: '" << title << "' at: " << location << ' on ' << nodes.join(', ') << "\n"
+              type = key_text
+              bld << '    ' << "title: '" << title << "' " << type << ' at: ' << location << ' on ' << nodes.join(', ') << "\n"
             end
           end
         end
 
         attr_issues = per_type[:attribute_issues]
         next if attr_issues.nil?
-        bld << '    Attribute Issues' << "\n"
+        bld << '    Attribute Issues (per name)' << "\n"
         attr_issues.each_pair do |attribute_name, issues|
-          { :missing_in => 'Missing', :added_in => 'Added', :conflicting_in => 'Conflicting' }.each_pair do |key, key_text|
+          { :missing_in => '(conflict missing)',
+            :added_in => '(compliant added)',
+            :compliant_in => '(compliant diff)',
+            :conflicting_in => '(conflict diff)'
+          }.each_pair do |key, key_text|
             per_key = issues[key]
             next if per_key.nil?
-            bld << '      ' << attribute_name << "\n"
+            bld << "      '" << attribute_name << "'\n"
             per_key.each_pair do |attr_title, title_entry|
               title_entry.each_pair do |location, nodes|
-                bld << '        ' << key_text << " for title: '" << attr_title << "' at: " << location << ' on ' << nodes.join(', ') << "\n"
+                bld << '        ' << key_text << " in title: '" << attr_title << "' at: " << location << ' on ' << nodes.join(', ') << "\n"
               end
             end
           end

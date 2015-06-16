@@ -533,6 +533,10 @@ module PuppetX::Puppetlabs::Migration
           resource_id || UNDEFINED_ID
         end
       end
+
+      def compliant?
+        false
+      end
     end
 
     # @api public
@@ -541,15 +545,23 @@ module PuppetX::Puppetlabs::Migration
 
     # @api public
     class ResourceAdded < ResourceIssue
+      def compliant?
+        true
+      end
     end
 
     # @api public
     class ResourceConflict < ResourceIssue
       attr_reader :preview_location_id
 
-      def initialize(id, resource_id, baseline_location_id, preview_location_id)
+      def initialize(id, resource_id, baseline_location_id, preview_location_id, compliant)
         super(id, resource_id, baseline_location_id)
         @preview_location_id = preview_location_id
+        @compliant = compliant
+      end
+
+      def compliant?
+        @compliant
       end
 
       def self.many_rels_hash
@@ -590,6 +602,10 @@ module PuppetX::Puppetlabs::Migration
           @resource_conflict_id || UNDEFINED_ID
         end
       end
+
+      def compliant?
+        false
+      end
     end
 
     # @api public
@@ -598,18 +614,26 @@ module PuppetX::Puppetlabs::Migration
 
     # @api public
     class AttributeAdded < AttributeIssue
+      def compliant?
+        true
+      end
     end
 
     # @api public
     class AttributeConflict < AttributeIssue
       attr_reader :preview_value
 
-      def initialize(id, resource_conflict_id, attribute_id, baseline_value, preview_value)
+      def initialize(id, resource_conflict_id, attribute_id, baseline_value, preview_value, compliant)
         super(id, resource_conflict_id, attribute_id, baseline_value)
         @preview_value = preview_value
+        @compliant = compliant
       end
 
       alias baseline_value value
+
+      def compliant?
+        @compliant
+      end
     end
 
     # Initialize all relationships

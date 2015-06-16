@@ -499,7 +499,7 @@ class Puppet::Application::Preview < Puppet::Application
 
 Catalog:
   Versions......: #{delta.version_equal? ? 'equal' : 'different' }
-  Preview.......: #{delta.preview_equal? ? 'equal' : delta.preview_compliant? ? 'compliant' : 'different'}
+  Preview.......: #{delta.preview_equal? ? 'equal' : delta.preview_compliant? ? 'compliant' : 'conflicting'}
   Tags..........: #{delta.tags_ignored? ? 'ignored' : 'compared'}
   String/Numeric: #{delta.string_numeric_diff_ignored? ? 'numerically compared' : 'type significant compare'}
 
@@ -724,7 +724,7 @@ Output:
   end
 
   def multi_node_summary
-    summary = Hash[[ :equal, :compliant, :different, :error ].map do |severity|
+    summary = Hash[[ :equal, :compliant, :conflicting, :error ].map do |severity|
       [severity, @overview.of_class(OverviewModel::Node).select { |n| n.severity == severity }.sort.map do |n|
         { :name => n.name,
           :baseline_env => n.baseline_env.name,
@@ -744,7 +744,7 @@ Output:
             $stdout.puts Colorizer.new.colorize(:red, "preview failed (#{node[:preview_env]}): #{node[:name]}")
           end
         end
-      when :different
+      when :conflicting
         nodes.each do |node|
           $stdout.puts "catalog delta: #{node[:name]}"
         end
@@ -775,7 +775,7 @@ Summary:
   end
 
   def print_node_list
-    nodes = Hash[[ :equal, :compliant, :different, :error ].map do |severity|
+    nodes = Hash[[ :equal, :compliant, :conflicting, :error ].map do |severity|
       [severity, @overview.of_class(OverviewModel::Node).select { |n| n.severity == severity }.sort.map do |n|
         n.name
       end]
@@ -797,7 +797,7 @@ Summary:
         $stdout.puts node
       end
       if options[:view] == :diff_nodes
-        nodes[:different].each do |node|
+        nodes[:conflicting].each do |node|
           $stdout.puts node
         end
         if options[:assert] == :equal
