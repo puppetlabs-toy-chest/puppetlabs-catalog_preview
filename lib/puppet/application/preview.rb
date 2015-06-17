@@ -372,7 +372,7 @@ class Puppet::Application::Preview < Puppet::Application
       if node_names.size > 1
         multi_node_status(generate_stats)
       else
-        display_status(catalog_delta)
+        display_status
       end
     when :failed_nodes
       print_node_list
@@ -394,7 +394,7 @@ class Puppet::Application::Preview < Puppet::Application
         multi_node_summary
       else
         display_summary(catalog_delta)
-        display_status(catalog_delta)
+        display_status
       end
     end
   end
@@ -591,15 +591,26 @@ Output:
     @overview = factory.create_overview
   end
 
-  def display_status(delta)
-    # TODO: Use overview instead of delta here and cater for the fact that a compilation might have failed.
-    return if delta.nil?
+  def display_status
 
-    preview_equal     = delta.preview_equal?
-    preview_compliant = delta.preview_compliant?
-    status = preview_equal ? 'equal' : preview_compliant ? 'not equal but compliant' : 'neither equal nor compliant'
-    color = preview_equal || preview_compliant ? :green : :hred
-    $stdout.puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
+    node = @overview.of_class(OverviewModel::Node)[0]
+
+    colorizer = Colorizer.new
+    case node.exit_code
+    when BASELINE_FAILED
+      $stdout.puts colorizer.colorize(:hred, "Node #{node.name} failed baseline compilation.")
+    when PREVIEW_FAILED
+      $stdout.puts colorizer.colorize(:hred, "Node #{node.name} failed preview compilation.")
+    when CATALOG_DELTA
+
+      if node.severity == :equal
+        $stdout.puts colorizer.colorize(:green, "Catalogs for node '#{options[:node]}' are equal.")
+      elsif node.severity == :compliant
+        $stdout.puts "Catalogs for '#{node.name}' are not equal but compliant."
+      else
+        $stdout.puts "Catalogs for '#{node.name}' are neither equal nor compliant."
+      end
+    end
   end
 
   def count_of(elements)

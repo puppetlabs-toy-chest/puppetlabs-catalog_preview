@@ -213,7 +213,7 @@ Edges:
 Output:
   For node......: /dev/null/preview/
 
-\e[0;32mCatalogs for node '' are equal.\e[0m
+Catalogs for 'compliant.example.com' are not equal but compliant.
         TEXT
         preview.options[:view] = :summary
         expect{ preview.view(diff_catalog)}.to output(expected_summary).to_stdout
@@ -221,7 +221,7 @@ Output:
 
       it "'status' outputs the compliance status of the node" do
         preview.options[:view] = :status
-        expect{ preview.view(diff_catalog)}.to output("\e[0;32mCatalogs for node '' are equal.\e[0m\n").to_stdout
+        expect{ preview.view}.to output("Catalogs for 'compliant.example.com' are not equal but compliant.\n").to_stdout
       end
     end
   end
