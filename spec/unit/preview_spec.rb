@@ -20,7 +20,9 @@ describe Puppet::Application::Preview do
     let(:now) { Time.now.iso8601(9) }
 
     context "with one or more nodes" do
-      let!(:overview) { PuppetX::Puppetlabs::Migration::OverviewModel::Factory.new.merge(conflicting_delta).merge(compliant_delta).merge(equal_delta).merge(fine_delta).merge(great_delta).merge_failure('fail.example.com', 'test', now, 2).create_overview }
+      let!(:overview) { PuppetX::Puppetlabs::Migration::OverviewModel::Factory.new.merge(conflicting_delta)
+        .merge(compliant_delta).merge(equal_delta).merge(fine_delta).merge(great_delta)
+        .merge_failure('fail.example.com', 'test', now, 2).create_overview }
 
       let(:preview) {
         preview = Puppet::Application[:preview]
@@ -29,7 +31,7 @@ describe Puppet::Application::Preview do
         preview
       }
 
-      it "should work with the 'summary' argument"  do
+      it "'summary' outputs aggregate stats and status per node"  do
         expected_summary = <<-TEXT
 
 Summary:
@@ -53,7 +55,7 @@ catalog delta: different.example.com
         expect{ preview.view }.to output(expected_summary).to_stdout
       end
 
-      it "should work with the 'status' argument"  do
+      it "'status' outputs stats about node compliance status"  do
         expected_status = <<-TEXT
 
 Summary:
@@ -70,12 +72,12 @@ Summary:
         expect{ preview.view }.to output(expected_status).to_stdout
       end
 
-      it "should work with the 'none' argument"  do
+      it "'none' outputs nothing"  do
         preview.options[:view] = :none
         expect{preview.view}.to_not output.to_stdout
       end
 
-      it "should work with the 'diff_nodes' argument"  do
+      it "'diff_nodes' outputs a list of all failed and diff nodes"  do
         expected_node_list = <<-TEXT
 fail.example.com
 different.example.com
@@ -85,7 +87,7 @@ different.example.com
         expect{ preview.view }.to output(expected_node_list).to_stdout
       end
 
-      it "should work with the 'failed_nodes' argument"  do
+      it "'failed_nodes' outputs a list of all failed nodes"  do
         expected_node_list = <<-TEXT
 fail.example.com
         TEXT
@@ -94,7 +96,7 @@ fail.example.com
         expect{ preview.view }.to output(expected_node_list).to_stdout
       end
 
-      it "should work with the 'equal_nodes' argument"  do
+      it "'equal_nodes' outputs a list of all equal nodes"  do
         expected_node_list = <<-TEXT
 fine.example.com
 great.example.com
@@ -105,7 +107,7 @@ ok.example.com
         expect{ preview.view }.to output(expected_node_list).to_stdout
       end
 
-      it "should work with the 'compliant_nodes' argument"  do
+      it "'compliant_nodes' outputs a list of all compliant and equal nodes"  do
         expected_node_list = <<-TEXT
 compliant.example.com
 fine.example.com
@@ -177,7 +179,7 @@ ok.example.com
         preview
       }
 
-      it "should work with the 'summary' argument" do
+      it "'summary' outputs a summary report of the catalog diff" do
         expected_summary = <<-TEXT
 
 Catalog:
@@ -217,7 +219,7 @@ Output:
         expect{ preview.view(diff_catalog)}.to output(expected_summary).to_stdout
       end
 
-      it "should work with the 'status' argument" do
+      it "'status' outputs the compliance status of the node" do
         preview.options[:view] = :status
         expect{ preview.view(diff_catalog)}.to output("\e[0;32mCatalogs for node '' are equal.\e[0m\n").to_stdout
       end
