@@ -386,10 +386,10 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
       bld.puts('Changes per Resource Type')
       changes.each_pair do |type_name, per_type|
         bld << '  ' << type_name << "\n"
-        { :missing_resources => '(conflict missing)',
-          :added_resources => '(compliant added)',
-          :compliant_resources => '(compliant diff)',
-          :conflicting_resources => '(conflict diff)'
+        { :missing_resources => '(missing, conflicting)',
+          :added_resources => '(added, compliant)',
+          :compliant_resources => '(diff, compliant)',
+          :conflicting_resources => '(diff, conflicting)'
         }.each_pair do |key, key_text|
           per_key = per_type[key]
           next if per_key.nil?
@@ -405,10 +405,10 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
         next if attr_issues.nil?
         bld << '    Attribute Issues (per name)' << "\n"
         attr_issues.each_pair do |attribute_name, issues|
-          { :missing_in => '(conflict missing)',
-            :added_in => '(compliant added)',
-            :compliant_in => '(compliant diff)',
-            :conflicting_in => '(conflict diff)'
+          { :missing_in => '(missing, conflicting)',
+            :added_in => '(added, compliant)',
+            :compliant_in => '(diff, compliant)',
+            :conflicting_in => '(diff, conflicting)'
           }.each_pair do |key, key_text|
             per_key = issues[key]
             next if per_key.nil?
