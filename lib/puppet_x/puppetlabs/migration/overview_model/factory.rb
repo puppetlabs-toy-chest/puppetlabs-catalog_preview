@@ -195,7 +195,7 @@ module PuppetX::Puppetlabs::Migration
             elsif catalog_delta.preview_compliant?
               :compliant
             else
-              :different
+              :conflicting
             end
         timestamp = catalog_delta.timestamp
 
@@ -290,7 +290,7 @@ module PuppetX::Puppetlabs::Migration
         attribute_id = attribute(attribute_conflict.name)
         baseline_value = attribute_conflict.baseline_value
         preview_value = attribute_conflict.preview_value
-        complex_key_entity(AttributeConflict, resource_conflict_id, attribute_id, baseline_value, preview_value) do |ac|
+        complex_key_entity(AttributeConflict, resource_conflict_id, attribute_id, baseline_value, preview_value, attribute_conflict.compliant?) do |ac|
           ac.attribute_id == attribute_id && ac.value == baseline_value && ac.preview_value == preview_value
         end
       end
@@ -320,7 +320,7 @@ module PuppetX::Puppetlabs::Migration
         resource_id = resource(resource_conflict.title, resource_conflict.type)
         baseline_location_id = location_from_delta(resource_conflict.baseline_location)
         preview_location_id = location_from_delta(resource_conflict.preview_location)
-        complex_key_entity(ResourceConflict, resource_id, baseline_location_id, preview_location_id) do |i|
+        complex_key_entity(ResourceConflict, resource_id, baseline_location_id, preview_location_id, resource_conflict.compliant?) do |i|
           i.location_id == baseline_location_id && i.preview_location_id == preview_location_id
         end
       end

@@ -23,8 +23,8 @@ module PuppetX::Puppetlabs::Migration
         it 'can produce a text' do
           text = report.to_s
           expect(text).to match(/^Stats$/)
-          expect(text).to match(/^Baseline compilation errors per manifest$/)
-          expect(text).to match(/^Baseline Errors by issue code$/)
+          expect(text).to match(/^Baseline Errors \(by manifest\)$/)
+          expect(text).to match(/^Baseline Errors \(by issue\)$/)
           expect(text).to match(/^Top ten nodes with most issues$/)
           expect(text).to match(/^Changes per Resource Type$/)
           expect(text).to match(/^Changes of Edges$/)

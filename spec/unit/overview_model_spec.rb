@@ -83,7 +83,7 @@ module PuppetX::Puppetlabs::Migration
                             .merge_failure('fail.example.com', 'test', now, 2).create_overview }
 
         it 'can produce summary list' do
-          summary = Hash[[ :equal, :compliant, :different, :error ].map do |severity|
+          summary = Hash[[ :equal, :compliant, :conflicting, :error ].map do |severity|
                 [severity, overview.of_class(Node).select { |n| n.severity == severity }.sort.map do |n|
                     { :name => n.name,
                       :baseline_env => n.baseline_env.name,
@@ -95,7 +95,7 @@ module PuppetX::Puppetlabs::Migration
           # Check that we got all entries
           expect(summary[:equal].size).to eq(3)
           expect(summary[:compliant].size).to eq(1)
-          expect(summary[:different].size).to eq(1)
+          expect(summary[:conflicting].size).to eq(1)
           expect(summary[:error].size).to eq(1)
 
           # Check that the equal entries were sorted by node name
