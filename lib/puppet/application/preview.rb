@@ -744,8 +744,10 @@ Output:
         nodes.each do |node|
           if node[:exit_code] == BASELINE_FAILED
             $stdout.puts Colorizer.new.colorize(:red, "baseline failed (#{node[:baseline_env]}): #{node[:name]}")
-          else
+          elsif node[:exit_code] == PREVIEW_FAILED
             $stdout.puts Colorizer.new.colorize(:red, "preview failed (#{node[:preview_env]}): #{node[:name]}")
+          else
+            $stdout.puts Colorizer.new.colorize(:red, "general error (#{node[:preview_env]}): #{node[:name]}")
           end
         end
       when :conflicting

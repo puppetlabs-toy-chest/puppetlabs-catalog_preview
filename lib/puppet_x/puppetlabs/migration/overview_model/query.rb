@@ -79,10 +79,14 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
         relationship.is_a?(Array) && relationship.last.is_a?(ScalarValue)
       end
 
-      # Should not be needed but Minitest::Assertions adds this method even though
-      # respond_to_missing? is implemented
+      # Clobbered by test framework unless present (adding respond_to_missing? doesn't help)
       def message
         dispatch(:message)
+      end
+
+      # Clobbered by test framework unless present (adding respond_to_missing? doesn't help)
+      def exit_code
+        @entity.exit_code
       end
 
       def method_missing(name, *args)

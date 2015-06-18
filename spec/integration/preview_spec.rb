@@ -191,7 +191,7 @@ EOS
     env_path = File.join(testdir_broken_test, 'environments')
     on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --view failed_nodes"),
       :acceptable_exit_codes => [3] do |r|
-      expect(r.stderr).to match(/ERROR: Could not parse for environment test/)
+      expect(r.stderr).to match(/Illegal attempt to assign to 'a Name'/)
       expect(r.stdout).to match(/#{node_name}/)
     end
   end
