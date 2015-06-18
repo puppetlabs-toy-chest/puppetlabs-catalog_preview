@@ -137,6 +137,18 @@ EOS
   # TODO: same as for multiple nodes but for nodes from stdin (--nodes -)
   # TODO: same as for multiple nodes mixing explicitly given nodes with those given with --nodes (unique set)
 
+  # view types: [summary|overview|overview_json|baseline|preview|diff|baseline_log|preview_log|none|
+  # failed_nodes|diff_nodes|compliant_nodes|equal_nodes]
+  it 'should error if using an unsupported --view type with multiple nodes' do
+    view_types = %w{baseline preview diff baseline_log preview_log}
+    view_types.each do |view_type|
+      on master, puppet("preview --view #{view_type} one two shoe"),
+        {:acceptable_exit_codes => [1]} do |r|
+        expect(r.stderr).to match(/Error:.*#{view_type}.*multiple nodes/)
+      end
+    end
+  end
+
   it 'should output valid json from --view diff' do
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --view diff"),
