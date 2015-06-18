@@ -124,8 +124,7 @@ class Puppet::Application::Preview < Puppet::Application
     unless options[:nodes].is_a?(Array)
       options[:nodes] = []
     end
-    options[:nodes] += command_line.args
-    options[:nodes] = options[:nodes].uniq
+    options[:nodes] |= command_line.args
 
     if options[:clean]
       raise '--clean can only be used with options --nodes and --debug' unless (options.keys - [:clean, :node, :nodes, :debug]).empty?
@@ -218,7 +217,7 @@ class Puppet::Application::Preview < Puppet::Application
     #
     options[:back_channel] = {}
 
-    options[:nodes].each do |node|
+    node_names.each do |node|
 
       options[:node] = node
       begin
@@ -328,22 +327,26 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def clean
-    # If no nodes were specified, remove everything we have
-    nodes = options[:nodes]
     output_dir = Puppet[:preview_outputdir]
-    if nodes.empty?
-      # Remove everything below output_dir
-      Dir.glob(File.join(output_dir, '*')).each do |f|
-        FileUtils.remove_entry_secure(f)
-      end
-    else
-      # Remove directory of selected nodes
-      nodes.each { |node| FileUtils.remove_entry_secure(File.join(output_dir, node)) }
-    end
+    node_names.each { |node| FileUtils.remove_entry_secure(File.join(output_dir, node)) }
     0
   rescue Exception => e
     $stderr.puts("Clean operation failed: #{e.message}")
     1
+  end
+
+  def node_names
+    # If no nodes were specified, print everything we have
+    if @node_names.nil?
+      given_names = options[:nodes]
+      @node_names = if given_names.nil? || given_names.empty?
+        # Use the directories in preview_outputdir to get the list of nodes
+        Dir.glob(File.join(Puppet[:preview_outputdir], '*')).select { |f| File.directory?(f) }.map { |f| File.basename(f) }
+      else
+        given_names
+      end
+    end
+    @node_names
   end
 
   def view(catalog_delta = @latest_catalog_delta)
@@ -351,8 +354,6 @@ class Puppet::Application::Preview < Puppet::Application
       generate_last_overview
       catalog_delta = @latest_catalog_delta
     end
-
-    nodes = @overview.of_class(OverviewModel::Node)
 
     # Produce output as directed by the :view option
     #
@@ -368,8 +369,8 @@ class Puppet::Application::Preview < Puppet::Application
     when :preview
       display_file(options[:preview_catalog])
     when :status
-      if options[:nodes].size > 1
-        multi_node_status(generate_stats(nodes))
+      if node_names.size > 1
+        multi_node_status(generate_stats)
       else
         display_status(catalog_delta)
       end
@@ -388,8 +389,8 @@ class Puppet::Application::Preview < Puppet::Application
     when :none
       # print nothing
     else
-      if options[:nodes].size > 1
-        multi_node_status(generate_stats(nodes))
+      if node_names.size > 1
+        multi_node_status(generate_stats)
         multi_node_summary
       else
         display_summary(catalog_delta)
@@ -550,10 +551,9 @@ Output:
     factory = OverviewModel::Factory.new
     options[:back_channel] = {}
 
-    options[:nodes].each do |node|
+    node_names.each do |node|
 
       options[:node] = node
-      timestamp = Time.now.iso8601(9)
       prepare_output_options
 
       catalog_delta = nil
@@ -707,8 +707,8 @@ Output:
   end
 
 
-  def generate_stats(nodes)
-    stats = nodes.reduce(Hash.new(0)) do | result, node |
+  def generate_stats
+    @overview.of_class(OverviewModel::Node).reduce(Hash.new(0)) do | result, node |
       case node.exit_code
       when BASELINE_FAILED
         result[:baseline_failed] += 1
