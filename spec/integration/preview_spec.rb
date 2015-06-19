@@ -172,7 +172,6 @@ EOS
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --view diff_nodes"),
       :acceptable_exit_codes => [0] do |r|
-      expect(r.stderr).to be_empty
       expect(r.stdout).to match(/#{node_name}/)
     end
   end
@@ -182,7 +181,6 @@ EOS
     on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --view failed_nodes"),
       {:acceptable_exit_codes => [0]} do |r|
       expect(r.exit_code).to be_zero
-      expect(r.stderr).to be_empty
       expect(r.stdout).to be_empty
     end
   end
