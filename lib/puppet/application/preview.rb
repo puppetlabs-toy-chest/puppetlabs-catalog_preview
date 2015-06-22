@@ -492,15 +492,14 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def display_summary(delta)
-    # TODO: Use overview instead of delta here and cater for the fact that a compilation might have failed.
-    return if delta.nil?
 
-    compliant_count = delta.conflicting_resources.count {|r| r.compliant? }
-    compliant_attr_count = delta.conflicting_resources.reduce(0) do |memo, r|
-      memo + r.conflicting_attributes.count {|a| a.compliant? }
-    end
+    if delta
+      compliant_count = delta.conflicting_resources.count {|r| r.compliant? }
+      compliant_attr_count = delta.conflicting_resources.reduce(0) do |memo, r|
+        memo + r.conflicting_attributes.count {|a| a.compliant? }
+      end
 
-    $stdout.puts <<-TEXT
+      $stdout.puts <<-TEXT
 
 Catalog:
   Versions......: #{delta.version_equal? ? 'equal' : 'different' }
@@ -530,10 +529,15 @@ Edges:
   Missing.......: #{count_of(delta.missing_edges)}
   Added.........: #{count_of(delta.added_edges)}
 
+  TEXT
+    end
+
+    $stdout.puts <<-TEXT
 Output:
   For node......: #{Puppet[:preview_outputdir]}/#{options[:node]}
 
   TEXT
+
   end
 
   # Outputs the given _overview_ on `$stdout`. The output is either in JSON format
