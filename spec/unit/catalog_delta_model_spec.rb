@@ -47,6 +47,15 @@ describe 'CatalogDelta' do
         },
         {
           'type' => 'File',
+          'title' => '/etc/puppetlabs/console-services/conf.d/console_secret_key.conf',
+          'line' => 1,
+          'exported' => false,
+          'parameters' => {
+            'content' => 'secret',
+          }
+        },
+        {
+          'type' => 'File',
           'title' => '/tmp/fumtest',
           'tags' => ['file', 'class'],
           'file' => '/etc/puppet/environments/production/manifests/site.pp',
@@ -96,6 +105,7 @@ describe 'CatalogDelta' do
   let(:schema_dir) { 'lib/puppet_x/puppetlabs/preview/api/schemas' }
   let(:json_meta_schema) { JSON.parse(File.read(File.join(schema_dir, 'json-meta-schema.json'))) }
   let(:catalog_delta_schema) { JSON.parse(File.read(File.join(schema_dir, 'catalog-delta.json'))) }
+  let(:excludes_schema) { JSON.parse(File.read(File.join(schema_dir, 'excludes.json'))) }
 
   it 'has a valid JSON schema' do
     JSON::Validator.validate!(json_meta_schema, catalog_delta_schema)
@@ -237,6 +247,72 @@ describe 'CatalogDelta' do
     expect(attr.baseline_value).to eq('present')
     expect(attr.preview_value).to eq('absent')
     JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
+  end
+
+  it 'ignores excluded attribute removals' do
+    pv = preview_hash
+    pv['resources'][0] = {
+      'type' => 'File',
+      'title' => '/tmp/footest',
+      'tags' => ['file', 'class'],
+      'file' => '/etc/puppet/environments/production/manifests/site.pp',
+      'line' => 1,
+      'exported' => false,
+      'parameters' => {
+      }
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['ensure']) ])
+    expect(delta.conflicting_resource_count).to eq(0)
+  end
+
+  it 'ignores excluded attribute additions' do
+    pv = preview_hash
+    pv['resources'][0] = {
+      'type' => 'File',
+      'title' => '/tmp/footest',
+      'tags' => ['file', 'class'],
+      'file' => '/etc/puppet/environments/production/manifests/site.pp',
+      'line' => 1,
+      'exported' => false,
+      'parameters' => {
+        'ensure' => 'present',
+        'mode' => '0775'
+      }
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['mode']) ])
+    expect(delta.conflicting_resource_count).to eq(0)
+  end
+
+  it 'ignores excluded attribute conflicts' do
+    pv = preview_hash
+    pv['resources'][0] = {
+      'type' => 'File',
+      'title' => '/tmp/footest',
+      'tags' => ['file', 'class'],
+      'file' => '/etc/puppet/environments/production/manifests/site.pp',
+      'line' => 1,
+      'exported' => false,
+      'parameters' => {
+        'ensure' => 'absent',
+      }
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['ensure']) ])
+    expect(delta.conflicting_resource_count).to eq(0)
+  end
+
+  it 'ignores attributes excluded by default' do
+    pv = preview_hash
+    pv['resources'][2] = {
+      'type' => 'File',
+      'title' => '/etc/puppetlabs/console-services/conf.d/console_secret_key.conf',
+      'line' => 1,
+      'exported' => false,
+      'parameters' => {
+        'content' => 'secret2',
+      }
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
+    expect(delta.conflicting_resource_count).to eq(0)
   end
 
   it 'reports missing edges' do
@@ -388,7 +464,7 @@ describe 'CatalogDelta' do
 
   it 'allows variables that have Set semantics to be strings' do
     pv = preview_hash
-    pv['resources'][2]['parameters'] =  {
+    pv['resources'][3]['parameters'] =  {
         'before' => ['a'],
         'after' => 'a'
     }
@@ -523,6 +599,22 @@ describe 'CatalogDelta' do
 
     second_hash = delta_from_hash.to_hash
     expect(first_hash).to eq(second_hash)
+  end
+
+  it 'has a valid JSON schema for excludes' do
+    JSON::Validator.validate!(json_meta_schema, excludes_schema)
+  end
+
+  it 'can read and validate excludes JSON file' do
+    excludes_file = fixture('excludes', 'excludes.json')
+    excludes = JSON.load(File.read(excludes_file))
+    JSON::Validator.validate!(excludes_schema, excludes)
+  end
+
+  it 'creates valid JSON array from array of Exclude instances' do
+    excludes_file = fixture('excludes', 'excludes.json')
+    excludes = Exclude.parse_file(excludes_file)
+    JSON::Validator.validate!(excludes_schema, excludes.map {|e| e.to_hash })
   end
 end
 end

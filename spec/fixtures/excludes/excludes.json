@@ -1,0 +1,14 @@
+[
+    {
+        "type": "class"
+    },
+    {
+        "type": "file",
+        "title": "/tmp/footest"
+    },
+    {
+        "type": "file",
+        "title": "/tmp/fumtest",
+        "attributes": ["before", "after"]
+    }
+]
