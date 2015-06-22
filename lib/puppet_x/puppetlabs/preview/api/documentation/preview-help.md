@@ -385,7 +385,7 @@ are the issue codes that are found in the preview_log.json for reported migratio
   MIGRATE4_EQUALITY_TYPE_MISMATCH. For other type mismatches review the logic for what
   was intended and make adjustments accordingly.
 
-** MIGRATE4_AMBIGOUS_NUMBER (PUP-4129) **:
+** MIGRATE4_AMBIGUOUS_NUMBER (PUP-4129) **:
 
   This migration check helps with unquoted numbers where strings are intended.
 
@@ -400,7 +400,7 @@ are the issue codes that are found in the preview_log.json for reported migratio
   In 4.x. the leading zero means that the value is an octal number.
 
   The migration checker logs a warning for every occurrence of octal, and hex numbers with
-  the issue code MIGRATE4_AMBIGOUS_NUMBER in order to be able to find all places where the
+  the issue code MIGRATE4_AMBIGUOUS_NUMBER in order to be able to find all places where the
   value is used for ordering.
 
   To fix these issues, review each occurrence and quote the values that represent "ordering", or
@@ -433,7 +433,7 @@ are the issue codes that are found in the preview_log.json for reported migratio
   * string / numeric automatic conversions
   * applying regular expressions to non string values causing auto conversion
   * confusion over comparisons betwen empty string/undef/nil (internal) values
-  * in-operator not using case indpendent comparisons
+  * in-operator not using case independent comparisons
   
   To fix, review the expectations against the puppet language specification.
 
