@@ -425,6 +425,17 @@ are the issue codes that are found in the preview_log.json for reported migratio
 
   To fix this, simply remove the white space.
 
+** MIGRATE4_REVIEW_IN_EXPRESSION (PUP-4130) **:
+
+  In 3.x the `in` operator was not well specified and there were several undefined behaviors.
+  This relates to, but is not limited to:
+  
+  * string / numeric automatic conversions
+  * applying regular expressions to non string values causing auto conversion
+  * confusion over comparisons betwen empty string/undef/nil (internal) values
+  * in-operator not using case indpendent comparisons
+  
+  To fix, review the expectations against the puppet language specification.
 
 COPYRIGHT
 ---------
