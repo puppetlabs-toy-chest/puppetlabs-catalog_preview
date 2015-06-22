@@ -226,6 +226,10 @@ class Puppet::Application::Preview < Puppet::Application
         timestamp = Time.now.iso8601(9)
         catalog_delta = compile_diff(timestamp)
 
+        if options[:back_channel][:baseline_environment].to_s == options[:preview_environment]
+          $stderr.puts "The baseline and preview environments for node '#{node}' are the same"
+        end
+
         if @exit_code == CATALOG_DELTA
           baseline_log = JSON.load(File.read(options[:baseline_log]))
           preview_log = JSON.load(File.read(options[:preview_log]))
