@@ -90,7 +90,7 @@ by the setting 'preview_outputdir' (defaults to '$vardir/preview'):
     |  |  
     |  |- <NODE-NAME-2>
     |  |  |- ...
- 
+
 Each new invocation of the command for a given node overwrites the information
 already produced for that node.
 
@@ -118,7 +118,7 @@ SETUP
   for information about the parser setting).
 * Run preview for one or multiple nodes that have already checked in with the master
 * Slice and dice the information to find problems
-  
+
 OPTIONS
 -------
 
@@ -148,7 +148,7 @@ Note that all settings (such as 'log_level') affect both compilations.
 
 * --view <REPORT>
   Specifies what will be output on stdout;
-  
+
   | REPORT          | Output
   | --------------- | ----------------------------------------------------------------------
   | summary         | A single node diff summary, or the status per node  
@@ -166,21 +166,21 @@ Note that all settings (such as 'log_level') affect both compilations.
   | compliant_nodes | A list of nodes that have catalogs that are equal, or with compliant diffs
   | equal_nodes     | A list of nodes where catalogs where equal
 
-     
+
   The 'overview' report is intended to be the most informative in terms of answering "what
   problems do I have in my catalogs, and where does the problem originate/where can I fix it"?
-  
+
   The reports 'status' and 'summary' are intended to be brief information for human consumption
   to understand the outcome of running a preview command.
-  
+
   The 'xxx_nodes' reports are intended to be used for saving to a file and using it
   to selectively clean information or focus the next run on those nodes (i.e. the file is
   given as an argument to --nodes in the next run of the command).
-  
+
   The 'diff', 'baseline', 'preview', 'baseline_log', and 'preview_log' reports are intended
   to provide drill down into the details and for being able to pipe the information to custom
   commands that further process the output.
-  
+
   The 'overview_json' is "all the data" and it is used as the basis for the 'overview' report.
   The fact that it contains "all the data" means it can be used to produce other views of the 
   results across a set of nodes without having to load and interpret the output for each node
@@ -189,7 +189,7 @@ Note that all settings (such as 'log_level') affect both compilations.
   as it may need adjustments in minor version updates. The intent is to document this in a
   subsequent release and that this report can be piped to custom commands, or to visualizers
   that can slice and dice the information.
-  
+
 * --migrate <MIGRATION>
   Turns on migration validation for the preview compilation. Validation result
   is produced to the preview log file or optionally to stdout with '--view preview_log'.
@@ -246,13 +246,13 @@ Note that all settings (such as 'log_level') affect both compilations.
   of performing new compilations and diff. If used without any given nodes, all
   already produced information will be loaded.
   (Also see '--clean' for how to remove produced information).
-  
+
 * --nodes <FILE>
   Specifies a file to read node-names from. If the file name is '-' file names are read
   from standard in. Each white-space separated sequence of characters is taken as a node name.
   This may be combined with additional nodes given on the command line. Duplicate entries (in given  
   file, or on command line) are skipped.
-  
+
 
 EXAMPLE
 -------
@@ -273,15 +273,15 @@ resources of File type using 'jq' to filter the output (the command is given as 
 
     puppet preview --pe future_production --view diff mynode 
     | jq -f '.conflicting_resources | map(select(.type == "File"))'
-    
+
 View the catalog schema:
 
     puppet preview --schema catalog
-    
+
 View the catalog-diff schema:
 
     puppet preview --schema catalog_diff
-    
+
 Run a diff (with the default summary view) then view the preview log:
 
     puppet preview --pe future_production mynode
@@ -297,7 +297,7 @@ Run a migration check, then view a report that only includes failed nodes:
     puppet preview --pe future_production --migrate 3.8/4.0 --view none mynode1 mynode2 mynode3
     puppet preview --view failed_nodes --last > tmpfile
     puppet preview --view overview --last --nodes tmpfile
-    
+
 DIAGNOSTICS
 -----------
 The '--assert' option controls the exit code of the command.
@@ -406,6 +406,19 @@ are the issue codes that are found in the preview_log.json for reported migratio
   To fix these issues, review each occurrence and quote the values that represent "ordering", or
   file mode (since file mode is a string value in 4.x).
 
+** MIGRATE4_AMBIGUOUS_FLOAT (PUP-4129) **
+
+  This migration check helps with unquoted floating point numbers where strings are
+  intended.
+
+  Floating point values for arithmetic are not very commonly used in puppet. When seing
+  something like `3.14`, it is most likely a version number string, and not someone doing
+  calculations with PI.
+
+  The migration checker logs a warning for every occurrence of floating point numbers with
+  the issue code MIGRATE4_AMBIGUOUS_FLOAT in order to be able to find all places where a
+  string may be intended.
+
 ** Significant White Space/ MIGRATE4_ARRAY_LAST_IN_BLOCK (PUP-4128) **:
 
   In 4.x. a white space between a value and a `[´ means that the ´[´ signals the start
@@ -429,12 +442,12 @@ are the issue codes that are found in the preview_log.json for reported migratio
 
   In 3.x the `in` operator was not well specified and there were several undefined behaviors.
   This relates to, but is not limited to:
-  
+
   * string / numeric automatic conversions
   * applying regular expressions to non string values causing auto conversion
   * confusion over comparisons betwen empty string/undef/nil (internal) values
   * in-operator not using case indpendent comparisons
-  
+
   To fix, review the expectations against the puppet language specification.
 
 COPYRIGHT
