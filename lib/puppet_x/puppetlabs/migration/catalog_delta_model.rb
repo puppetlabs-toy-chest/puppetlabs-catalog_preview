@@ -676,7 +676,7 @@ module CatalogDeltaModel
       br.attributes.each_pair do |key,ba|
         pa = pr.attributes[key]
         next if pa.nil? || tags_ignored? && key == 'tags'
-        conflict = key == 'mode' && br.type == 'File' ? create_sndiff_sensitive_attribute_conflict(ba, pa) : create_attribute_conflict(ba, pa)
+        conflict = key == 'mode' && br.type.downcase == 'file' ? create_sndiff_sensitive_attribute_conflict(ba, pa) : create_attribute_conflict(ba, pa)
         conflicting_attributes << conflict unless conflict.nil?
       end
       if added_attributes.empty? && missing_attributes.empty? && conflicting_attributes.empty?
