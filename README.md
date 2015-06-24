@@ -128,6 +128,7 @@ by the setting `preview_outputdir` (defaults to `$vardir/preview`):
     |  |  |- preview_log.json
     |  |  |- baseline_log.json
     |  |  |- catalog_diff.json
+    |  |  |- compilation_info.json
     |  |  
     |  |- <NODE-NAME-2>
     |  |  |- ...
@@ -140,6 +141,8 @@ The two catalogs are written in JSON compliant with a json-schema
 The 'catalog_diff.json' file is written in JSON compliant with a json-schema viewable on stdout using `--schema catalog_delta`.
 
 The two '*<type>*_log.json' files are written in JSON compliant with a json-schema viewable on stdout using `--schema log`.
+
+The `compilation_info.json` is a catalog preview internal file.
 
 ####Working with multiple nodes
 
