@@ -250,7 +250,7 @@ Enables full debugging. Debugging output is sent to the respective log outputs f
 
 #####`--diff_string_numeric`
 
-Makes a difference in type between a string and a numeric value (that are equal numerically) be a conflicting diff. Can only be combined with `--migrate 3.8/4.0`. When `--migrate 3.8/4.0` is not specified, differences in type are always considered a conflicting diff.
+Makes a difference in type between a string and a numeric value (that are equal numerically) be a conflicting diff. Can only be combined with `--migrate 3.8/4.0`. When `--migrate 3.8/4.0` is not specified, differences in type are always considered a conflicting diff. A type difference for the `mode` attribute in `File` will always be reported since this is a significant change.
 
 #####`--help`
 

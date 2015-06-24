@@ -202,7 +202,8 @@ Note that all settings (such as 'log_level') affect both compilations.
 
 * --diff_string_numeric
   Makes a difference in type between a string and a numeric value (that are equal numerically)
-  be a conflicting diff. Can only be combined with '--migrate 3.8/4.0'.
+  be a conflicting diff. Can only be combined with '--migrate 3.8/4.0'. A type difference
+  for the `mode` attribute in `File` will always be reported since this is a significant change.
 
 * --assert equal | compliant
   Modifies the exit code to be 4 if catalogs are not equal and 5 if the preview
