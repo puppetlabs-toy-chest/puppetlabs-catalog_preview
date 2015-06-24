@@ -6,10 +6,8 @@ require 'puppet/pops'
 
 class Puppet::Application::Preview < Puppet::Application
 
-  CATALOG_DELTA = 0
-  GENERAL_ERROR = 1
-  BASELINE_FAILED = 2
-  PREVIEW_FAILED = 3
+  include PuppetX::Puppetlabs::Migration
+
   NOT_EQUAL = 4
   NOT_COMPLIANT = 5
 
@@ -44,7 +42,7 @@ class Puppet::Application::Preview < Puppet::Application
     else
       raise "The '#{arg}' is not a migration kind supported by this version of catalog preview. #{RUNHELP}"
     end
-    options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+    options[:migration_checker] = MigrationChecker.new
     # Puppet 3.8.0's MigrationChecker does not have the method 'available_migrations' (but it still supports the 3to4 migration)
     unless Puppet.version.start_with?('3.8.0') || options[:migration_checker].available_migrations[MIGRATION_3to4]
       raise "The (#{Puppet.version}) version of Puppet does not support the '#{arg}' migration kind.\n#{RUNHELP}"
@@ -86,10 +84,12 @@ class Puppet::Application::Preview < Puppet::Application
     options[:nodes] = (arg == '-' ? $stdin.each_line : File.foreach(arg)).map {|line| line.chomp!.split }.flatten
   end
 
-  option('--clean')
+  option('--excludes EXCLUDES_FILE') do |arg|
+    # Each line in the given file is a node name or space separated node names
+    options[:excludes] = arg
+  end
 
-  CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
-  OverviewModel = PuppetX::Puppetlabs::Migration::OverviewModel
+  option('--clean')
 
   def help
     path = ::File.expand_path( '../../../puppet_x/puppetlabs/preview/api/documentation/preview-help.md', __FILE__)
@@ -129,6 +129,10 @@ class Puppet::Application::Preview < Puppet::Application
     if options[:clean]
       raise '--clean can only be used with options --nodes and --debug' unless (options.keys - [:clean, :node, :nodes, :debug]).empty?
       exit(clean)
+    end
+
+    if options[:excludes]
+      raise '--excludes cannot be used with --schema or --last' if options[:last] || options[:schema]
     end
 
     if options[:schema]
@@ -450,7 +454,9 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
-    CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp)
+    excl_file = options[:excludes]
+    excludes = excl_file.nil? ? [] : CatalogDeltaModel::Exclude.parse_file(excl_file)
+    CatalogDeltaModel::CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp, excludes)
   end
 
   # Displays a file, and if the argument pretty_json is truthy the file is loaded and displayed as
@@ -581,7 +587,7 @@ Output:
       compile_info = read_json(:compile_info)
       case compile_info['exit_code']
       when CATALOG_DELTA
-        catalog_delta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta.from_hash(read_json(:catalog_delta))
+        catalog_delta = CatalogDeltaModel::CatalogDelta.from_hash(read_json(:catalog_delta))
         factory.merge(catalog_delta, read_json(:baseline_log), read_json(:preview_log))
         @latest_catalog_delta = catalog_delta
       when BASELINE_FAILED

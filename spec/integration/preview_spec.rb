@@ -33,11 +33,14 @@ File {
 }
 file {
   '#{testdir_simple}':;
+  '#{testdir_simple}/files':;
   '#{testdir_simple}/environments':;
   '#{testdir_simple}/environments/production':;
   '#{testdir_simple}/environments/production/manifests':;
   '#{testdir_simple}/environments/test':;
   '#{testdir_simple}/environments/test/manifests':;
+  '#{testdir_simple}/environments/compliant':;
+  '#{testdir_simple}/environments/compliant/manifests':;
   '#{testdir_broken_production}':;
   '#{testdir_broken_production}/environments':;
   '#{testdir_broken_production}/environments/production':;
@@ -52,7 +55,25 @@ file {
   '#{testdir_broken_test}/environments/test/manifests':;
 }
 
+file { '#{testdir_simple}/files/excludes.json':
+  ensure => file,
+  content => '[
+    {
+      "type": "notify",
+      "title": "yay we be the same",
+      "attributes": ["message"]
+    }
+  ]',
+  mode => "0640",
+}
 file { '#{testdir_simple}/environments/test/environment.conf':
+  ensure => file,
+  content => 'environment_timeout = 0
+  #{use_future_parser}
+  ',
+  mode => "0640",
+}
+file { '#{testdir_simple}/environments/compliant/environment.conf':
   ensure => file,
   content => 'environment_timeout = 0
   #{use_future_parser}
@@ -79,6 +100,13 @@ file { '#{testdir_simple}/environments/test/manifests/init.pp':
   ensure => file,
   content => '
     notify{"yay we be the same, but different":}
+  ',
+  mode => "0640",
+}
+file { '#{testdir_simple}/environments/compliant/manifests/init.pp':
+  ensure => file,
+  content => '
+    notify{"yay we be the same": message => "something added"}
   ',
   mode => "0640",
 }
@@ -249,6 +277,24 @@ EOS
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test --assert equal --migrate 3.8/4.0 #{node_name} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [4]
+  end
+
+  it 'should exit with 4 when -assert equal is used and catalogs are compliant' do
+    env_path = File.join(testdir_simple, 'environments')
+    on master, puppet("preview --preview_environment compliant --assert equal --migrate 3.8/4.0 nonesuch --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [4]
+  end
+
+  it 'should exit with 0 when -assert compliant is used and catalogs are compliant' do
+    env_path = File.join(testdir_simple, 'environments')
+    on master, puppet("preview --preview_environment compliant --assert compliant --migrate 3.8/4.0 nonesuch --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [0]
+  end
+
+  it 'should exit with 0 when -assert equal is used and catalogs are equal due to exclude' do
+    env_path = File.join(testdir_simple, 'environments')
+    on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes.json --migrate 3.8/4.0 nonesuch --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [0]
   end
 
   it 'should exit with 5 when -assert compliant is used and preview is not compliant' do

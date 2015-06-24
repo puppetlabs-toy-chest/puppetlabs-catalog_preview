@@ -1,4 +1,5 @@
-module PuppetX::Puppetlabs::Migration::OverviewModel
+module PuppetX::Puppetlabs::Migration
+module OverviewModel
   module Query
     # @abstract
     class RelationalStep
@@ -17,7 +18,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
       # @param collection [Array<Entity>] The collection
       # @return [Entity,nil] The entity or nil
       def evaluate(collection)
-         collection.is_a?(Array) ? collection.first : nil
+        collection.is_a?(Array) ? collection.first : nil
       end
     end
 
@@ -215,7 +216,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
 
       def slice(*args)
         wrap(super)
-     end
+      end
 
       def select
         wrap(super)
@@ -342,3 +343,5 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
     end
   end
 end
+end
+

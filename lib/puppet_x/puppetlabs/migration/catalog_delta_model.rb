@@ -1,6 +1,7 @@
 require_relative 'model_object'
 
-module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
+module PuppetX::Puppetlabs::Migration
+module CatalogDeltaModel
   class DeltaEntity
     include PuppetX::Puppetlabs::Migration::ModelObject
 
@@ -9,6 +10,34 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       instance.initialize_from_hash(hash)
       instance
     end
+  end
+
+  class Exclude < DeltaEntity
+    attr_reader :type
+    attr_reader :title
+    attr_reader :attributes
+
+    def initialize(type, title, attributes)
+      @type = assert_type(String, type)
+      @title = assert_type(String, title)
+      @attributes = assert_type(Array, attributes)
+    end
+
+    def self.parse_file(file_name)
+      json = File.read(file_name)
+      raise Puppet::Error.new('Excludes file must contain well formed JSON') if json.nil? || json.empty?
+      parse_json(json)
+    end
+
+    def self.parse_json(json)
+      array = JSON.load(json)
+      raise Puppet::Error.new('Excludes file must contain a JSON Array') unless array.is_a?(Array)
+      array.map { |hash| Exclude.new(hash['type'], hash['title'], hash['attributes']) }
+    end
+
+    DEFAULT_EXCLUSIONS = [
+      Exclude.new('file', '/etc/puppetlabs/console-services/conf.d/console_secret_key.conf', ['content'])
+    ]
   end
 
   # Denotes a line in a file
@@ -65,6 +94,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     def assign_ids_on_each(start, array)
       array.nil? ? start : array.inject(start) { |n, a| a.assign_ids(n) }
     end
+
     private :assign_ids_on_each
   end
 
@@ -522,9 +552,17 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     # @param preview [Hash<Symbol,Object] the hash representing the preview catalog
     # @param options [Hash<Symbol,Object>] preview options
     # @param timestamp [String] when preview run began. In ISO 8601 format with 9 characters second-fragment
+    # @param excludes [Array<Exclusion>>] excludes,
     #
     # @api public
-    def initialize(baseline, preview, options, timestamp)
+    def initialize(baseline, preview, options, timestamp, excludes = EMPTY_ARRAY)
+      excludes_per_type = {}
+      (Exclude::DEFAULT_EXCLUSIONS + excludes).each do |ex|
+        type = ex.type.downcase
+        ex_for_type = (excludes_per_type[type] ||= [])
+        ex_for_type << ex
+      end
+
       @produced_by      = 'puppet preview 3.8.0'
       @timestamp        = timestamp
       @baseline_catalog = options[:baseline_catalog]
@@ -540,11 +578,11 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
       @preview_env      = preview['environment']
       @version_equal    = baseline['version'] == preview['version']
 
-      baseline_resources = create_resources(baseline)
+      baseline_resources = create_resources(baseline, excludes_per_type)
       @baseline_resource_count = baseline_resources.size
 
 
-      preview_resources = create_resources(preview)
+      preview_resources = create_resources(preview, excludes_per_type)
       @preview_resource_count = preview_resources.size
 
       @added_resources = preview_resources.reject { |key,_| baseline_resources.include?(key) }.values
@@ -629,7 +667,7 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
 
     # @param br [Resource] Baseline resource
     # @param pr [Resource] Preview resource
-    # @return [ResourceConflict]
+    # @return [ResourceConflict,nil]
     # @api private
     def create_resource_conflict(br, pr)
       added_attributes = pr.attributes.reject { |key, _| br.attributes.include?(key) }.values
@@ -724,23 +762,31 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     end
 
     # @param hash [Hash] a Catalog hash
+    # @param excludes_per_type [Hash<String,Array<Exclude>>] resources and/or attributes to exclude, keyed by type
     # @return [Hash<String,Resource>] a Hash of Resource objects keyed by the Resource#key
     # @api private
-    def create_resources(hash)
+    def create_resources(hash, excludes_per_type)
       result = {}
       assert_type(Array, hash['resources'], []).each do |rh|
-        resource = create_resource(rh)
-        result[resource.key] = resource
+        type = rh['type']
+        title = rh['title']
+        excludes = excludes_per_type[type.downcase] || EMPTY_ARRAY
+        unless excludes.any? { |ex| ex.title.nil? }
+          resource = create_resource(rh, excludes.select { |ex| ex.title == title })
+          result[resource.key] = resource
+        end
       end
       result
     end
     private :create_resources
 
     # @param resource [Hash] a Resource hash
+    # @param excludes [Array<Exclude>] Excludes for the resource
     # @return [Resource]
     # @api private
-    def create_resource(resource)
-      Resource.new(create_location(resource), resource['type'], resource['title'], create_attributes(resource))
+    def create_resource(resource, excludes)
+      attributes = excludes.any? { |ex| ex.attributes.nil? } ? EMPTY_ARRAY : create_attributes(resource, excludes.map { |ex| ex.attributes }.flatten)
+      Resource.new(create_location(resource), resource['type'], resource['title'], attributes)
     end
     private :create_resource
 
@@ -771,16 +817,20 @@ module PuppetX::Puppetlabs::Migration::CatalogDeltaModel
     private :create_location
 
     # @param resource [Array<Hash>] a Resource hash
+    # @param excludes [Array<String>] attribute names to exclude
     # @return [Hash<String,Attribute>]
     # @api private
-    def create_attributes(resource)
+    def create_attributes(resource, excludes)
       attrs = {}
-      attrs['tags'] = Attribute.new('tags', assert_type(Array, resource['tags'], []))
-      attrs['@@'] = Attribute.new('@@', assert_boolean(resource['exported'], false))
-      assert_type(Hash, resource['parameters'], {}).each_pair { |name, value| attrs[name] = Attribute.new(name, value)}
+      attrs['tags'] = Attribute.new('tags', assert_type(Array, resource['tags'], [])) unless excludes.include?('tags')
+      attrs['@@'] = Attribute.new('@@', assert_boolean(resource['exported'], false)) unless excludes.include?('@@')
+      assert_type(Hash, resource['parameters'], {}).each_pair do |name, value|
+        attrs[name] = Attribute.new(name, value) unless excludes.include?(name)
+      end
       attrs
     end
     private :create_attributes
   end
+end
 end
 
