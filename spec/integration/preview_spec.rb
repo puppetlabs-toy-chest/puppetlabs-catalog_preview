@@ -196,7 +196,7 @@ EOS
     env_path = File.join(testdir_broken_production, 'environments')
     on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
       :acceptable_exit_codes => [2]) { |r| }
-    on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --last --view baseline_log"),
+    on(master, puppet("preview #{node_name} --last --view baseline_log"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| JSON.parse(r.stdout) }
   end
 
@@ -204,8 +204,24 @@ EOS
     env_path = File.join(testdir_broken_test, 'environments')
     on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
       :acceptable_exit_codes => [3]) { |r| }
-    on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --last --view preview_log"),
+    on(master, puppet("preview #{node_name} --last --view preview_log"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| JSON.parse(r.stdout) }
+  end
+
+  it 'should reconstruct the node list from a previous successful run when using --last' do
+    env_path = File.join(testdir_simple, 'environments')
+    on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [0]) { |r| }
+    on(master, puppet("preview --last --view diff_nodes"),
+      {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| expect(r.stdout).to match(/#{node_name}/) }
+  end
+
+  it 'should reconstruct the node list from a previous compile failure when using --last' do
+    env_path = File.join(testdir_broken_test, 'environments')
+    on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [3]) { |r| }
+    on(master, puppet("preview --last --view failed_nodes"),
+      {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| expect(r.stdout).to match(/#{node_name}/) }
   end
 
   it 'should produce overview including failed nodes from --last --view overview_json' do
