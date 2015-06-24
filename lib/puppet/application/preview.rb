@@ -85,7 +85,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option('--excludes EXCLUDES_FILE') do |arg|
-    # Each line in the given file is a node name or space separated node names
+    # File in excludes.json schema format
     options[:excludes] = arg
   end
 
