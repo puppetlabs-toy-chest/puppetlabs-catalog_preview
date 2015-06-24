@@ -17,6 +17,7 @@ puppet preview [
     [-m <MIGRATION>|--migrate <MIGRATION> [--diff_string_numeric]]
     [--preview_outputdir <PATH-TO-OUTPUT-DIR>]
     [--skip_tags]
+    |--excludes <PATH-TO-EXCLUSIONS-FILE>]
     [--view summary|overview|overview_json|baseline|preview|diff|baseline_log|preview_log|none|
     failed_nodes|diff_nodes|compliant_nodes|equal_nodes]
     [-vd|--verbose_diff]
@@ -24,7 +25,7 @@ puppet preview [
     [--baseline_environment <ENV-NAME> | --be <ENV-NAME>]
     --preview_environment <ENV-NAME> | --pe <ENV-NAME>
     <NODE-NAME>+ | --nodes <FILE> <NODE_NAME>*
-  ]|[--schema catalog|catalog_delta|log|help]
+  ]|[--schema catalog|catalog_delta|excludes|log|help]
    |[-h|--help]
    |[-V|--version]
 ```
@@ -221,14 +222,27 @@ Note that all settings (such as 'log_level') affect both compilations.
   already produced information), either given on the command line or
   via the '--nodes' option.
 
-* --schema catalog | catalog_delta | log | help
-  Outputs the json-schema for the puppet catalog, catalog_delta, or log. The option
+* --schema catalog | catalog_delta | excludes | log | help
+  Outputs the json-schema for the puppet catalog, catalog_delta, exclusions, or log. The option
   'help' will display the semantics of the catalog-diff schema. Can not be combined with
   any other option.
 
 * --skip_tags
   Ignores comparison of tags, catalogs are considered equal/compliant if they only
   differ in tags.
+
+* --excludes <FILE>
+  Adds resource diff exclusion of specified attributes (resource type and title specific) to
+  prevent them from being included in the diff. The excusions are specified in the given
+  file in JSON as defined by the schmea viewable with '--schema excludes'.
+
+  Preview will always exclude one PE specific File resource that has random content as it
+  would otherwise always show up as different.
+  This option can be used to exclude additional resources that are expected to change in each
+  compilation (e.g. if they have random or time based content).
+
+  Note that '--excludes' is in effect when compiling and cannot be combined with
+  '--last'.
 
 * --trusted
   Makes trusted node data obtained from a fact terminus retain its authentication

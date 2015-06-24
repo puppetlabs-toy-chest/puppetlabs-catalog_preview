@@ -237,6 +237,22 @@ Specifies the environment for the baseline compilation. This overrides the envir
 
 Also available in short form `--be ENV-NAME`.
 
+#####`--excludes 'FILE'`
+
+Adds resource diff exclusion of specified attributes (resource type and title specific) to
+prevent them from being included in the diff. The excusions are specified in the given
+file in JSON as defined by the schmea viewable with `--schema excludes`.
+
+Preview will always exclude one PE specific File resource that has
+random content as it would otherwise always show up as different.
+
+This option can be used to exclude additional resources that are expected to change in each
+compilation (e.g. if they have random or time based content).
+
+Note that `--excludes` is in effect when compiling and cannot be combined with
+`--last`.
+
+
 #####`--preview_environment 'ENV-NAME'`
 
 Specifies the environment for the preview compilation. Uses facts obtained from the configured facts terminus to compile the catalog. If you're evaluating for migration from Puppet 3.x to Puppet 4.x, and using PE <= 4.0.0 this environment's `puppet.conf` should be configured to use the future (4.x) parser.
@@ -282,7 +298,7 @@ Defines the directory to which output is produced. This is a Puppet setting that
 
 #####`--schema`
 
-Outputs the json-schema for the Puppet catalog, catalog_delta, or log. The option `help` will display the semantics of the catalog-diff schema. Can not be combined with any other option. Accepts arguments `catalog`, `catalog_delta`, `log`, `help`.
+Outputs the json-schema for the Puppet catalog, catalog_delta, excludes, or log. The option `help` will display the semantics of the catalog-diff schema. Can not be combined with any other option. Accepts arguments `catalog`, `catalog_delta`, `excludes`, `log`, `help`.
 
 #####`--skip_tags`
 

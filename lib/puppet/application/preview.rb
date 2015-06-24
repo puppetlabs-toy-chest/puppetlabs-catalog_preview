@@ -58,10 +58,10 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option('--schema CATALOG') do |arg|
-    if %w{catalog catalog_delta log help}.include?(arg)
+    if %w{catalog catalog_delta log help excludes}.include?(arg)
       options[:schema] = arg.to_sym
     else
-      raise "The --schema option only accepts 'catalog', 'catalog_delta', 'log', or 'help' as arguments.\n#{RUNHELP}"
+      raise "The --schema option only accepts 'catalog', 'catalog_delta', 'log', 'excludes', or 'help' as arguments.\n#{RUNHELP}"
     end
   end
 
@@ -140,15 +140,19 @@ class Puppet::Application::Preview < Puppet::Application
         raise 'One or more nodes were given but no compilation will be done when running with the --schema option'
       end
 
-      if options[:schema] == :catalog
+      case options[:schema]
+      when :catalog
         catalog_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/catalog.json', __FILE__)
         display_file(catalog_path)
-      elsif options[:schema] == :catalog_delta
+      when :catalog_delta
         delta_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/catalog-delta.json', __FILE__)
         display_file(delta_path)
-      elsif options[:schema] == :log
+      when :log
         log_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/log.json', __FILE__)
         display_file(log_path)
+      when :excludes
+        excludes_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/excludes.json', __FILE__)
+        display_file(excludes_path)
       else
         help_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/documentation/catalog-delta.md', __FILE__)
         display_file(help_path)
