@@ -265,6 +265,7 @@ describe 'CatalogDelta' do
       'line' => 1,
       'exported' => false,
       'parameters' => {
+        'mode' => '0600'
       }
     }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['ensure']) ])
@@ -282,10 +283,11 @@ describe 'CatalogDelta' do
       'exported' => false,
       'parameters' => {
         'ensure' => 'present',
-        'mode' => '0775'
+        'mode' => '0600',
+        'content' => 'hello'
       }
     }
-    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['mode']) ])
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['content']) ])
     expect(delta.conflicting_resource_count).to eq(0)
   end
 
@@ -300,6 +302,7 @@ describe 'CatalogDelta' do
       'exported' => false,
       'parameters' => {
         'ensure' => 'absent',
+        'mode' => '0600'
       }
     }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['ensure']) ])
