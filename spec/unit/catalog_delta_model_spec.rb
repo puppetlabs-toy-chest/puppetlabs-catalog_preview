@@ -23,7 +23,8 @@ describe 'CatalogDelta' do
           'line' => 1,
           'exported' => false,
           'parameters' => {
-            'ensure' => 'present'
+            'ensure' => 'present',
+            'mode' => '0600',
           }
         },
         {
@@ -35,6 +36,7 @@ describe 'CatalogDelta' do
           'exported' => false,
           'parameters' => {
             'ensure' => 'present',
+            'mode' => '0600',
             'array' => %w(a b c c),
             'before' => %w(a b c c),
             'after' => %w(a b c),
@@ -43,6 +45,15 @@ describe 'CatalogDelta' do
             'tags' => %w(a b c),
             'hash' => { 'a' => 'A', 'b' => [1,2]},
             'mol' => '42'
+          }
+        },
+        {
+          'type' => 'File',
+          'title' => '/etc/puppetlabs/console-services/conf.d/console_secret_key.conf',
+          'line' => 1,
+          'exported' => false,
+          'parameters' => {
+            'content' => 'secret',
           }
         },
         {
@@ -96,6 +107,7 @@ describe 'CatalogDelta' do
   let(:schema_dir) { 'lib/puppet_x/puppetlabs/preview/api/schemas' }
   let(:json_meta_schema) { JSON.parse(File.read(File.join(schema_dir, 'json-meta-schema.json'))) }
   let(:catalog_delta_schema) { JSON.parse(File.read(File.join(schema_dir, 'catalog-delta.json'))) }
+  let(:excludes_schema) { JSON.parse(File.read(File.join(schema_dir, 'excludes.json'))) }
 
   it 'has a valid JSON schema' do
     JSON::Validator.validate!(json_meta_schema, catalog_delta_schema)
@@ -173,10 +185,12 @@ describe 'CatalogDelta' do
     expect(conflict.title).to eq('/tmp/footest')
     expect(conflict.added_attribute_count).to eq(0)
     expect(conflict.conflicting_attribute_count).to eq(0)
-    expect(conflict.missing_attribute_count).to eq(1)
-    expect(conflict.missing_attributes).to contain_exactly(be_a(Attribute))
+    expect(conflict.missing_attribute_count).to eq(2)
+    expect(conflict.missing_attributes).to contain_exactly(be_a(Attribute), be_a(Attribute))
     attr = conflict.missing_attributes[0]
     expect(attr.name).to eq('ensure')
+    attr = conflict.missing_attributes[1]
+    expect(attr.name).to eq('mode')
     JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
   end
 
@@ -191,7 +205,8 @@ describe 'CatalogDelta' do
       'exported' => false,
       'parameters' => {
         'ensure' => 'present',
-        'mode' => '0775'
+        'mode' => '0600',
+        'content' => 'hello'
       }
     }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
@@ -205,7 +220,7 @@ describe 'CatalogDelta' do
     expect(conflict.added_attribute_count).to eq(1)
     expect(conflict.added_attributes).to contain_exactly(be_a(Attribute))
     attr = conflict.added_attributes[0]
-    expect(attr.name).to eq('mode')
+    expect(attr.name).to eq('content')
     JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
   end
 
@@ -220,6 +235,7 @@ describe 'CatalogDelta' do
       'exported' => false,
       'parameters' => {
         'ensure' => 'absent',
+        'mode' => '0600'
       }
     }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
@@ -237,6 +253,75 @@ describe 'CatalogDelta' do
     expect(attr.baseline_value).to eq('present')
     expect(attr.preview_value).to eq('absent')
     JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
+  end
+
+  it 'ignores excluded attribute removals' do
+    pv = preview_hash
+    pv['resources'][0] = {
+      'type' => 'File',
+      'title' => '/tmp/footest',
+      'tags' => ['file', 'class'],
+      'file' => '/etc/puppet/environments/production/manifests/site.pp',
+      'line' => 1,
+      'exported' => false,
+      'parameters' => {
+        'mode' => '0600'
+      }
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['ensure']) ])
+    expect(delta.conflicting_resource_count).to eq(0)
+  end
+
+  it 'ignores excluded attribute additions' do
+    pv = preview_hash
+    pv['resources'][0] = {
+      'type' => 'File',
+      'title' => '/tmp/footest',
+      'tags' => ['file', 'class'],
+      'file' => '/etc/puppet/environments/production/manifests/site.pp',
+      'line' => 1,
+      'exported' => false,
+      'parameters' => {
+        'ensure' => 'present',
+        'mode' => '0600',
+        'content' => 'hello'
+      }
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['content']) ])
+    expect(delta.conflicting_resource_count).to eq(0)
+  end
+
+  it 'ignores excluded attribute conflicts' do
+    pv = preview_hash
+    pv['resources'][0] = {
+      'type' => 'File',
+      'title' => '/tmp/footest',
+      'tags' => ['file', 'class'],
+      'file' => '/etc/puppet/environments/production/manifests/site.pp',
+      'line' => 1,
+      'exported' => false,
+      'parameters' => {
+        'ensure' => 'absent',
+        'mode' => '0600'
+      }
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['ensure']) ])
+    expect(delta.conflicting_resource_count).to eq(0)
+  end
+
+  it 'ignores attributes excluded by default' do
+    pv = preview_hash
+    pv['resources'][2] = {
+      'type' => 'File',
+      'title' => '/etc/puppetlabs/console-services/conf.d/console_secret_key.conf',
+      'line' => 1,
+      'exported' => false,
+      'parameters' => {
+        'content' => 'secret2',
+      }
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
+    expect(delta.conflicting_resource_count).to eq(0)
   end
 
   it 'reports missing edges' do
@@ -330,7 +415,8 @@ describe 'CatalogDelta' do
       'exported' => false,
       'parameters' => {
         'ensure' => 'present',
-        'mode' => '0775'
+        'mode' => '0600',
+        'content' => 'hello'
       }
     }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
@@ -388,7 +474,7 @@ describe 'CatalogDelta' do
 
   it 'allows variables that have Set semantics to be strings' do
     pv = preview_hash
-    pv['resources'][2]['parameters'] =  {
+    pv['resources'][3]['parameters'] =  {
         'before' => ['a'],
         'after' => 'a'
     }
@@ -474,6 +560,21 @@ describe 'CatalogDelta' do
     expect(delta.string_numeric_diff_ignored?).to be(false)
   end
 
+  it "reports string/int differences of the File 'mode' attribute regardless of migration_checker and diff_string_numeric flag" do
+    pv = preview_hash
+    pv['resources'][0]['parameters']['mode'] = 0600
+    [[false, false], [true, false], [false, true], [true, true]].each do |mc,dsn|
+      delta = CatalogDelta.new(baseline_hash, pv, options.merge(:migration_checker => mc, :diff_string_numeric => dsn), timestamp)
+      expect(delta.preview_equal?).to be(false)
+      expect(delta.conflicting_resource_count).to eq(1)
+      expect(delta.conflicting_resources).to contain_exactly(be_a(ResourceConflict))
+      conflict = delta.conflicting_resources[0]
+      expect(conflict.conflicting_attribute_count).to eq(1)
+      expect(conflict.conflicting_attributes).to contain_exactly(be_a(AttributeConflict))
+      attr = conflict.conflicting_attributes[0]
+      expect(attr.name).to eq('mode')
+    end
+  end
 
   it 'can be created from a hash' do
     pv = preview_hash
@@ -523,6 +624,22 @@ describe 'CatalogDelta' do
 
     second_hash = delta_from_hash.to_hash
     expect(first_hash).to eq(second_hash)
+  end
+
+  it 'has a valid JSON schema for excludes' do
+    JSON::Validator.validate!(json_meta_schema, excludes_schema)
+  end
+
+  it 'can read and validate excludes JSON file' do
+    excludes_file = fixture('excludes', 'excludes.json')
+    excludes = JSON.load(File.read(excludes_file))
+    JSON::Validator.validate!(excludes_schema, excludes)
+  end
+
+  it 'creates valid JSON array from array of Exclude instances' do
+    excludes_file = fixture('excludes', 'excludes.json')
+    excludes = Exclude.parse_file(excludes_file)
+    JSON::Validator.validate!(excludes_schema, excludes.map {|e| e.to_hash })
   end
 end
 end

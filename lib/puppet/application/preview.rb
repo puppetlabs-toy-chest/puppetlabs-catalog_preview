@@ -6,10 +6,8 @@ require 'puppet/pops'
 
 class Puppet::Application::Preview < Puppet::Application
 
-  CATALOG_DELTA = 0
-  GENERAL_ERROR = 1
-  BASELINE_FAILED = 2
-  PREVIEW_FAILED = 3
+  include PuppetX::Puppetlabs::Migration
+
   NOT_EQUAL = 4
   NOT_COMPLIANT = 5
 
@@ -44,7 +42,7 @@ class Puppet::Application::Preview < Puppet::Application
     else
       raise "The '#{arg}' is not a migration kind supported by this version of catalog preview. #{RUNHELP}"
     end
-    options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+    options[:migration_checker] = MigrationChecker.new
     # Puppet 3.8.0's MigrationChecker does not have the method 'available_migrations' (but it still supports the 3to4 migration)
     unless Puppet.version.start_with?('3.8.0') || options[:migration_checker].available_migrations[MIGRATION_3to4]
       raise "The (#{Puppet.version}) version of Puppet does not support the '#{arg}' migration kind.\n#{RUNHELP}"
@@ -86,10 +84,12 @@ class Puppet::Application::Preview < Puppet::Application
     options[:nodes] = (arg == '-' ? $stdin.each_line : File.foreach(arg)).map {|line| line.chomp!.split }.flatten
   end
 
-  option('--clean')
+  option('--excludes EXCLUDES_FILE') do |arg|
+    # Each line in the given file is a node name or space separated node names
+    options[:excludes] = arg
+  end
 
-  CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
-  OverviewModel = PuppetX::Puppetlabs::Migration::OverviewModel
+  option('--clean')
 
   def help
     path = ::File.expand_path( '../../../puppet_x/puppetlabs/preview/api/documentation/preview-help.md', __FILE__)
@@ -129,6 +129,10 @@ class Puppet::Application::Preview < Puppet::Application
     if options[:clean]
       raise '--clean can only be used with options --nodes and --debug' unless (options.keys - [:clean, :node, :nodes, :debug]).empty?
       exit(clean)
+    end
+
+    if options[:excludes]
+      raise '--excludes cannot be used with --schema or --last' if options[:last] || options[:schema]
     end
 
     if options[:schema]
@@ -320,6 +324,15 @@ class Puppet::Application::Preview < Puppet::Application
 
     ensure
       terminate_logs
+      Puppet::FileSystem.open(options[:compile_info], 0640, 'wb') do |of|
+        compile_info = {
+          :exit_code => @exit_code,
+          :baseline_environment => options[:back_channel][:baseline_environment].to_s,
+          :preview_environment => options[:preview_environment],
+          :time => timestamp
+        }
+        of.write(PSON::pretty_generate(compile_info))
+      end
       Puppet::Util::Log.close_all
       Puppet::Util::Log.newdestination(:console)
     end
@@ -421,6 +434,7 @@ class Puppet::Application::Preview < Puppet::Application
     options[:preview_catalog]  = Puppet::FileSystem.pathname(File.join(node_output_dir, 'preview_catalog.json'))
     options[:preview_log]      = Puppet::FileSystem.pathname(File.join(node_output_dir, 'preview_log.json'))
     options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, 'catalog_diff.json'))
+    options[:compile_info]     = Puppet::FileSystem.pathname(File.join(node_output_dir, 'compile_info.json'))
   end
 
   def prepare_output
@@ -432,6 +446,7 @@ class Puppet::Application::Preview < Puppet::Application
     Puppet::FileSystem.open(options[:baseline_catalog], 0660, 'wb') { |of| of.write('') }
     Puppet::FileSystem.open(options[:preview_catalog],  0660, 'wb') { |of| of.write('') }
     Puppet::FileSystem.open(options[:catalog_diff], 0660, 'wb') { |of| of.write('') }
+    Puppet::FileSystem.open(options[:compile_info], 0660, 'wb') { |of| of.write('') }
 
     # make the log paths absolute (required to use them as log destinations).
     options[:preview_log]      = options[:preview_log].realpath
@@ -439,7 +454,9 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
-    CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp)
+    excl_file = options[:excludes]
+    excludes = excl_file.nil? ? [] : CatalogDeltaModel::Exclude.parse_file(excl_file)
+    CatalogDeltaModel::CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp, excludes)
   end
 
   # Displays a file, and if the argument pretty_json is truthy the file is loaded and displayed as
@@ -555,46 +572,29 @@ Output:
     $stdout.puts(as_json ? report.to_json : report.to_s)
   end
 
+  def read_json(type)
+    json = File.read(options[type])
+    raise Puppet::Error.new("Output for node #{options[:node]} is invalid - use --clean and/or recompile") if json.nil? || json.empty?
+    JSON.load(json)
+  end
+
   def generate_last_overview
     factory = OverviewModel::Factory.new
-    options[:back_channel] = {}
-
     node_names.each do |node|
-
       options[:node] = node
       prepare_output_options
 
-      catalog_delta = nil
-      json = File.read(options[:catalog_diff])
-      unless json.nil? || json.empty?
-        # There will be no delta when one of the compilations failed
-        catalog_delta_hash = JSON.load(json)
-        catalog_delta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta.from_hash(catalog_delta_hash)
+      compile_info = read_json(:compile_info)
+      case compile_info['exit_code']
+      when CATALOG_DELTA
+        catalog_delta = CatalogDeltaModel::CatalogDelta.from_hash(read_json(:catalog_diff))
+        factory.merge(catalog_delta, read_json(:baseline_log), read_json(:preview_log))
+        @latest_catalog_delta = catalog_delta
+      when BASELINE_FAILED
+        factory.merge_failure(node, compile_info['time'], compile_info['baseline_environment'], 2, read_json(:baseline_log))
+      when PREVIEW_FAILED
+        factory.merge_failure(node, compile_info['time'], compile_info['preview_environment'], 3, read_json(:preview_log))
       end
-      json = File.read(options[:baseline_log])
-      baseline_log = json.nil? || json.empty? ? [] : JSON.load(json)
-      json = File.read(options[:preview_log])
-      preview_log = json.nil? || json.empty? ? [] : JSON.load(json)
-
-      if catalog_delta.nil?
-        baseline_err = baseline_log.any? { |le| le['level'] == 'err' }
-        preview_err = preview_log.any? { |le| le['level'] == 'err' }
-        if baseline_err
-          time = File.ctime(options[:baseline_log])
-          exit_code = BASELINE_FAILED
-          log = baseline_log
-        elsif preview_err
-          time = File.ctime(options[:preview_log])
-          exit_code = PREVIEW_FAILED
-          log = preview_log
-        else
-          raise Puppet::Error.new('Unable to recreate overview')
-        end
-        factory.merge_failure(node, time.iso8601(9), exit_code, log)
-      else
-        factory.merge(catalog_delta, baseline_log, preview_log)
-      end
-      @latest_catalog_delta = catalog_delta
     end
     @overview = factory.create_overview
   end

@@ -33,11 +33,14 @@ File {
 }
 file {
   '#{testdir_simple}':;
+  '#{testdir_simple}/files':;
   '#{testdir_simple}/environments':;
   '#{testdir_simple}/environments/production':;
   '#{testdir_simple}/environments/production/manifests':;
   '#{testdir_simple}/environments/test':;
   '#{testdir_simple}/environments/test/manifests':;
+  '#{testdir_simple}/environments/compliant':;
+  '#{testdir_simple}/environments/compliant/manifests':;
   '#{testdir_broken_production}':;
   '#{testdir_broken_production}/environments':;
   '#{testdir_broken_production}/environments/production':;
@@ -52,7 +55,25 @@ file {
   '#{testdir_broken_test}/environments/test/manifests':;
 }
 
+file { '#{testdir_simple}/files/excludes.json':
+  ensure => file,
+  content => '[
+    {
+      "type": "notify",
+      "title": "yay we be the same",
+      "attributes": ["message"]
+    }
+  ]',
+  mode => "0640",
+}
 file { '#{testdir_simple}/environments/test/environment.conf':
+  ensure => file,
+  content => 'environment_timeout = 0
+  #{use_future_parser}
+  ',
+  mode => "0640",
+}
+file { '#{testdir_simple}/environments/compliant/environment.conf':
   ensure => file,
   content => 'environment_timeout = 0
   #{use_future_parser}
@@ -79,6 +100,13 @@ file { '#{testdir_simple}/environments/test/manifests/init.pp':
   ensure => file,
   content => '
     notify{"yay we be the same, but different":}
+  ',
+  mode => "0640",
+}
+file { '#{testdir_simple}/environments/compliant/manifests/init.pp':
+  ensure => file,
+  content => '
+    notify{"yay we be the same": message => "something added"}
   ',
   mode => "0640",
 }
@@ -168,7 +196,7 @@ EOS
     env_path = File.join(testdir_broken_production, 'environments')
     on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
       :acceptable_exit_codes => [2]) { |r| }
-    on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --last --view baseline_log"),
+    on(master, puppet("preview #{node_name} --last --view baseline_log"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| JSON.parse(r.stdout) }
   end
 
@@ -176,8 +204,40 @@ EOS
     env_path = File.join(testdir_broken_test, 'environments')
     on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
       :acceptable_exit_codes => [3]) { |r| }
-    on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --last --view preview_log"),
+    on(master, puppet("preview #{node_name} --last --view preview_log"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| JSON.parse(r.stdout) }
+  end
+
+  it 'should reconstruct the node list from a previous successful run when using --last' do
+    env_path = File.join(testdir_simple, 'environments')
+    on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [0]) { |r| }
+    on(master, puppet("preview --last --view diff_nodes"),
+      {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| expect(r.stdout).to match(/#{node_name}/) }
+  end
+
+  it 'should reconstruct the node list from a previous compile failure when using --last' do
+    env_path = File.join(testdir_broken_test, 'environments')
+    on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [3]) { |r| }
+    on(master, puppet("preview --last --view failed_nodes"),
+      {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| expect(r.stdout).to match(/#{node_name}/) }
+  end
+
+  it 'should produce overview including failed nodes from --last --view overview_json' do
+    env_path = File.join(testdir_broken_test, 'environments')
+    on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [3]) { |r| }
+    on(master, puppet("preview --last --view overview_json"), {:catch_failures => true, :acceptable_exit_codes => [0]}) do |r|
+      report = JSON.parse(r.stdout)
+      expect(report['stats']).to be_a(Hash)
+      expect(report['stats']['failures']).to be_a(Hash)
+      expect(report['stats']['failures']['preview']).to be_a(Hash)
+      expect(report['stats']['failures']['preview']['total']).to eq(1)
+      expect(report['preview']).to be_a(Hash)
+      expect(report['preview']['compilation_errors']).to be_an(Array)
+      expect(report['preview']['compilation_errors'].size).to be(1)
+    end
   end
 
   it 'should --view diff_nodes' do
@@ -233,6 +293,24 @@ EOS
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test --assert equal --migrate 3.8/4.0 #{node_name} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [4]
+  end
+
+  it 'should exit with 4 when -assert equal is used and catalogs are compliant' do
+    env_path = File.join(testdir_simple, 'environments')
+    on master, puppet("preview --preview_environment compliant --assert equal --migrate 3.8/4.0 nonesuch --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [4]
+  end
+
+  it 'should exit with 0 when -assert compliant is used and catalogs are compliant' do
+    env_path = File.join(testdir_simple, 'environments')
+    on master, puppet("preview --preview_environment compliant --assert compliant --migrate 3.8/4.0 nonesuch --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [0]
+  end
+
+  it 'should exit with 0 when -assert equal is used and catalogs are equal due to exclude' do
+    env_path = File.join(testdir_simple, 'environments')
+    on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes.json --migrate 3.8/4.0 nonesuch --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [0]
   end
 
   it 'should exit with 5 when -assert compliant is used and preview is not compliant' do

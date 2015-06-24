@@ -1,4 +1,5 @@
-module PuppetX::Puppetlabs::Migration::OverviewModel
+module PuppetX::Puppetlabs::Migration
+module OverviewModel
   class Report
     # Creates a new {Report} instance based on an {Overview}.
     # @param overview [Overview] the overview to create a report from
@@ -20,6 +21,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
       hash[:preview] = preview unless preview.empty?
       hash
     end
+
     # Creates and returns a formatted JSON string that represents the content of the report
     # @return [String] The JSON representation of this report
     def to_json
@@ -223,7 +225,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
         manifest_errors = (manifest_hash[:errors] ||= [])
         manifest_errors << error
       end
-      errors.map { |_, m| m[:nodes] = m[:nodes].to_a; m }.sort { |a, b| b[:nodes].size <=> a[:nodes.size] }
+      errors.map { |_, m| m[:nodes] = m[:nodes].to_a; m }.sort { |a, b| b[:nodes].size <=> a[:nodes].size }
     end
 
     def compilation_errors_to_s(bld, errors, baseline)
@@ -444,3 +446,5 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
     end
   end
 end
+end
+

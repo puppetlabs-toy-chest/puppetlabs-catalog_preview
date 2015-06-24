@@ -5,16 +5,6 @@ require_relative 'overview_model/report'
 
 module PuppetX::Puppetlabs::Migration
   module OverviewModel
-    DOUBLE_COLON = '::'.freeze
-    EMPTY_HASH = {}.freeze
-    EMPTY_ARRAY = [].freeze
-    UNDEFINED_ID = -1
-
-    CATALOG_DELTA = 0
-    GENERAL_ERROR = 1
-    BASELINE_FAILED = 2
-    PREVIEW_FAILED = 3
-
     # Abstract base class for all entities in the overview model.
     #
     # @abstract
