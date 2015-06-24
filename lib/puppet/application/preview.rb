@@ -167,7 +167,11 @@ class Puppet::Application::Preview < Puppet::Application
       end
 
       if options[:last]
-        last
+        if Dir["#{Puppet[:preview_outputdir]}/*"].empty?
+          raise "There is no preview data in the specified output directory '#{Puppet[:preview_outputdir]}', you must have data from a previous preview run to use --last"
+        else
+          last
+        end
       else
         unless options[:preview_environment]
           raise 'No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known'
