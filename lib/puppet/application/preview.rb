@@ -167,9 +167,18 @@ class Puppet::Application::Preview < Puppet::Application
       end
 
       if options[:last]
-        if Dir["#{Puppet[:preview_outputdir]}/*"].empty?
+        node_directories = Dir["#{Puppet[:preview_outputdir]}/*"]
+        if node_directories.empty?
           raise "There is no preview data in the specified output directory '#{Puppet[:preview_outputdir]}', you must have data from a previous preview run to use --last"
         else
+          available_nodes = []
+          node_directories.each { |dir| available_nodes << dir.match(/^.*\/([^\/]*)$/)[1] }
+
+          node_names.each do |node|
+            if !available_nodes.include?(node)
+              raise "There is no preview data available for node '#{node}'. It is likely this node has not been compiled with preview."
+            end
+          end
           last
         end
       else
