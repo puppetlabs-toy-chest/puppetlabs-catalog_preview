@@ -676,7 +676,7 @@ module CatalogDeltaModel
       br.attributes.each_pair do |key,ba|
         pa = pr.attributes[key]
         next if pa.nil? || tags_ignored? && key == 'tags'
-        conflict = create_attribute_conflict(ba, pa)
+        conflict = key == 'mode' && br.type.downcase == 'file' ? create_sndiff_sensitive_attribute_conflict(ba, pa) : create_attribute_conflict(ba, pa)
         conflicting_attributes << conflict unless conflict.nil?
       end
       if added_attributes.empty? && missing_attributes.empty? && conflicting_attributes.empty?
@@ -688,6 +688,25 @@ module CatalogDeltaModel
     end
     private :create_resource_conflict
 
+    # Creates an attribute conflict if the values are not equal. This method does not respect the setting
+    # of the `diff_string_numeric` option. It is only used when comparing the mode attribute of file
+    # resources.
+    #
+    # @param ba [Attribute]
+    # @param pa [Attribute]
+    # @return [AttributeConflict,nil]
+    # @api private
+    def create_sndiff_sensitive_attribute_conflict(ba, pa)
+      bav = ba.value
+      pav = pa.value
+      bav == pav ? nil : AttributeConflict.new(ba.name, bav, pav, compliant?(bav, pav))
+    end
+    private :create_sndiff_sensitive_attribute_conflict
+
+    # Creates an attribute conflict if the values are not equal. This method will respect the setting
+    # of the `diff_string_numeric` option and not generate a conflict if string/numeric diffs are ignored
+    # and the integer representation of the values are equal
+    #
     # @param ba [Attribute]
     # @param pa [Attribute]
     # @return [AttributeConflict,nil]

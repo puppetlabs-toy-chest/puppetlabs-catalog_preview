@@ -587,7 +587,7 @@ Output:
       compile_info = read_json(:compile_info)
       case compile_info['exit_code']
       when CATALOG_DELTA
-        catalog_delta = CatalogDeltaModel::CatalogDelta.from_hash(read_json(:catalog_delta))
+        catalog_delta = CatalogDeltaModel::CatalogDelta.from_hash(read_json(:catalog_diff))
         factory.merge(catalog_delta, read_json(:baseline_log), read_json(:preview_log))
         @latest_catalog_delta = catalog_delta
       when BASELINE_FAILED

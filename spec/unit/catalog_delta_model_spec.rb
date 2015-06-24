@@ -23,7 +23,8 @@ describe 'CatalogDelta' do
           'line' => 1,
           'exported' => false,
           'parameters' => {
-            'ensure' => 'present'
+            'ensure' => 'present',
+            'mode' => '0600',
           }
         },
         {
@@ -35,6 +36,7 @@ describe 'CatalogDelta' do
           'exported' => false,
           'parameters' => {
             'ensure' => 'present',
+            'mode' => '0600',
             'array' => %w(a b c c),
             'before' => %w(a b c c),
             'after' => %w(a b c),
@@ -183,10 +185,12 @@ describe 'CatalogDelta' do
     expect(conflict.title).to eq('/tmp/footest')
     expect(conflict.added_attribute_count).to eq(0)
     expect(conflict.conflicting_attribute_count).to eq(0)
-    expect(conflict.missing_attribute_count).to eq(1)
-    expect(conflict.missing_attributes).to contain_exactly(be_a(Attribute))
+    expect(conflict.missing_attribute_count).to eq(2)
+    expect(conflict.missing_attributes).to contain_exactly(be_a(Attribute), be_a(Attribute))
     attr = conflict.missing_attributes[0]
     expect(attr.name).to eq('ensure')
+    attr = conflict.missing_attributes[1]
+    expect(attr.name).to eq('mode')
     JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
   end
 
@@ -201,7 +205,8 @@ describe 'CatalogDelta' do
       'exported' => false,
       'parameters' => {
         'ensure' => 'present',
-        'mode' => '0775'
+        'mode' => '0600',
+        'content' => 'hello'
       }
     }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
@@ -215,7 +220,7 @@ describe 'CatalogDelta' do
     expect(conflict.added_attribute_count).to eq(1)
     expect(conflict.added_attributes).to contain_exactly(be_a(Attribute))
     attr = conflict.added_attributes[0]
-    expect(attr.name).to eq('mode')
+    expect(attr.name).to eq('content')
     JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
   end
 
@@ -230,6 +235,7 @@ describe 'CatalogDelta' do
       'exported' => false,
       'parameters' => {
         'ensure' => 'absent',
+        'mode' => '0600'
       }
     }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
@@ -259,6 +265,7 @@ describe 'CatalogDelta' do
       'line' => 1,
       'exported' => false,
       'parameters' => {
+        'mode' => '0600'
       }
     }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['ensure']) ])
@@ -276,10 +283,11 @@ describe 'CatalogDelta' do
       'exported' => false,
       'parameters' => {
         'ensure' => 'present',
-        'mode' => '0775'
+        'mode' => '0600',
+        'content' => 'hello'
       }
     }
-    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['mode']) ])
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['content']) ])
     expect(delta.conflicting_resource_count).to eq(0)
   end
 
@@ -294,6 +302,7 @@ describe 'CatalogDelta' do
       'exported' => false,
       'parameters' => {
         'ensure' => 'absent',
+        'mode' => '0600'
       }
     }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', '/tmp/footest', ['ensure']) ])
@@ -406,7 +415,8 @@ describe 'CatalogDelta' do
       'exported' => false,
       'parameters' => {
         'ensure' => 'present',
-        'mode' => '0775'
+        'mode' => '0600',
+        'content' => 'hello'
       }
     }
     delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
@@ -550,6 +560,21 @@ describe 'CatalogDelta' do
     expect(delta.string_numeric_diff_ignored?).to be(false)
   end
 
+  it "reports string/int differences of the File 'mode' attribute regardless of migration_checker and diff_string_numeric flag" do
+    pv = preview_hash
+    pv['resources'][0]['parameters']['mode'] = 0600
+    [[false, false], [true, false], [false, true], [true, true]].each do |mc,dsn|
+      delta = CatalogDelta.new(baseline_hash, pv, options.merge(:migration_checker => mc, :diff_string_numeric => dsn), timestamp)
+      expect(delta.preview_equal?).to be(false)
+      expect(delta.conflicting_resource_count).to eq(1)
+      expect(delta.conflicting_resources).to contain_exactly(be_a(ResourceConflict))
+      conflict = delta.conflicting_resources[0]
+      expect(conflict.conflicting_attribute_count).to eq(1)
+      expect(conflict.conflicting_attributes).to contain_exactly(be_a(AttributeConflict))
+      attr = conflict.conflicting_attributes[0]
+      expect(attr.name).to eq('mode')
+    end
+  end
 
   it 'can be created from a hash' do
     pv = preview_hash
