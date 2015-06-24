@@ -173,7 +173,7 @@ class Puppet::Application::Preview < Puppet::Application
           raise 'No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known'
         end
 
-        if options[:diff_string_numeric] && !options[:migration_checker] && !option[:migrate] == MIGRATION_3to4
+        if options[:diff_string_numeric] && !options[:migration_checker] && !options[:migrate] == MIGRATION_3to4
           raise '--diff_string_numeric can only be used in combination with --migrate 3.8/4.0'
         end
         compile
