@@ -180,6 +180,22 @@ EOS
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| JSON.parse(r.stdout) }
   end
 
+  it 'should produce overview including failed nodes from --last --view overview_json' do
+    env_path = File.join(testdir_broken_test, 'environments')
+    on(master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path}"),
+      :acceptable_exit_codes => [3]) { |r| }
+    on(master, puppet("preview --last --view overview_json"), {:catch_failures => true, :acceptable_exit_codes => [0]}) do |r|
+      report = JSON.parse(r.stdout)
+      expect(report['stats']).to be_a(Hash)
+      expect(report['stats']['failures']).to be_a(Hash)
+      expect(report['stats']['failures']['preview']).to be_a(Hash)
+      expect(report['stats']['failures']['preview']['total']).to eq(1)
+      expect(report['preview']).to be_a(Hash)
+      expect(report['preview']['compilation_errors']).to be_an(Array)
+      expect(report['preview']['compilation_errors'].size).to be(1)
+    end
+  end
+
   it 'should --view diff_nodes' do
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --view diff_nodes"),

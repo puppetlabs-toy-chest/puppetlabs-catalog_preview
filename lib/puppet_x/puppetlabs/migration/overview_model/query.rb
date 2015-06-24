@@ -243,6 +243,10 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
         dispatch(:message)
       end
 
+      def exit_code
+        dispatch(:exit_code)
+      end
+
       def respond_to_missing?(name, include_private)
         true # We dispatch all unknown messages to each instance
       end

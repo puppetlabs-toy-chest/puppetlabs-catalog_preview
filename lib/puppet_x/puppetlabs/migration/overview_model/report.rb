@@ -223,7 +223,7 @@ module PuppetX::Puppetlabs::Migration::OverviewModel
         manifest_errors = (manifest_hash[:errors] ||= [])
         manifest_errors << error
       end
-      errors.map { |_, m| m[:nodes] = m[:nodes].to_a; m }.sort { |a, b| b[:nodes].size <=> a[:nodes.size] }
+      errors.map { |_, m| m[:nodes] = m[:nodes].to_a; m }.sort { |a, b| b[:nodes].size <=> a[:nodes].size }
     end
 
     def compilation_errors_to_s(bld, errors, baseline)

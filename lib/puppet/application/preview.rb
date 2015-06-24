@@ -320,6 +320,15 @@ class Puppet::Application::Preview < Puppet::Application
 
     ensure
       terminate_logs
+      Puppet::FileSystem.open(options[:compile_info], 0640, 'wb') do |of|
+        compile_info = {
+          :exit_code => @exit_code,
+          :baseline_environment => options[:back_channel][:baseline_environment].to_s,
+          :preview_environment => options[:preview_environment],
+          :time => timestamp
+        }
+        of.write(PSON::pretty_generate(compile_info))
+      end
       Puppet::Util::Log.close_all
       Puppet::Util::Log.newdestination(:console)
     end
@@ -421,6 +430,7 @@ class Puppet::Application::Preview < Puppet::Application
     options[:preview_catalog]  = Puppet::FileSystem.pathname(File.join(node_output_dir, 'preview_catalog.json'))
     options[:preview_log]      = Puppet::FileSystem.pathname(File.join(node_output_dir, 'preview_log.json'))
     options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, 'catalog_diff.json'))
+    options[:compile_info]     = Puppet::FileSystem.pathname(File.join(node_output_dir, 'compile_info.json'))
   end
 
   def prepare_output
@@ -432,6 +442,7 @@ class Puppet::Application::Preview < Puppet::Application
     Puppet::FileSystem.open(options[:baseline_catalog], 0660, 'wb') { |of| of.write('') }
     Puppet::FileSystem.open(options[:preview_catalog],  0660, 'wb') { |of| of.write('') }
     Puppet::FileSystem.open(options[:catalog_diff], 0660, 'wb') { |of| of.write('') }
+    Puppet::FileSystem.open(options[:compile_info], 0660, 'wb') { |of| of.write('') }
 
     # make the log paths absolute (required to use them as log destinations).
     options[:preview_log]      = options[:preview_log].realpath
@@ -555,46 +566,29 @@ Output:
     $stdout.puts(as_json ? report.to_json : report.to_s)
   end
 
+  def read_json(type)
+    json = File.read(options[type])
+    raise Puppet::Error.new("Output for node #{options[:node]} is invalid - use --clean and/or recompile") if json.nil? || json.empty?
+    JSON.load(json)
+  end
+
   def generate_last_overview
     factory = OverviewModel::Factory.new
-    options[:back_channel] = {}
-
     node_names.each do |node|
-
       options[:node] = node
       prepare_output_options
 
-      catalog_delta = nil
-      json = File.read(options[:catalog_diff])
-      unless json.nil? || json.empty?
-        # There will be no delta when one of the compilations failed
-        catalog_delta_hash = JSON.load(json)
-        catalog_delta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta.from_hash(catalog_delta_hash)
+      compile_info = read_json(:compile_info)
+      case compile_info['exit_code']
+      when CATALOG_DELTA
+        catalog_delta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta.from_hash(read_json(:catalog_delta))
+        factory.merge(catalog_delta, read_json(:baseline_log), read_json(:preview_log))
+        @latest_catalog_delta = catalog_delta
+      when BASELINE_FAILED
+        factory.merge_failure(node, compile_info['time'], compile_info['baseline_environment'], 2, read_json(:baseline_log))
+      when PREVIEW_FAILED
+        factory.merge_failure(node, compile_info['time'], compile_info['preview_environment'], 3, read_json(:preview_log))
       end
-      json = File.read(options[:baseline_log])
-      baseline_log = json.nil? || json.empty? ? [] : JSON.load(json)
-      json = File.read(options[:preview_log])
-      preview_log = json.nil? || json.empty? ? [] : JSON.load(json)
-
-      if catalog_delta.nil?
-        baseline_err = baseline_log.any? { |le| le['level'] == 'err' }
-        preview_err = preview_log.any? { |le| le['level'] == 'err' }
-        if baseline_err
-          time = File.ctime(options[:baseline_log])
-          exit_code = BASELINE_FAILED
-          log = baseline_log
-        elsif preview_err
-          time = File.ctime(options[:preview_log])
-          exit_code = PREVIEW_FAILED
-          log = preview_log
-        else
-          raise Puppet::Error.new('Unable to recreate overview')
-        end
-        factory.merge_failure(node, time.iso8601(9), exit_code, log)
-      else
-        factory.merge(catalog_delta, baseline_log, preview_log)
-      end
-      @latest_catalog_delta = catalog_delta
     end
     @overview = factory.create_overview
   end
