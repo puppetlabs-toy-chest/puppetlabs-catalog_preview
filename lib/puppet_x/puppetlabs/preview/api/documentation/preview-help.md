@@ -235,14 +235,16 @@ Note that all settings (such as 'log_level') affect both compilations.
   differ in tags.
 
 * --excludes <FILE>
-  Adds resource diff exclusion of specified attributes (resource type and title specific) to
-  prevent them from being included in the diff. The excusions are specified in the given
-  file in JSON as defined by the schmea viewable with '--schema excludes'.
+  Adds resource diff exclusion of specified attributes to prevent them from being included
+  in the diff. The excusions are specified in the given file in JSON as defined by the
+  schema viewable with `--schema excludes`.
 
-  Preview will always exclude one PE specific File resource that has random content as it
-  would otherwise always show up as different.
+  Preview will always exclude one PE specific File resource that has random content
+  as it would otherwise always show up as different.
+
   This option can be used to exclude additional resources that are expected to change in each
-  compilation (e.g. if they have random or time based content).
+  compilation (e.g. if they have random or time based content). Exclusions can be
+  per resource type, type and title, or combined with one or more attributes.
 
   Note that '--excludes' is in effect when compiling and cannot be combined with
   '--last'.

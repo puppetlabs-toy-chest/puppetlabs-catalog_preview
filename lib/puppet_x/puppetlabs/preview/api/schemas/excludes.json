@@ -19,7 +19,7 @@
                 "type": "string"
             },
             "attributes": {
-                "description": "The attributes to exclude. If missing, all attributes for the given 'title' are excluded",
+                "description": "The attributes to exclude. If missing, all attributes for the given 'title' or 'type' are excluded",
                 "type": "array",
                 "items": { "type": "string" }
             }
