@@ -206,6 +206,17 @@ EOS
     end
   end
 
+  it 'should error if using --view overview or --view overview_json with multiple nodes' do
+    env_path = File.join(testdir_simple, 'environments')
+    view_types = %w{overview overview_json}
+    view_types.each do |view_type|
+      on master, puppet("preview --view #{view_type} --environment #{env_path} three four door"),
+         {:acceptable_exit_codes => [1]} do |r|
+        expect(r.stderr).to match(/Error:.*environment.*node.*known/)
+      end
+    end
+  end
+
   it 'should output valid json from --view diff' do
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --view diff"),
