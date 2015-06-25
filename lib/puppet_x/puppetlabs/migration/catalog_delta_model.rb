@@ -790,8 +790,8 @@ module CatalogDeltaModel
         type = rh['type']
         title = rh['title']
         excludes = excludes_per_type[type.downcase] || EMPTY_ARRAY
-        unless excludes.any? { |ex| ex.title.nil? }
-          resource = create_resource(rh, excludes.select { |ex| ex.title == title })
+        unless excludes.any? { |ex| ex.title.nil? && ex.attributes.nil? }
+          resource = create_resource(rh, excludes.select { |ex| ex.title.nil? || ex.title == title })
           result[resource.key] = resource
         end
       end
