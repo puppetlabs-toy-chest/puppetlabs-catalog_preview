@@ -206,17 +206,6 @@ EOS
     end
   end
 
-  it 'should error if using --view overview or --view overview_json with multiple nodes' do
-    env_path = File.join(testdir_simple, 'environments')
-    view_types = %w{overview overview_json}
-    view_types.each do |view_type|
-      on master, puppet("preview --view #{view_type} --environment #{env_path} three four door"),
-         {:acceptable_exit_codes => [1]} do |r|
-        expect(r.stderr).to match(/Error:.*environment.*node.*known/)
-      end
-    end
-  end
-
   it 'should output valid json from --view diff' do
     env_path = File.join(testdir_simple, 'environments')
     on master, puppet("preview --preview_environment test #{node_name} --environmentpath #{env_path} --view diff"),
@@ -246,6 +235,36 @@ EOS
       :acceptable_exit_codes => [3]) { |r| }
     on(master, puppet("preview #{node_name} --last --view preview_log"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| JSON.parse(r.stdout) }
+  end
+
+  it 'should produce a report for a successful run with --view overview' do
+    env_path = File.join(testdir_simple, 'environments')
+    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path}"),
+       :acceptable_exit_codes => [0]) { |r| }
+  end
+
+  it 'should produce a report for a successful run with --view overview --nodes filename' do
+  end
+
+  it 'should produce a report for a failed run with --view overview' do
+    env_path = File.join(testdir_broken_test, 'environments')
+    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path}"),
+       :acceptable_exit_codes => [3]) { |r| r.stdout }
+  end
+
+  it 'should produce a report for a failed run with --view overview --nodes filename' do
+  end
+
+  it 'should produce a report for a previous successful run with --view overview' do
+  end
+
+  it 'should produce a report for a previous successful run with --view overview --nodes filename' do
+  end
+
+  it 'should produce a report for a previous failed run with --view overview' do
+  end
+
+  it 'should produce a report for a previous failed run with --view overview --nodes filename' do
   end
 
   it 'should reconstruct the node list from a previous successful run when using --last' do
