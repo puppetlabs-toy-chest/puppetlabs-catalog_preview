@@ -343,8 +343,21 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def last
-    prepare_output_options
-    view
+    node_directories = Dir["#{Puppet[:preview_outputdir]}/*"]
+    if node_directories.empty?
+      raise "There is no preview data in the specified output directory '#{Puppet[:preview_outputdir]}', you must have data from a previous preview run to use --last"
+    else
+
+      available_nodes = []
+      node_directories.each { |dir| available_nodes << dir.match(/^.*\/([^\/]*)$/)[1] }
+
+      unless (missing_nodes = node_names - available_nodes).empty?
+        raise "No preview data available for node(s) '#{missing_nodes.join(", ")}'"
+      end
+
+      prepare_output_options
+      view
+    end
   end
 
   def clean
