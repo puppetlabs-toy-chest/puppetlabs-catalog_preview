@@ -13,20 +13,23 @@ describe Puppet::Application::Preview do
 
     it "warns if there is no preview data in the specified output direcotry" do
       preview.options[:last] = true
-      Puppet[:preview_outputdir] = "/test/dir"
-      stub_outputdir_contents([])
 
-      expected_error = "There is no preview data in the specified output directory '/test/dir', you must have data from a previous preview run to use --last"
+      Dir.mktmpdir do |dir|
+        Puppet[:preview_outputdir] = "#{dir}"
+        stub_outputdir_contents([])
 
-      expect{ preview.run_command }.to raise_error(RuntimeError, expected_error)
+        expected_error = "There is no preview data in the specified output directory '#{dir}', you must have data from a previous preview run to use --last"
+
+        expect{ preview.run_command }.to raise_error(RuntimeError, expected_error)
+      end
     end
 
     it "warns if there is no directory for the specified node" do
       stub_outputdir_contents(["fake/path/dir_a", "fake/path/dir_b"])
-      preview.options[:nodes] = ['some.node.com']
+      preview.options[:nodes] = ['some.node.com', 'another.node.com']
       preview.options[:last] = true
 
-      expected_error = "There is no preview data available for node 'some.node.com'. It is likely this node has not been compiled with preview."
+      expected_error = "No preview data available for node(s) 'some.node.com, another.node.com'"
 
       expect { preview.run_command}.to raise_error(RuntimeError, expected_error)
     end
