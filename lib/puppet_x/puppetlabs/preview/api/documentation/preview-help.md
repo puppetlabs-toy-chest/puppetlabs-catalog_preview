@@ -431,7 +431,7 @@ are the issue codes that are found in the preview_log.json for reported migratio
   This migration check helps with unquoted floating point numbers where strings are
   intended.
 
-  Floating point values for arithmetic are not very commonly used in puppet. When seing
+  Floating point values for arithmetic are not very commonly used in puppet. When seeing
   something like `3.14`, it is most likely a version number string, and not someone doing
   calculations with PI.
 

@@ -117,7 +117,7 @@ View the aggregate/correlated overview for three nodes:
 
 ####Processing output
 
-All output (except the summary reports intended for human use) is written in JSON format to allow further processing with tools like 'jq' (JSON query). The output is written to a subdirectory named after the node of the directory appointed
+All output (except reports intended for human use) is written in JSON format to allow further processing with tools like 'jq' (JSON query). The output is written to a subdirectory named after the node of the directory appointed
 by the setting `preview_outputdir` (defaults to `$vardir/preview`):
 
     |- "$preview_output-dir"
@@ -143,6 +143,140 @@ The 'catalog_diff.json' file is written in JSON compliant with a json-schema vie
 The two '*<type>*_log.json' files are written in JSON compliant with a json-schema viewable on stdout using `--schema log`.
 
 The `compilation_info.json` is a catalog preview internal file.
+
+####Understanding Migration Warnings
+
+The Catalog Preview `--migration 3.8/4.0` options performs a number of migration checks
+that may result as warnings with *issue codes*. These issue codes starting with `MIGRATE4_` are described in the following subsections. You will see these and other issue codes in logs and in the the overview report. (There are > 120 other issue codes currently in use in puppet - many that are
+quite generic and requiring inspection of the associated message text to be meaningful. Such general puppet issue codes are currently not described anywhere).
+
+#####MIGRATE4_EMPTY_STRING_TRUE (PUP-4124)
+
+In Puppet 4.x. an empty `String` is considered to be `true`, while it was `false` in Puppet 3.x.
+This migration check logs a warning with the issue code `MIGRATE4_EMPTY_STRING_TRUE` whenever
+an empty string is evaluated in a context where it matters if it is `true` or `false`.
+This means that you will not see warnings for all empty strings, just those that are used to
+make decisions.
+
+To fix these warnings, review the logic and consider the case of `undef` not being the same as
+an empty string, and that empty strings are `true`.
+
+#####MIGRATE4_UC_BAREWORD_IS_TYPE (PUP-4125)
+
+In Puppet 4.x all bare words that start with an upper case letter is a reference to
+a *Type* (a Data Type such as `Integer`, `String`, or `Array`, or a *Resource Type* such as `File`,
+or `User`). In Puppet 3.x such upper case bare words were considered to be string
+values, and only when appearing in certain locations would they be interpreted as
+a reference to a type. The migration checker issues a warning for all upper case
+bare words that are used in comparisons `==`, `>`, `<`, `>=`, `<=`, matches `=~` and `!~`, and when
+used as `case` or selector `?{}` options.
+
+To fix these warnings, quote the upper case bare word if a string is intended, (or alter
+the logic to use the type system in the unlikely event that the 3.x. code did something in
+relation to resource type name processing).
+
+#####MIGRATE4_EQUALITY_TYPE_MISMATCH (PUP-4126)
+
+In 4.x, comparison of `String` and `Number` is different than in 3.x.
+
+~~~
+'1' == 1 # 4x. false, 3x. true
+'1' <= 1 # 4x. error, 3x. true
+~~~
+
+The migration checker logs a warning with the issue code `MIGRATE4_EQUALITY_TYPE_MISMATCH`
+when a `String` and a `Numeric` are checked for equality.
+
+To fix this, decide if values are best represented as strings or numbers. To convert a
+string to a number simply add `0` to it. To convert a number to a string, either
+interpolate it; `"$x"` (to convert it to a decimal number), or use the `sprintf`
+function to convert it to octal, hex or a floating point notation. The `sprintf` function
+has many options that control the string representation, upper/lower case letters in
+hex numbers, prefix 0x, 0X, the precision of a floating point representation etc.
+
+Also consider if input (fact, or parameter) should be a string or a number - that is a better fix than sprinkling data type conversions all over the code.
+
+#####MIGRATE4_OPTION_TYPE_MISMATCH (PUP-4127)
+
+In 4.x, `case` and selector `?{}` options are matched differently than in 3.x. In 3.x if the
+match was not `true`, the match would be made with the operands converted to strings.
+This means that 4.x logic can select a different (or no option) given the same input.
+
+The migration checker logs a warning with the issue code `MIGRATE4_OPTION_TYPE_MISMATCH`
+for every evaluated option that did not match because of a difference in type.
+
+The fix for this depends on what the types of the test and option expressions
+are - most likely number vs. string mismatch, and then the fix is the same as for
+`MIGRATE4_EQUALITY_TYPE_MISMATCH`. For other type mismatches review the logic for what
+was intended and make adjustments accordingly.
+
+#####MIGRATE4_AMBIGUOUS_NUMBER (PUP-4129)
+
+This migration check helps with unquoted numbers where strings are intended.
+
+A common construct is to use values like `'01'`, `'02'` for ordering of resources. It is
+also a common mistake to enter them as bare word numbers e.g. `01`, `02`. The difference
+between 3.x and 4.x is that 3.x treats all bare word numbers as strings (unless arithmetic
+is performed on them which produces numbers), whereas 4.x treats numbers as numbers from
+the start.  The consequence in manifests using ordering is that 1, 100, 1000 comes
+before 2, 200, and 2000 because the ordering converts the numbers back to strings without
+leading zeros.
+
+In 4.x. the leading zero means that the value is an octal number.
+
+The migration checker logs a warning for every occurrence of octal, and hex numbers with
+the issue code `MIGRATE4_AMBIGUOUS_NUMBER` in order to be able to find all places where the
+value is used for ordering.
+
+To fix these issues, review each occurrence and quote the values that represent "ordering", or
+file mode (since file mode is a string value in 4.x).
+
+#####MIGRATE4_AMBIGUOUS_FLOAT (PUP-4129)
+
+This migration check helps with unquoted floating point numbers where strings are
+intended.
+
+Floating point values for arithmetic are not very commonly used in puppet. When seeing
+something like `3.14`, it is most likely a version number string, and not someone doing
+calculations with PI.
+
+The migration checker logs a warning for every occurrence of floating point numbers with
+the issue code `MIGRATE4_AMBIGUOUS_FLOAT` in order to be able to find all places where a
+string may be intended.
+
+#####Significant White Space/ MIGRATE4_ARRAY_LAST_IN_BLOCK (PUP-4128)
+
+In 4.x. a white space between a value and a `[` means that the `[` signals the start
+of an `Array` instead of being the start of an "at-index/key" operation. In 3.x. white
+space is not significant. Most such places will lead to errors, but there are corner
+cases - like in the example below:
+
+~~~
+if true {
+  $a = File ['foo']
+}
+~~~
+
+  Here 4.x will assign `File` (a resource type) to `$a` and then produce an array
+  containing the string `'foo'`.
+
+  The migration checker logs a warning with the issue code `MIGRATE4_ARRAY_LAST_IN_BLOCK`
+  for such occurrences.
+
+  To fix this, simply remove the white space.
+
+#####MIGRATE4_REVIEW_IN_EXPRESSION (PUP-4130)
+
+In 3.x the `in` operator was not well specified and there were several undefined behaviors.
+This relates to, but is not limited to:
+
+* string / numeric automatic conversions
+* applying regular expressions to non string values causing auto conversion
+* confusion over comparisons between empty string/undef/nil (internal) values
+* in-operator not using case independent comparisons in 3.x
+
+To fix, review the expectations against the puppet language specification.
+
 
 ####Working with multiple nodes
 
