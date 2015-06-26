@@ -342,6 +342,30 @@ Includes more information in the catalog diff such as attribute values in missin
 
 Removes the generated files under the directory specified by the setting `preview_outputdir` for one or more given nodes from the filesystem. See [Processing output](#processing-output).
 
+###Glossary
+
+#####Baseline
+
+The environment/catalog that is the stable base of the diff - what you compare against.
+
+#####Preview
+
+The environment/catalog that you compare against the baseline - i.e. where you make changes
+until your catalogs are either [Equal](#equal-catalogs) or [Compliant](#compliant-catalogs).
+
+#####Compliant (catalogs)
+
+When comparing two catalogs, [Baseline](#baseline) vs. [Preview](#preview) the
+preview catalog is considered to be **compliant** if it is a superset of the baseline.
+
+That is; your preview catalog may contain additions, but neither removals nor conflicting changes, compared to the baseline.
+
+
+#####Equal (catalogs)
+
+When comparing two catalogs, [Baseline](#baseline) vs. [Preview](#preview) the
+preview catalog is considered to be **equal** if it contains the same set of resources,
+all attributes have the same (functionally equal) values, and the same set of edges/dependencies.
 
 ##Help
 
