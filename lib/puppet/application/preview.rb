@@ -162,7 +162,7 @@ class Puppet::Application::Preview < Puppet::Application
         raise 'No node(s) given to perform preview compilation for'
       end
 
-      if options[:nodes].size > 1 && %w{diff baseline preview baseline_log preview_log }.include?(options[:view].to_s)
+      if node_names.size > 1 && %w{diff baseline preview baseline_log preview_log }.include?(options[:view].to_s)
         raise "The --view option '#{options[:view]}' is not supported for multiple nodes"
       end
 
