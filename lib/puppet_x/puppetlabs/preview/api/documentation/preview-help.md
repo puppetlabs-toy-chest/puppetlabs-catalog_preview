@@ -128,27 +128,101 @@ OPTIONS
 
 Note that all settings (such as 'log_level') affect both compilations.
 
-* --debug:
-  Enables full debugging. Debugging output is sent to the respective log outputs
-  for baseline and preview compilation. This option is for both compilations.
-  Note that debugging information for the startup and end of the application
-  itself is sent to the console.
 
-* --help:
-  Prints this help message.
-
-* --version:
-  Prints the puppet version number and exit.
-
-* --preview_environment <ENV-NAME> | --pe <ENV-NAME>
-  Makes the preview compilation take place in the given <ENV-NAME>.
-  Uses facts obtained from the configured facts terminus to compile the catalog.
+* --assert equal | compliant
+  Modifies the exit code to be 4 if catalogs are not equal and 5 if the preview
+  catalog is not compliant instead of an exit with 0 to indicate that the preview run
+  was successful in itself. 
 
 * --baseline_environment <ENV-NAME> | --be <ENV-NAME>
   Makes the baseline compilation take place in the given <ENV-NAME>. This overrides
   the environment set for the node via an ENC.
   Uses facts obtained from the configured facts terminus to compile the catalog.
   Note that the puppet setting '-environment' cannot be used to achieve the same effect.
+
+* --debug:
+  Enables full debugging. Debugging output is sent to the respective log outputs
+  for baseline and preview compilation. This option is for both compilations.
+  Note that debugging information for the startup and end of the application
+  itself is sent to the console.
+
+* --diff_string_numeric
+  Makes a difference in type between a string and a numeric value (that are equal numerically)
+  be a conflicting diff. Can only be combined with '--migrate 3.8/4.0'. A type difference
+  for the `mode` attribute in `File` will always be reported since this is a significant change.
+
+* --excludes <FILE>
+  Adds resource diff exclusion of specified attributes to prevent them from being included
+  in the diff. The excusions are specified in the given file in JSON as defined by the
+  schema viewable with `--schema excludes`.
+
+  Preview will always exclude one PE specific File resource that has random content
+  as it would otherwise always show up as different.
+
+  This option can be used to exclude additional resources that are expected to change in each
+  compilation (e.g. if they have random or time based content). Exclusions can be
+  per resource type, type and title, or combined with one or more attributes.
+
+  Note that '--excludes' is in effect when compiling and cannot be combined with
+  '--last'.
+
+* --help:
+  Prints this help message.
+
+
+* --last
+  Uses the already produced catalogs/diffs and logs for the given node(s) instead
+  of performing new compilations and diff. If used without any given nodes, all
+  already produced information will be loaded.
+  (Also see '--clean' for how to remove produced information).
+
+* --migrate <MIGRATION>
+  Turns on migration validation for the preview compilation. Validation result
+  is produced to the preview log file or optionally to stdout with '--view preview_log'.
+  When --migrate is on, values where one value is a string and the other numeric
+  are considered equal if they represent the same number. This can be turned off
+  with --diff_string_numeric, but turning this off may result in many conflicts
+  being reported that need no action. The <MIGRATION> value is required. Currently only
+  '3.8/4.0' which requires a Puppet version between >= 3.8.0 and < 4.0.0. The preview module
+  may be used with versions >= 4.0.0, but can then not accept the '3.8/4.0' migration.
+
+* --nodes <FILE>
+  Specifies a file to read node-names from. If the file name is '-' file names are read
+  from standard in. Each white-space separated sequence of characters is taken as a node name.
+  This may be combined with additional nodes given on the command line. Duplicate entries (in given  
+  file, or on command line) are skipped.
+
+* --preview_environment <ENV-NAME> | --pe <ENV-NAME>
+  Makes the preview compilation take place in the given <ENV-NAME>.
+  Uses facts obtained from the configured facts terminus to compile the catalog.
+
+* --preview_outputdir <DIR>
+  Defines the directory to which output is produced.
+  This is a puppet setting that can be overridden on the command line.
+
+* --schema catalog | catalog_delta | excludes | log | help
+  Outputs the json-schema for the puppet catalog, catalog_delta, exclusions, or log. The option
+  'help' will display the semantics of the catalog-diff schema. Can not be combined with
+  any other option.
+
+* --skip_tags
+  Ignores comparison of tags, catalogs are considered equal/compliant if they only
+  differ in tags.
+
+* --trusted
+  Makes trusted node data obtained from a fact terminus retain its authentication
+  status of "remote", "local", or false (the authentication status the write request had).
+  If this option is not in effect, any trusted node information is kept, and the
+  authenticated key is set to false. The --trusted option is only available when running
+  as root, and should only be turned on when also trusting the facts store.
+
+* --verbose_diff
+  Includes more information in the catalog diff such as attribute values in
+  missing and added resources. Does not affect if catalogs are considered equal or
+  compliant.
+
+* --version:
+  Prints the puppet version number and exit.
 
 * --view <REPORT>
   Specifies what will be output on stdout;
@@ -194,85 +268,12 @@ Note that all settings (such as 'log_level') affect both compilations.
   subsequent release and that this report can be piped to custom commands, or to visualizers
   that can slice and dice the information.
 
-* --migrate <MIGRATION>
-  Turns on migration validation for the preview compilation. Validation result
-  is produced to the preview log file or optionally to stdout with '--view preview_log'.
-  When --migrate is on, values where one value is a string and the other numeric
-  are considered equal if they represent the same number. This can be turned off
-  with --diff_string_numeric, but turning this off may result in many conflicts
-  being reported that need no action. The <MIGRATION> value is required. Currently only
-  '3.8/4.0' which requires a Puppet version between >= 3.8.0 and < 4.0.0. The preview module
-  may be used with versions >= 4.0.0, but can then not accept the '3.8/4.0' migration.
-
-* --diff_string_numeric
-  Makes a difference in type between a string and a numeric value (that are equal numerically)
-  be a conflicting diff. Can only be combined with '--migrate 3.8/4.0'. A type difference
-  for the `mode` attribute in `File` will always be reported since this is a significant change.
-
-* --assert equal | compliant
-  Modifies the exit code to be 4 if catalogs are not equal and 5 if the preview
-  catalog is not compliant instead of an exit with 0 to indicate that the preview run
-  was successful in itself. 
-
-* --preview_outputdir <DIR>
-  Defines the directory to which output is produced.
-  This is a puppet setting that can be overridden on the command line.
-
 * <NODE-NAME>+
   This specifies for which node the preview should produce output. The node must
   have previously requested a catalog from the master to make its facts available.
   At least one node name must be specified (unless '--last' is used to load all available
   already produced information), either given on the command line or
   via the '--nodes' option.
-
-* --schema catalog | catalog_delta | excludes | log | help
-  Outputs the json-schema for the puppet catalog, catalog_delta, exclusions, or log. The option
-  'help' will display the semantics of the catalog-diff schema. Can not be combined with
-  any other option.
-
-* --skip_tags
-  Ignores comparison of tags, catalogs are considered equal/compliant if they only
-  differ in tags.
-
-* --excludes <FILE>
-  Adds resource diff exclusion of specified attributes to prevent them from being included
-  in the diff. The excusions are specified in the given file in JSON as defined by the
-  schema viewable with `--schema excludes`.
-
-  Preview will always exclude one PE specific File resource that has random content
-  as it would otherwise always show up as different.
-
-  This option can be used to exclude additional resources that are expected to change in each
-  compilation (e.g. if they have random or time based content). Exclusions can be
-  per resource type, type and title, or combined with one or more attributes.
-
-  Note that '--excludes' is in effect when compiling and cannot be combined with
-  '--last'.
-
-* --trusted
-  Makes trusted node data obtained from a fact terminus retain its authentication
-  status of "remote", "local", or false (the authentication status the write request had).
-  If this option is not in effect, any trusted node information is kept, and the
-  authenticated key is set to false. The --trusted option is only available when running
-  as root, and should only be turned on when also trusting the facts store.
-
-* --verbose_diff
-  Includes more information in the catalog diff such as attribute values in
-  missing and added resources. Does not affect if catalogs are considered equal or
-  compliant.
-
-* --last
-  Uses the already produced catalogs/diffs and logs for the given node(s) instead
-  of performing new compilations and diff. If used without any given nodes, all
-  already produced information will be loaded.
-  (Also see '--clean' for how to remove produced information).
-
-* --nodes <FILE>
-  Specifies a file to read node-names from. If the file name is '-' file names are read
-  from standard in. Each white-space separated sequence of characters is taken as a node name.
-  This may be combined with additional nodes given on the command line. Duplicate entries (in given  
-  file, or on command line) are skipped.
-
 
 EXAMPLE
 -------
@@ -345,6 +346,59 @@ The Catalog Preview --migration 3.8/4.0 options performs the following migration
 (see the related ticket numbers for additional details/examples). The labels MIGRATE4_...
 are the issue codes that are found in the preview_log.json for reported migration warnings.
 
+** MIGRATE4_AMBIGUOUS_NUMBER (PUP-4129) **:
+
+  This migration check helps with unquoted numbers where strings are intended.
+
+  A common construct is to use values like `'01'`, `'02'` for ordering of resources. It is
+  also a common mistake to enter them as bare word numbers e.g. `01`, `02`. The difference
+  between 3.x and 4.x is that 3.x treats all bare word numbers as strings (unless arithmetic
+  is performed on them which produces numbers), whereas 4.x treats numbers as numbers from
+  the start.  The consequence in manifests using ordering is that 1, 100, 1000 comes
+  before 2, 200, and 2000 because the ordering converts the numbers back to strings without
+  the leading zero.
+
+  In 4.x. the leading zero means that the value is an octal number.
+
+  The migration checker logs a warning for every occurrence of octal, and hex numbers with
+  the issue code MIGRATE4_AMBIGUOUS_NUMBER in order to be able to find all places where the
+  value is used for ordering.
+
+  To fix these issues, review each occurrence and quote the values that represent "ordering", or
+  file mode (since file mode is a string value in 4.x).
+
+** MIGRATE4_AMBIGUOUS_FLOAT (PUP-4129) **
+
+  This migration check helps with unquoted floating point numbers where strings are
+  intended.
+
+  Floating point values for arithmetic are not very commonly used in puppet. When seeing
+  something like `3.14`, it is most likely a version number string, and not someone doing
+  calculations with PI.
+
+  The migration checker logs a warning for every occurrence of floating point numbers with
+  the issue code MIGRATE4_AMBIGUOUS_FLOAT in order to be able to find all places where a
+  string may be intended.
+
+** MIGRATE4_ARRAY_LAST_IN_BLOCK (PUP-4128 Significant White Space) **:
+
+  In 4.x. a white space between a value and a `[´ means that the ´[´ signals the start
+  of an Array instead of being the start of an "at-index/key" operation. In 3.x. white
+  space is not significant. Most such places will lead to errors, but there are corner
+  cases - like in the example below:
+
+    if true {
+      $a = File ['foo']
+    }
+
+  Here 4.x will assign `File` (a resource type) to `$a` and then produce an array
+  containing the string `'foo'`.
+
+  The migration checker logs a warning with the issue code MIGRATE4_ARRAY_LAST_IN_BLOCK
+  for such occurrences.
+
+  To fix this, simply remove the white space.
+
 ** MIGRATE4_EMPTY_STRING_TRUE (PUP-4124) **:
 
   In Puppet 4.x. an empty String is considered to be true, while it was false in Puppet 3.x.
@@ -355,20 +409,6 @@ are the issue codes that are found in the preview_log.json for reported migratio
 
   To fix these warnings, review the logic and consider the case of undef not being the same as
   an empty string, and that empty strings are true.
-
-** MIGRATE4_UC_BAREWORD_IS_TYPE (PUP-4125) **:
-
-  In Puppet 4.x all bare words that start with an upper case letter is a reference to
-  a Type (Data Type such as Integer, String, or Array, or a Resource Type such as File,
-  or User). In Puppet 3.x such upper case bare words were considered to be string
-  values, and only when appearing in certain locations would they be interpreted as
-  a reference to a type. The migration checker issues a warning for all upper case
-  bare words that are used in comparisons ==, >, <, >=, <=, matches =~ and !~, and when
-  used as case or selector options.
-
-  To fix these warnings, quote the upper case bare word if a string is intended, (or alter
-  the logic to use the type system in the unlikely event that the .3x. code did something in
-  relation to resource type name processing).
 
 ** MIGRATE4_EQUALITY_TYPE_MISMATCH (PUP-4126) **:
 
@@ -405,58 +445,6 @@ are the issue codes that are found in the preview_log.json for reported migratio
   MIGRATE4_EQUALITY_TYPE_MISMATCH. For other type mismatches review the logic for what
   was intended and make adjustments accordingly.
 
-** MIGRATE4_AMBIGUOUS_NUMBER (PUP-4129) **:
-
-  This migration check helps with unquoted numbers where strings are intended.
-
-  A common construct is to use values like `'01'`, `'02'` for ordering of resources. It is
-  also a common mistake to enter them as bare word numbers e.g. `01`, `02`. The difference
-  between 3.x and 4.x is that 3.x treats all bare word numbers as strings (unless arithmetic
-  is performed on them which produces numbers), whereas 4.x treats numbers as numbers from
-  the start.  The consequence in manifests using ordering is that 1, 100, 1000 comes
-  before 2, 200, and 2000 because the ordering converts the numbers back to strings without
-  the leading zero.
-
-  In 4.x. the leading zero means that the value is an octal number.
-
-  The migration checker logs a warning for every occurrence of octal, and hex numbers with
-  the issue code MIGRATE4_AMBIGUOUS_NUMBER in order to be able to find all places where the
-  value is used for ordering.
-
-  To fix these issues, review each occurrence and quote the values that represent "ordering", or
-  file mode (since file mode is a string value in 4.x).
-
-** MIGRATE4_AMBIGUOUS_FLOAT (PUP-4129) **
-
-  This migration check helps with unquoted floating point numbers where strings are
-  intended.
-
-  Floating point values for arithmetic are not very commonly used in puppet. When seeing
-  something like `3.14`, it is most likely a version number string, and not someone doing
-  calculations with PI.
-
-  The migration checker logs a warning for every occurrence of floating point numbers with
-  the issue code MIGRATE4_AMBIGUOUS_FLOAT in order to be able to find all places where a
-  string may be intended.
-
-** Significant White Space/ MIGRATE4_ARRAY_LAST_IN_BLOCK (PUP-4128) **:
-
-  In 4.x. a white space between a value and a `[´ means that the ´[´ signals the start
-  of an Array instead of being the start of an "at-index/key" operation. In 3.x. white
-  space is not significant. Most such places will lead to errors, but there are corner
-  cases - like in the example below:
-
-    if true {
-      $a = File ['foo']
-    }
-
-  Here 4.x will assign `File` (a resource type) to `$a` and then produce an array
-  containing the string `'foo'`.
-
-  The migration checker logs a warning with the issue code MIGRATE4_ARRAY_LAST_IN_BLOCK
-  for such occurrences.
-
-  To fix this, simply remove the white space.
 
 ** MIGRATE4_REVIEW_IN_EXPRESSION (PUP-4130) **:
 
@@ -469,6 +457,20 @@ are the issue codes that are found in the preview_log.json for reported migratio
   * in-operator not using case independent comparisons
 
   To fix, review the expectations against the puppet language specification.
+
+** MIGRATE4_UC_BAREWORD_IS_TYPE (PUP-4125) **:
+
+  In Puppet 4.x all bare words that start with an upper case letter is a reference to
+  a Type (Data Type such as Integer, String, or Array, or a Resource Type such as File,
+  or User). In Puppet 3.x such upper case bare words were considered to be string
+  values, and only when appearing in certain locations would they be interpreted as
+  a reference to a type. The migration checker issues a warning for all upper case
+  bare words that are used in comparisons ==, >, <, >=, <=, matches =~ and !~, and when
+  used as case or selector options.
+
+  To fix these warnings, quote the upper case bare word if a string is intended, (or alter
+  the logic to use the type system in the unlikely event that the .3x. code did something in
+  relation to resource type name processing).
 
 COPYRIGHT
 ---------
