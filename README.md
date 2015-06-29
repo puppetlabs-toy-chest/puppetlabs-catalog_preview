@@ -35,24 +35,20 @@ Other scenarios are supported in the same way. For example, the module's `puppet
 
 However, the `--migrate 3.8/4.0` option---which provides the specific migration checking that is the primary purpose of this module---can only be used when this module is used with a puppet <= 4.0.0 version and when the baseline environment is using current parser (3.x), and the preview environment is using future parser (4.x).
 
-The expected workflow is to compile preview catalogs for one or multiple nodes, either all at once, or in several runs. Once compiled the preview command is used with the `--last` option to focus on a set of nodes (or all) using one of the available arguments to `--view` to output information that helps with finding issues and taking action to fix them. The `--view overview` is the best report to use when working with multiple nodes as it correlates and aggregates the information to reduce the number of times the "same" problem is reported.
-
-Also note that when this module is used with Puppet >= 4.0.0, the `parser` environment setting has been removed (since there is then only one parser and the setting does not apply).
-
 ##Setup
 
 ###Requirements
 
 To get started, you'll need:
 
-* Puppet Enterprise, version 3.8.0 or greater, but less than version 4.0.0 if you are going to perform migration checking from 3.x to 4.x.
+* Puppet Enterprise, version 3.8.1 or greater, but less than version PE 2015.2 (if you are performing migration checking).
 * Two environments:
-  * Your current production environment, using the 3.x (current) parser.
-  * A preview environment, using the 4.x (future) parser.
+  * Your current production environment, using the current (or Puppet 3 language) parser.
+  * A preview environment, using the future (or Puppet 4 language) parser.
 
-As mentioned above, when doing migration checking your current production environment should be configured to use the 3.x or current parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or 4.x, parser. Configure which parser each environment uses via the [`parser`][parser_config] setting in each environment's `environment.conf`.
+As mentioned above, when doing migration checking, your current production environment should be configured to use the current, or Puppet 3, parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or Puppet 4, parser. Configure which parser each environment uses via the [`parser`][parser_config] setting in each environment's `environment.conf`.
 
-Note that your PE version must be less than version 4.0.0 to perform migration checking, because the future parser is the only parser available in 4.0.0, so no migration specific checking can then be made.
+Note that your PE version must be less than PE 2015.2 to use this tool. Because the future parser is the only parser available in PE 2015.2, no migration-specific check can be made.
  
 ###Installation
 
@@ -79,7 +75,7 @@ puppet preview --preview_environment future_production mynode
 
 ####Validating a migration
 
-When you run the preview compilation, you can turn on extra migration validation using `--migrate 3.8/4.0`. This turns on extra validations of future compatibility, flagging Puppet code that needs to be reviewed. This feature was introduced to help with the migration from the 3.x parser to the 4.x parser. To use this feature, `--preview_environment` must reference an environment configured to use the future parser in its `environment.conf`, while the baseline environment must be configured to use the current (3.x) parser.
+When you run the preview compilation, you can turn on extra migration validation using `--migrate`. This turns on extra validations of future compatibility, flagging Puppet code that needs to be reviewed. This feature was introduced to help with the migration from the Puppet 3 parser to the Puppet 4 parser. To use this feature, `--preview_environment` must reference an environment configured to use the future parser in its `environment.conf`, while the baseline environment must be configured to use the current (Puppet 3) parser.
 
 Note that the `--migrate 3.8/4.0` option is not available when using PE >= 4.0.0.
 
@@ -89,16 +85,17 @@ puppet preview --preview_environment future_production --migrate 3.8/4.0 mynode
 
 ####Checking backwards-compatible changes
 
-By default, the compilation of the baseline catalog takes place in the environment configured for the node. Optionally, you can override the default baseline and set a specific baseline environment with `--baseline_environment`. If `--baseline_environment` is set, the node is first configured as directed by an external node classifier (ENC), and then the environment is switched to the `--baseline_environment`.
+By default, the compilation of the baseline catalog takes place in the environment configured for the node (usually this is "production"). Optionally, you can override the default baseline and set a specific baseline environment with `--baseline_environment`. If `--baseline_environment` is set, the node is first configured as directed by an external node classifier (ENC), and then the environment is switched to the `--baseline_environment`.
 
 ~~~
 puppet preview --preview_environment future_production --baseline_environment my_baseline --migrate 3.8/4.0 mynode
 ~~~
 
-The `--baseline_environment` option aids you when you're changing code in the preview environment for the purpose of making it work with the future parser, while the original environment is unchanged and configured with the 3.x current parser.
+The `--baseline_environment` option aids you when you're changing code in the preview environment for the purpose of making it work with the future parser, while the original environment is unchanged and configured with the Puppet 3 current parser.
 
-If you want to make backwards-compatible changes in the preview
-environment (i.e., changes that work for both parsers), it's valuable to have a third environment configured. This third environment should have the same code as the preview environment, but should be configured for the current parser. You can then diff between compilations in any two of the environments without having to modify the environment assigned by the ENC. This allows you to check your preview environment changes against the current production parser to make sure that they work. All other assignments made by the ENC are unchanged.
+If you want to make backwards-compatible changes in the preview environment (i.e., changes that work for **both** parsers), it's valuable to have a third environment configured. 
+
+This third environment should have the same code as the preview environment, but it should be configured for the current parser. You can then diff between compilations in any two of the environments without having to modify the environment assigned by the ENC. This allows you to check your preview environment changes against the current production parser to make sure that they work. All other assignments made by the ENC are unchanged.
 
 ####Viewing reports
 
@@ -120,18 +117,18 @@ View the aggregate/correlated overview for three nodes:
 All output (except reports intended for human use) is written in JSON format to allow further processing with tools like 'jq' (JSON query). The output is written to a subdirectory named after the node of the directory appointed
 by the setting `preview_outputdir` (defaults to `$vardir/preview`):
 
-    |- "$preview_output-dir"
-    |  |
-    |  |- <NODE-NAME-1>
-    |  |  |- preview_catalog_.json
-    |  |  |- baseline_catalog.json
-    |  |  |- preview_log.json
-    |  |  |- baseline_log.json
-    |  |  |- catalog_diff.json
-    |  |  |- compilation_info.json
-    |  |  
-    |  |- <NODE-NAME-2>
-    |  |  |- ...
+|- "$preview_output-dir"
+|  |
+|  |- <NODE-NAME-1>
+|  |  |- preview_catalog_.json
+|  |  |- baseline_catalog.json
+|  |  |- preview_log.json
+|  |  |- baseline_log.json
+|  |  |- catalog_diff.json
+|  |  |- compilation_info.json
+|  |  
+|  |- <NODE-NAME-2>
+|  |  |- ...
 
 Each new invocation of the command for a given node overwrites the information already produced for that node.
 
