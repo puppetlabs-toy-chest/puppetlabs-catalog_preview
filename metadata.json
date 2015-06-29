@@ -6,7 +6,7 @@
   "license": "PuppetLabs-Enterprise",
   "source": "https://github.com/puppetlabs/puppetlabs-catalog_preview",
   "project_page": "https://forge.puppetlabs.com/puppetlabs/catalog_preview",
-  "issues_url": "https://tickets.puppetlabs.com/browse/PRE",
+  "issues_url": "https://support.puppetlabs.com",
   "tags": [
     "migration",
     "preview",
