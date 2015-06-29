@@ -11,10 +11,15 @@ The `--migrate` option now takes an argument (in this released always `3.8/4.0`)
 
 Short form options for `--preview_environment` (`--pe`) and `--baseline_environment` (`--be`) have been added.
 
+An `--excludes exclusion_file` option has ben added that allows resources to be excluded from
+the catalog diff processing. It is possible to exclude all resource of a type, all attributes
+of a given resource title, or specific attributes of a type, or for a title. This can be used
+for resources that have values that are known to always differ between compilations e.g because attributes are set to random values, a value based on date/time, etc.
+
 The `--help` command includes a description of the migration warnings that are produced in the
 preview_log and explains how to deal with such warnings.
 
-This release also updates the module's README to improve usability.
+This release also updates the module's README to improve usability by including a small dictionary of terms and explanations for the migration specific warnings produced by the `migrate 3.8/4.0` option.
 
 ##2015-04-05 - Release 1.0.1
 ###Summary
