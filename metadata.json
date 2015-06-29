@@ -1,6 +1,6 @@
 {
   "name": "puppetlabs-catalog_preview",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "author": "puppetlabs",
   "summary": "PE-only module providing catalog preview and migration features",
   "license": "PuppetLabs-Enterprise",
@@ -74,11 +74,11 @@
   "requirements": [
     {
       "name": "pe",
-      "version_requirement": ">= 3.8.0 < 5.0.0"
+      "version_requirement": ">= 3.8.1"
     },
     {
       "name": "puppet",
-      "version_requirement": ">= 3.8.0 < 5.0.0"
+      "version_requirement": ">= 3.8.1"
     }
   ],
   "dependencies": [
