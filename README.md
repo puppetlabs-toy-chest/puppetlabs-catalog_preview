@@ -11,13 +11,13 @@
     * [Installation](#installation)
 4. [Usage - Functionality](#usage)
     * [Prerequisites](#prerequisites)
-    * [Evaluating environments with `puppet_preview`](#puppetpreview-command)
+    * [Evaluating environments with `puppet_preview`](#evaluating-environments-with-puppetpreview)
       * [Compare environments](#compare-environments)
       * [Validate a migration](#validate-a-migration)
       * [Check backwards-compatible changes](#check-backwardscompatible-changes)
       * [View reports](#view-reports)
       * [Work with multiple nodes](#work-with-multiple-nodes)
-    * [Usage Examples - Running catalog_preview](#examples)
+    * [Usage Examples - Running catalog_preview](#usage-examples)
     * [Understanding results](#understanding-results)
       * [Process output](#process-output)
       * [Migration warnings](#migration-warnings)
@@ -34,7 +34,7 @@ The catalog_preview module is a Puppet Enterprise-only module that provides cata
 
 The primary purpose of the module is to serve as an aid for migration from the Puppet 3 language parser to the Puppet 4 language parser. The catalog_preview module compiles two catalogs, one in a *baseline environment*, using the current or Puppet 3 parser, and one in a *preview environment*, using the Puppet 4 or "future" parser. The module computes a diff between the two environments, and then saves the two catalogs, the diff, and the log output from each compilation for inspection. 
 
-You'll point your preview environment at a branch of the environment you want to migrate, and then [configure][parser_config_38] the preview environment to use the Puppet 4 ("future") parser. This way, backwards-incompatible changes can be made in the preview environment without affecting production. You can then use the diff, catalog, and log outputs provided by preview to make changes to the preview environment until you feel it is ready to move into production.
+You'll point your preview environment at a branch of the environment you want to migrate, and then [configure](parser_config_38) the preview environment to use the Puppet 4 ("future") parser. This way, backwards-incompatible changes can be made in the preview environment without affecting production. You can then use the diff, overview, catalog, and log outputs provided by preview to make changes to the preview environment until you feel it is ready to move into production.
 
 Other scenarios are supported in the same way. For example, the module's `puppet preview` command can help in various change management and refactoring scenarios. The baseline and preview environments can be any mix of future and current parser, allowing you to compare configurations even if you're not performing a migration to the Puppet 4 language.
 
@@ -74,7 +74,7 @@ Before you perform a migration preview, you should:
 
 The `puppet preview` command compiles, compares, and asserts a baseline catalog and a preview catalog for one or several nodes. This agent must have checked in with the master at least one time prior to running `preview`, so that the node's facts are available to the master. If this is a new agent, you can run `puppet agent -t` on the agent to have it check in with the master before you use `puppet preview`.
 
-The compilation of the baseline catalog takes place in the environment configured for the node (unless overridden with the option `--baseline_environment`). The compilation of the preview catalog takes place in the environment designated by `--preview_environment`. The following code will generate a preview for the preview environment named 'future_production' on the node 'mynode'.
+The compilation of the baseline catalog takes place in the environment configured for the node (unless overridden with the option `--baseline_environment`). The compilation of the preview catalog takes place in the environment designated by `--preview_environment`. The following code will generate a preview for the preview environment named 'future_production' on the node 'mynode':
 
 ~~~
 puppet preview --preview_environment future_production mynode
@@ -82,7 +82,7 @@ puppet preview --preview_environment future_production mynode
 
 ####Validate a migration
 
-When you run the preview compilation, you can turn on extra migration validation using `--migrate`. This turns on extra validations of future compatibility, flagging Puppet code that needs to be reviewed. This feature was introduced to help with the migration from the Puppet 3 parser to the Puppet 4 parser. To use this feature, `--preview_environment` must reference an environment configured to use the future parser in its `environment.conf`, while the baseline environment must be configured to use the current (Puppet 3) parser.
+When you run the preview compilation, you can turn on extra migration validation using `--migrate 3.8/4.0`. This turns on extra validations of future compatibility, flagging Puppet code that needs to be reviewed. This feature was introduced to help with the migration from the Puppet 3 parser to the Puppet 4 parser. To use this feature, `--preview_environment` must reference an environment configured to use the future parser in its `environment.conf`, while the baseline environment must be configured to use the current (Puppet 3) parser.
 
 Note that the `--migrate 3.8/4.0` option is not available when using PE >= 2015.2.
 
@@ -125,17 +125,17 @@ This can be changed with [`--view`](#--view). For a single node, you can view on
 
 Use the [`--last`](#--last) option with `--view` to view a result from the previous run obtained for one or several nodes instead of performing new compilations and diffs. Using `--last` without a list of nodes uses the results from all previous compilations.
 
-View the log of one node:
+**View the log of one node:**
 
 `puppet preview --last mynode --view baseline_log`
 
-View the aggregate/correlated overview for three nodes:
+**View the aggregate/correlated overview for three nodes:**
 
 `puppet preview --last mynode1 mynode2 mynode3 --view overview`
 
 ####Work with multiple nodes
 
-The `puppet preview` command can work with one or multiple nodes given on the command line. When more than one node is given, the operation is applied to all the given nodes. It is also possible to provide the list of nodes in a file by using the `--nodes filename` option. If the filename is `-` the input is read from preview's `stdin` (to enable piping them from some other command). Nodes can be given both on the command line and in a file - the combined set of nodes will be used. The file containing node names (or the content of stdout when using `-`) should be formatted with whitespace separating the node names.
+The `puppet preview` command can work with one or multiple nodes given on the command line. When more than one node is given, the operation is applied to all the given nodes. It is also possible to provide the list of nodes in a file by using the `--nodes filename` option. If the filename is `-` the input is read from preview's `stdin` (to enable piping them from some other command). Nodes can be given both on the command line and in a file---the combined set of nodes will be used. The file containing node names (or the content of stdout when using `-`) should be formatted with whitespace separating the node names.
 
 `puppet preview --nodes nodesfile mynode`
 
@@ -221,6 +221,7 @@ puppet preview --last --view overview --nodes diff_nodes
 All output (except reports intended for human use) is written in JSON format to allow further processing with tools like 'jq' (JSON query). The output is written to a subdirectory named after the node of the directory appointed
 by the setting `preview_outputdir` (defaults to `$vardir/preview`):
 
+~~~
 |- "$preview_output-dir"
 |  |
 |  |- <NODE-NAME-1>
@@ -233,6 +234,7 @@ by the setting `preview_outputdir` (defaults to `$vardir/preview`):
 |  |  
 |  |- <NODE-NAME-2>
 |  |  |- ...
+~~~
 
 Each new invocation of the command for a given node overwrites the information already produced for that node.
 
@@ -250,13 +252,15 @@ The `compilation_info.json` is a catalog preview internal file.
 The catalog_preview `--migration 3.8/4.0` option performs a number of migration checks
 that might result as warnings with *issue codes*. These issue codes starting with `MIGRATE4_` are described below. You will see these and other issue codes both in logs and in the overview report. (There are more than 120 other issue codes currently in use in Puppet---many of these are generic and require inspection of the associated message text to be meaningful. Such general Puppet issue codes are currently not described anywhere.)
 
-#####MIGRATE4_EMPTY_STRING_TRUE (PUP-4124)
+#####MIGRATE4_EMPTY_STRING_TRUE
 
 In Puppet 4, an empty `String` is considered to be `true`, while it was `false` in Puppet 3. This migration check logs a warning with the issue code `MIGRATE4_EMPTY_STRING_TRUE` whenever an empty string is evaluated in a context where it matters if it is `true` or `false`. This means that you will not see warnings for all empty strings, just those that are used to make decisions.
 
 To fix these warnings, review the logic and consider the case of `undef` not being the same as an empty string, and that empty strings are `true`.
 
-#####MIGRATE4_UC_BAREWORD_IS_TYPE (PUP-4125)
+For a detailed description of this issue, see [PUP-4124](#https://tickets.puppetlabs.com/browse/PUP-4124).
+
+#####MIGRATE4_UC_BAREWORD_IS_TYPE
 
 In Puppet 4, all bare words that start with an upper case letter are a reference to
 a *Type* (a Data Type such as `Integer`, `String`, or `Array`, or a *Resource Type* such as `File` or `User`). In Puppet 3, such upper case bare words were considered to be string
@@ -268,7 +272,9 @@ To fix these warnings, quote the upper case bare word if a string is intended.
 
 In the unlikely event that the Puppet 3 code did something in relation to resource type name processing, alter the logic to use the type system.
 
-#####MIGRATE4_EQUALITY_TYPE_MISMATCH (PUP-4126)
+For a detailed description of this issue, see [PUP-4125](#https://tickets.puppetlabs.com/browse/PUP-4125).
+
+#####MIGRATE4_EQUALITY_TYPE_MISMATCH
 
 In Puppet 4, comparison of `String` and `Number` is different than it was in Puppet 3.
 
@@ -289,7 +295,9 @@ hex numbers, prefix 0x, 0X, the precision of a floating point representation, et
 
 Also consider whether input (fact or parameter) should be a string or a number---that is a better fix than sprinkling data type conversions all over the code.
 
-#####MIGRATE4_OPTION_TYPE_MISMATCH (PUP-4127)
+For a detailed description of this issue, see [PUP-4126](#https://tickets.puppetlabs.com/browse/PUP-4126).
+
+#####MIGRATE4_OPTION_TYPE_MISMATCH
 
 In Puppet 4, `case` and selector `?{}` options are matched differently than in Puppet 3. In Puppet 3, if the match was not `true`, the match was made with the operands converted to strings. This means that Puppet 4 logic can select a different option (or none) given the same input.
 
@@ -299,7 +307,9 @@ for every evaluated option that did not match because of a difference in type.
 The fix for this depends on what the types of the test and option expressions
 are. The most likely issue is a number vs. string mismatch, and then the fix is the same as for `MIGRATE4_EQUALITY_TYPE_MISMATCH`. For other type mismatches, review the logic for what was intended and make adjustments accordingly.
 
-#####MIGRATE4_AMBIGUOUS_NUMBER (PUP-4129)
+For a detailed description of this issue, see [PUP-4127](#https://tickets.puppetlabs.com/browse/PUP-4127).
+
+#####MIGRATE4_AMBIGUOUS_NUMBER
 
 This migration check helps with unquoted numbers where strings are intended.
 
@@ -316,7 +326,9 @@ the issue code `MIGRATE4_AMBIGUOUS_NUMBER` in order to be able to find all place
 
 To fix these issues, review each occurrence and quote the values that represent "ordering", or file mode (since file mode is a string value in Puppet 4).
 
-#####MIGRATE4_AMBIGUOUS_FLOAT (PUP-4129)
+For a detailed description of this issue, see [PUP-4129](#https://tickets.puppetlabs.com/browse/PUP-4129).
+
+#####MIGRATE4_AMBIGUOUS_FLOAT
 
 This migration check helps with unquoted floating point numbers where strings are
 intended.
@@ -328,7 +340,9 @@ calculations with PI.
 The migration checker logs a warning for every occurrence of floating point numbers with
 the issue code `MIGRATE4_AMBIGUOUS_FLOAT` in order to find all places where a string might be intended.
 
-#####Significant White Space/ MIGRATE4_ARRAY_LAST_IN_BLOCK (PUP-4128)
+For a detailed description of this issue, see [PUP-4129](#https://tickets.puppetlabs.com/browse/PUP-4129).
+
+#####Significant White Space/ MIGRATE4_ARRAY_LAST_IN_BLOCK
 
 In Puppet 4, a white space between a value and a `[` means that the `[` signals the start
 of an `Array`, instead of being the start of an "at-index/key" operation. In Puppet 3, white space is not significant. Most such places will lead to errors, but there are corner
@@ -346,7 +360,9 @@ The migration checker logs a warning with the issue code `MIGRATE4_ARRAY_LAST_IN
 
 To fix this, remove the white space.
 
-#####MIGRATE4_REVIEW_IN_EXPRESSION (PUP-4130)
+For a detailed description of this issue, see [PUP-4128](#https://tickets.puppetlabs.com/browse/PUP-4128).
+
+#####MIGRATE4_REVIEW_IN_EXPRESSION
 
 In Puppet 3, the `in` operator was not well specified and there were several undefined behaviors. This relates to, but is not limited to:
 
@@ -356,6 +372,8 @@ In Puppet 3, the `in` operator was not well specified and there were several und
 * In-operator not using case independent comparisons in Puppet 3.
 
 To fix, review the expectations against the Puppet language specification.
+
+For a detailed description of this issue, see [PUP-4130](#https://tickets.puppetlabs.com/browse/PUP-4130).
 
 ###Options
 
@@ -403,7 +421,7 @@ Prints a help message listing the options for the `puppet preview` command.
 
 #####`--last`
 
-Use the last result obtained for a node instead of performing new compilations and diff. Must be used along with the [`--view`](#--view) option. The command will operate on nodes given on the command line plus those given via [`--nodes`][#--nodes]. If used without any given nodes, this option will load information about all nodes for which there is preview output.
+Use the last result obtained for a node instead of performing new compilations and diff. Must be used along with the [`--view`](#--view) option. The command will operate on nodes given on the command line plus those given via [`--nodes`](#--nodes). If used without any given nodes, this option will load information about all nodes for which there is preview output.
 
 
 #####`--migrate 3.8/4.0`
@@ -418,7 +436,7 @@ For details about the migration specific warnings, see the DIAGNOSTICS section i
 
 #####`NODE-NAME`
 
-This specifies for which node the preview should produce output. The node must have previously requested a catalog from the master to make its facts available. It is possible to give multiple node names on the command line, via a file, or piping them to the command by using the [`--nodes`][#--nodes] option.
+This specifies for which node the preview should produce output. The node must have previously requested a catalog from the master to make its facts available. It is possible to give multiple node names on the command line, via a file, or piping them to the command by using the [`--nodes`](#--nodes) option.
 
 #####`--preview_outputdir 'DIR'`
 
@@ -444,22 +462,22 @@ Prints the Puppet version number.
 
 Specifies what will be output on stdout. Must be used with one of the following arguments:
 
-* `summary`: The summary report of one catalog diff, or a summary per node if multiple are given
-* `overview`: The correlated and aggregated report of issues/diffs for multiple nodes
-* `overview_json`: The correlated and aggregated report of issues/diffs for multiple nodes in json format (experimental feature, the schema may change)
-* `diff`: The catalog diff
-* `baseline`: The baseline catalog
-* `preview`: The preview catalog
-* `baseline_log`: Outputs the baseline log
-* `preview_log`: Outputs the preview log
-* `status`: Compliance status
-* `failed_nodes`: Outputs a list of nodes for which compilation failed
-* `diff_nodes`: Outputs a list of nodes for which catalog diff found a difference
-* `equal_nodes`: Outputs a list of nodes where catalogs had no diff
-* `compliant_nodes`: Outputs a list of nodes where catalogs where equal or compliant
-* `none`: No output
+* `summary`: The summary report of one catalog diff, or a summary per node if multiple are given.S
+* `overview`: The correlated and aggregated report of issues/diffs for multiple nodes.
+* `overview_json`: The correlated and aggregated report of issues/diffs for multiple nodes in json format (experimental feature, the schema may change).
+* `diff`: The catalog diff.
+* `baseline`: The baseline catalog.
+* `preview`: The preview catalog.
+* `baseline_log`: Outputs the baseline log.
+* `preview_log`: Outputs the preview log.
+* `status`: Compliance status.
+* `failed_nodes`: Outputs a list of nodes for which compilation failed.
+* `diff_nodes`: Outputs a list of nodes for which catalog diff found a difference.
+* `equal_nodes`: Outputs a list of nodes where catalogs had no diff.
+* `compliant_nodes`: Outputs a list of nodes where catalogs where equal or compliant.
+* `none`: No output.
 
-The outputs `diff`, `baseline`, `preview`, `baseline_log`, `preview_log` only works for a single node. All `--view` options may be combined with the [`--last`][#--last] option (to avoid recompilation).
+The outputs `diff`, `baseline`, `preview`, `baseline_log`, `preview_log` only works for a single node. All `--view` options may be combined with the [`--last`](#--last) option (to avoid recompilation).
 
 #####`--verbose_diff`
 
