@@ -1,4 +1,4 @@
-##2015-06-xx - Release 2.0.0
+##2015-06-30 - Release 2.0.0
 ###Summary
 
 This release introduces the ability to compile and diff multiple nodes with one invocation of the preview command. The command can now also aggregate and correlate issues/diffs across multiple nodes using a new `--view overview` option.
