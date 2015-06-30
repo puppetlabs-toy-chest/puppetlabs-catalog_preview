@@ -1,4 +1,5 @@
 [parser_config_38]: https://docs.puppetlabs.com/puppet/3.8/reference/config_file_environment.html#parser
+[pe_migration]: https://docs.puppetlabs.com/pe/latest/migrate_pe_catalog_preview.html
 
 #catalog_preview
 
@@ -40,6 +41,8 @@ Other scenarios are supported in the same way. For example, the module's `puppet
 
 However, the `--migrate 3.8/4.0` option---which provides the specific migration checking that is the primary purpose of this module---can be used only when this module is used with a Puppet Enterprise <= 2015.2 version, **and** when the baseline environment uses current parser (Puppet 3) and the preview environment uses future parser (Puppet 4).
 
+For a quick start guide on using this module to get ready to move from PE 3.8.1 to PE 2015.2, see [Preparing for Migration with catalog_preview](pe_migration) in the Puppet Enterprise docs.
+
 ##Setup
 
 ###Requirements
@@ -51,7 +54,7 @@ To get started, you'll need:
   * Your current production environment, using the current (or Puppet 3 language) parser.
   * A preview environment, using the future (or Puppet 4 language) parser.
 
-As mentioned above, if you're performing a migration check, your current production environment should be configured to use the current, or Puppet 3, parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or Puppet 4, parser. Configure which parser each environment uses via the [`parser`][parser_config] setting in each environment's `environment.conf`.
+As mentioned above, if you're performing a migration check, your current production environment should be configured to use the current, or Puppet 3, parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or Puppet 4, parser. Configure which parser each environment uses via the [`parser`](parser_config_38) setting in each environment's `environment.conf`.
 
 Note that your PE version must be **less than** PE 2015.2 to use this tool for previewing a migration. Because PE 2015.2 contains only the "future" parser, if you are running 2015.2, no migration-specific check can be made.
  
@@ -258,7 +261,7 @@ In Puppet 4, an empty `String` is considered to be `true`, while it was `false` 
 
 To fix these warnings, review the logic and consider the case of `undef` not being the same as an empty string, and that empty strings are `true`.
 
-For a detailed description of this issue, see [PUP-4124](#https://tickets.puppetlabs.com/browse/PUP-4124).
+For a detailed description of this issue, see [PUP-4124](https://tickets.puppetlabs.com/browse/PUP-4124).
 
 #####MIGRATE4_UC_BAREWORD_IS_TYPE
 
@@ -272,7 +275,7 @@ To fix these warnings, quote the upper case bare word if a string is intended.
 
 In the unlikely event that the Puppet 3 code did something in relation to resource type name processing, alter the logic to use the type system.
 
-For a detailed description of this issue, see [PUP-4125](#https://tickets.puppetlabs.com/browse/PUP-4125).
+For a detailed description of this issue, see [PUP-4125](https://tickets.puppetlabs.com/browse/PUP-4125).
 
 #####MIGRATE4_EQUALITY_TYPE_MISMATCH
 
@@ -295,7 +298,7 @@ hex numbers, prefix 0x, 0X, the precision of a floating point representation, et
 
 Also consider whether input (fact or parameter) should be a string or a number---that is a better fix than sprinkling data type conversions all over the code.
 
-For a detailed description of this issue, see [PUP-4126](#https://tickets.puppetlabs.com/browse/PUP-4126).
+For a detailed description of this issue, see [PUP-4126](https://tickets.puppetlabs.com/browse/PUP-4126).
 
 #####MIGRATE4_OPTION_TYPE_MISMATCH
 
@@ -307,7 +310,7 @@ for every evaluated option that did not match because of a difference in type.
 The fix for this depends on what the types of the test and option expressions
 are. The most likely issue is a number vs. string mismatch, and then the fix is the same as for `MIGRATE4_EQUALITY_TYPE_MISMATCH`. For other type mismatches, review the logic for what was intended and make adjustments accordingly.
 
-For a detailed description of this issue, see [PUP-4127](#https://tickets.puppetlabs.com/browse/PUP-4127).
+For a detailed description of this issue, see [PUP-4127](https://tickets.puppetlabs.com/browse/PUP-4127).
 
 #####MIGRATE4_AMBIGUOUS_NUMBER
 
@@ -326,7 +329,7 @@ the issue code `MIGRATE4_AMBIGUOUS_NUMBER` in order to be able to find all place
 
 To fix these issues, review each occurrence and quote the values that represent "ordering", or file mode (since file mode is a string value in Puppet 4).
 
-For a detailed description of this issue, see [PUP-4129](#https://tickets.puppetlabs.com/browse/PUP-4129).
+For a detailed description of this issue, see [PUP-4129](https://tickets.puppetlabs.com/browse/PUP-4129).
 
 #####MIGRATE4_AMBIGUOUS_FLOAT
 
@@ -340,7 +343,7 @@ calculations with PI.
 The migration checker logs a warning for every occurrence of floating point numbers with
 the issue code `MIGRATE4_AMBIGUOUS_FLOAT` in order to find all places where a string might be intended.
 
-For a detailed description of this issue, see [PUP-4129](#https://tickets.puppetlabs.com/browse/PUP-4129).
+For a detailed description of this issue, see [PUP-4129](https://tickets.puppetlabs.com/browse/PUP-4129).
 
 #####Significant White Space/ MIGRATE4_ARRAY_LAST_IN_BLOCK
 
@@ -360,7 +363,7 @@ The migration checker logs a warning with the issue code `MIGRATE4_ARRAY_LAST_IN
 
 To fix this, remove the white space.
 
-For a detailed description of this issue, see [PUP-4128](#https://tickets.puppetlabs.com/browse/PUP-4128).
+For a detailed description of this issue, see [PUP-4128](https://tickets.puppetlabs.com/browse/PUP-4128).
 
 #####MIGRATE4_REVIEW_IN_EXPRESSION
 
@@ -373,7 +376,7 @@ In Puppet 3, the `in` operator was not well specified and there were several und
 
 To fix, review the expectations against the Puppet language specification.
 
-For a detailed description of this issue, see [PUP-4130](#https://tickets.puppetlabs.com/browse/PUP-4130).
+For a detailed description of this issue, see [PUP-4130](https://tickets.puppetlabs.com/browse/PUP-4130).
 
 ###Options
 
