@@ -35,13 +35,13 @@ The catalog_preview module is a Puppet Enterprise-only module that provides cata
 
 The primary purpose of the module is to serve as an aid for migration from the Puppet 3 language parser to the Puppet 4 language parser. The catalog_preview module compiles two catalogs, one in a *baseline environment*, using the current or Puppet 3 parser, and one in a *preview environment*, using the Puppet 4 or "future" parser. The module computes a diff between the two environments, and then saves the two catalogs, the diff, and the log output from each compilation for inspection. 
 
-You'll point your preview environment at a branch of the environment you want to migrate, and then [configure](parser_config_38) the preview environment to use the Puppet 4 ("future") parser. This way, backwards-incompatible changes can be made in the preview environment without affecting production. You can then use the diff, overview, catalog, and log outputs provided by preview to make changes to the preview environment until you feel it is ready to move into production.
+You'll point your preview environment at a branch of the environment you want to migrate, and then [configure][parser_config_38] the preview environment to use the Puppet 4 ("future") parser. This way, backwards-incompatible changes can be made in the preview environment without affecting production. You can then use the diff, overview, catalog, and log outputs provided by preview to make changes to the preview environment until you feel it is ready to move into production.
 
 Other scenarios are supported in the same way. For example, the module's `puppet preview` command can help in various change management and refactoring scenarios. The baseline and preview environments can be any mix of future and current parser, allowing you to compare configurations even if you're not performing a migration to the Puppet 4 language.
 
 However, the `--migrate 3.8/4.0` option---which provides the specific migration checking that is the primary purpose of this module---can be used only when this module is used with a Puppet Enterprise <= 2015.2 version, **and** when the baseline environment uses current parser (Puppet 3) and the preview environment uses future parser (Puppet 4).
 
-For a quick start guide on using this module to get ready to move from PE 3.8.1 to PE 2015.2, see [Preparing for Migration with catalog_preview](pe_migration) in the Puppet Enterprise docs.
+For a quick start guide on using this module to get ready to move from PE 3.8.1 to PE 2015.2, see [Preparing for Migration with catalog_preview][pe_migration] in the Puppet Enterprise docs.
 
 ##Setup
 
@@ -54,7 +54,7 @@ To get started, you'll need:
   * Your current production environment, using the current (or Puppet 3 language) parser.
   * A preview environment, using the future (or Puppet 4 language) parser.
 
-As mentioned above, if you're performing a migration check, your current production environment should be configured to use the current, or Puppet 3, parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or Puppet 4, parser. Configure which parser each environment uses via the [`parser`](parser_config_38) setting in each environment's `environment.conf`.
+As mentioned above, if you're performing a migration check, your current production environment should be configured to use the current, or Puppet 3, parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or Puppet 4, parser. Configure which parser each environment uses via the [`parser`][parser_config_38] setting in each environment's `environment.conf`.
 
 Note that your PE version must be **less than** PE 2015.2 to use this tool for previewing a migration. Because PE 2015.2 contains only the "future" parser, if you are running 2015.2, no migration-specific check can be made.
  
