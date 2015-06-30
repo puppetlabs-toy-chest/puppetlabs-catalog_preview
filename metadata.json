@@ -1,12 +1,12 @@
 {
   "name": "puppetlabs-catalog_preview",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "author": "puppetlabs",
   "summary": "PE-only module providing catalog preview and migration features",
   "license": "PuppetLabs-Enterprise",
   "source": "https://github.com/puppetlabs/puppetlabs-catalog_preview",
   "project_page": "https://forge.puppetlabs.com/puppetlabs/catalog_preview",
-  "issues_url": "https://tickets.puppetlabs.com/browse/PRE",
+  "issues_url": "https://support.puppetlabs.com",
   "tags": [
     "migration",
     "preview",
@@ -18,28 +18,67 @@
   ],
   "operatingsystem_support": [
   {
-    "operatingsystem":"RedHat",
-    "operatingsystemrelease":[ "5.0", "6.0", "7.0" ]
+    "operatingsystem": "RedHat",
+    "operatingsystemrelease": [
+      "5",
+    "6",
+    "7"
+      ]
+  },
+  {
+    "operatingsystem": "CentOS",
+    "operatingsystemrelease": [
+      "5",
+    "6",
+    "7"
+      ]
+  },
+  {
+    "operatingsystem": "OracleLinux",
+    "operatingsystemrelease": [
+      "5",
+    "6",
+    "7"
+      ]
+  },
+  {
+    "operatingsystem": "Scientific",
+    "operatingsystemrelease": [
+      "5",
+    "6",
+    "7"
+      ]
+  },
+  {
+    "operatingsystem": "SLES",
+    "operatingsystemrelease": [
+      "11 SP1"
+      ]
+  },
+  {
+    "operatingsystem": "Debian",
+    "operatingsystemrelease": [
+      "6",
+    "7"
+      ]
   },
   {
     "operatingsystem": "Ubuntu",
     "operatingsystemrelease": [
-    "10.04", "12.04", "14.04"
-    ]
-  },
-  {
-    "operatingsystem":"Debian",
-    "operatingsystemrelease":[ "6", "7" ]
+      "10.04",
+    "12.04",
+    "14.04"
+      ]
   }
   ],
   "requirements": [
     {
       "name": "pe",
-      "version_requirement": ">= 3.8.0 < 5.0.0"
+      "version_requirement": ">= 3.8.1"
     },
     {
       "name": "puppet",
-      "version_requirement": ">= 3.8.0 < 5.0.0"
+      "version_requirement": ">= 3.8.1"
     }
   ],
   "dependencies": [
