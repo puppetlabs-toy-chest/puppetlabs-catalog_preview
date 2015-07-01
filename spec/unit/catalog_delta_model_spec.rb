@@ -72,7 +72,7 @@ describe 'CatalogDelta' do
       'edges' => [
         {
           'source' => 'Class[main]',
-          'target' => 'File[/tmp/footest]'
+          'target' => 'File[/tmp/fumtest]'
         }
       ]
     }
@@ -324,6 +324,58 @@ describe 'CatalogDelta' do
     expect(delta.conflicting_resource_count).to eq(0)
   end
 
+  it 'ignores excluded resource removals' do
+    pv = preview_hash
+    pv['resources'].pop
+    pv['edges'].pop
+    excludes_file = fixture('excludes', 'exclude_all_file.json')
+    excludes = Exclude.parse_file(excludes_file)
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, excludes)
+    expect(delta.missing_resource_count).to eq(0)
+    expect(delta.preview_equal?).to be(true)
+  end
+
+  it 'ignores excluded resource additions' do
+    pv = preview_hash
+    pv['resources'].push(
+      {
+        'type' => 'File',
+        'title' => '/tmp/baztest',
+        'tags' => ['file', 'class'],
+        'file' => '/etc/puppet/environments/production/manifests/site.pp',
+        'line' => 4,
+      }
+    )
+    pv['edges'].push(
+      {
+        'source' => 'Class[main]',
+        'target' => 'File[/tmp/baztest]'
+      }
+    )
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', nil, nil) ])
+    expect(delta.added_resource_count).to eq(0)
+    expect(delta.preview_equal?).to be(true)
+  end
+
+  it 'ignores excluded resource conflicts' do
+    pv = preview_hash
+    pv['resources'][0] = {
+      'type' => 'File',
+      'title' => '/tmp/footest',
+      'tags' => ['file', 'class'],
+      'file' => '/etc/puppet/environments/production/manifests/site.pp',
+      'line' => 1,
+      'exported' => false,
+      'parameters' => {
+        'ensure' => 'absent',
+        'mode' => '0600'
+      }
+    }
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp, [ Exclude.new('file', nil, nil) ])
+    expect(delta.conflicting_resource_count).to eq(0)
+    expect(delta.preview_equal?).to be(true)
+  end
+
   it 'reports missing edges' do
     pv = preview_hash
     pv['edges'].pop
@@ -332,7 +384,7 @@ describe 'CatalogDelta' do
     expect(delta.missing_edges).to contain_exactly(be_a(Edge))
     edge = delta.missing_edges[0]
     expect(edge.source).to eq('Class[main]')
-    expect(edge.target).to eq('File[/tmp/footest]')
+    expect(edge.target).to eq('File[/tmp/fumtest]')
     JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
   end
 
