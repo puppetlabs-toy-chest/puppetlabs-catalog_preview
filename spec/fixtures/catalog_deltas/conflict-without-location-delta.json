@@ -1,0 +1,110 @@
+{
+  "produced_by": "puppet preview 3.8.0",
+  "timestamp": "2015-06-11T13:08:41.289367239+02:00",
+  "baseline_catalog": "/home/bob/.puppet/var/preview/test.example.com/baseline_catalog.json",
+  "preview_catalog": "/home/bob/.puppet/var/preview/test.example.com/preview_catalog.json",
+  "node_name": "test.example.com",
+  "baseline_env": "production",
+  "preview_env": "preview",
+  "version_equal": true,
+  "baseline_resource_count": 5,
+  "preview_resource_count": 7,
+  "added_resources": [
+    {
+      "location": {
+        "file": "/etc/puppet/environments/preview/manifests/site.pp",
+        "line": 6
+      },
+      "type": "Stage",
+      "title": "first",
+      "diff_id": 1
+    },
+    {
+      "location": {
+        "file": "/etc/puppet/environments/preview/manifests/site.pp",
+        "line": 9
+      },
+      "type": "Stage",
+      "title": "last",
+      "diff_id": 2
+    }
+  ],
+  "added_resource_count": 2,
+  "added_attribute_count": 6,
+  "missing_resources": [
+
+  ],
+  "missing_resource_count": 0,
+  "missing_attribute_count": 0,
+  "equal_resource_count": 3,
+  "equal_attribute_count": 12,
+  "conflicting_attribute_count": 1,
+  "conflicting_resources": [
+    {
+      "type": "Stage",
+      "title": "main",
+      "equal_attribute_count": 3,
+      "added_attributes": [
+        {
+          "name": "before",
+          "value": "#<Set:0x0000000556a888>",
+          "diff_id": 4
+        }
+      ],
+      "added_attribute_count": 1,
+      "missing_attributes": [
+
+      ],
+      "missing_attribute_count": 0,
+      "conflicting_attributes": [
+
+      ],
+      "conflicting_attribute_count": 0,
+      "diff_id": 3
+    },
+    {
+      "baseline_location": {
+        "file": "/etc/puppet/environments/production/manifests/site.pp",
+        "line": 4
+      },
+      "preview_location": {
+        "file": "/etc/puppet/environments/preview/manifests/site.pp",
+        "line": 2
+      },
+      "type": "Notify",
+      "title": "preview compile diff test",
+      "equal_attribute_count": 2,
+      "added_attributes": [
+
+      ],
+      "added_attribute_count": 0,
+      "missing_attributes": [
+
+      ],
+      "missing_attribute_count": 0,
+      "conflicting_attributes": [
+        {
+          "name": "message",
+          "baseline_value": "42",
+          "preview_value": 42,
+          "diff_id": 6
+        }
+      ],
+      "conflicting_attribute_count": 1,
+      "diff_id": 5
+    }
+  ],
+  "conflicting_resource_count": 2,
+  "baseline_edge_count": 4,
+  "preview_edge_count": 4,
+  "added_edges": [
+
+  ],
+  "added_edge_count": 0,
+  "missing_edges": [
+
+  ],
+  "missing_edge_count": 0,
+  "preview_compliant": false,
+  "preview_equal": false
+}

@@ -25,7 +25,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
       raise ArgumentError, "Facts but no fact format provided for #{request.key}"
     end
 
-    Puppet::Util::Profiler.profile("Found facts", [:compiler, :find_facts]) do
+    Puppet::Util::Profiler.profile('Found facts', [:compiler, :find_facts]) do
       # If the facts were encoded as yaml, then the param reconstitution system
       # in Network::HTTP::Handler will automagically deserialize the value.
       if text_facts.is_a?(Puppet::Node::Facts)
@@ -124,7 +124,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
   end
 
   def initialize
-    Puppet::Util::Profiler.profile("Setup server facts for compiling", [:diff_compiler, :init_server_facts]) do
+    Puppet::Util::Profiler.profile('Setup server facts for compiling', [:diff_compiler, :init_server_facts]) do
       set_server_facts
     end
   end
@@ -154,7 +154,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
     begin
       # Baseline compilation
       #
-      Puppet::Util::Log.close_all()
+      Puppet::Util::Log.close_all
       Puppet::Util::Log.newdestination(baseline_dest)
       Puppet::Util::Log.with_destination(baseline_dest) do
 
@@ -162,19 +162,28 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
           # Switch the node's environment (it finds and instantiates the Environment)
           node.environment = options[:baseline_environment]
         end
+        options[:back_channel][:baseline_environment] = node.environment
 
         Puppet::Util::Profiler.profile(baseline_dest, [:diff_compiler, :compile_baseline, node.environment, node.name]) do
-          Puppet.override({:current_environment => node.environment}, "puppet-preview-baseline-compile") do
+          Puppet.override({:current_environment => node.environment}, 'puppet-preview-baseline-compile') do
 
-            if Puppet.future_parser?
-              raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration is only possible from an environment that is not using parser=future"
+            # Assert state if migration 3.8/4.0 is turned on
+            if options[:migrate] == Puppet::Application::Preview::MIGRATION_3to4
+              unless Puppet.version =~ /^3\./
+                raise PuppetX::Puppetlabs::Preview::GeneralError, 'Migration 3.8/4.0 is not supported with this version of Puppet'
+              end
+              if Puppet.future_parser?
+                raise PuppetX::Puppetlabs::Preview::GeneralError, 'Migration is only possible from an environment that is not using parser=future'
+              end
             end
+
+            # Do the compilation
             begin
               baseline_catalog = Puppet::Parser::Compiler.compile(node)
             rescue StandardError => e
               # Log it (ends up in baseline_log)
               Puppet.err(e.to_s)
-              raise PuppetX::Puppetlabs::Preview::BaselineCompileError, "Error while compiling the baseline catalog"
+              raise PuppetX::Puppetlabs::Preview::BaselineCompileError, 'Error while compiling the baseline catalog'
             end
           end
         end
@@ -183,7 +192,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
       # Preview compilation
       #
-      Puppet::Util::Log.close_all()
+      Puppet::Util::Log.close_all
       Puppet::Util::Log.newdestination(preview_dest)
       Puppet::Util::Log.with_destination(preview_dest) do
 
@@ -199,21 +208,26 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
             overrides[:migration_checker] = checker
           end
 
-          Puppet.override(overrides, "puppet-preview-compile") do
-
-            unless Puppet.future_parser?
-              raise PuppetX::Puppetlabs::Preview::GeneralError, "Migration preview is only possible when the target env is configured with parser=future"
+          Puppet.override(overrides, 'puppet-preview-compile') do
+            # Assert state if migration 3.8/4.0 is turned on
+            if options[:migrate] == Puppet::Application::Preview::MIGRATION_3to4
+              unless Puppet.version =~ /^3\./
+                raise PuppetX::Puppetlabs::Preview::GeneralError, 'Migration 3.8/4.0 is not supported with this version of Puppet'
+              end
+              unless Puppet.future_parser?
+                raise PuppetX::Puppetlabs::Preview::GeneralError, 'Migration preview is only possible when the target env is configured with parser=future'
+              end
             end
 
             begin
               preview_catalog = Puppet::Parser::Compiler.compile(node)
-            rescue Puppet::Error => e
-              raise PuppetX::Puppetlabs::Preview::PreviewCompileError, "Error while compiling the preview catalog"
+            rescue Puppet::Error
+              raise PuppetX::Puppetlabs::Preview::PreviewCompileError, 'Error while compiling the preview catalog'
 
             rescue StandardError => e
               # Log it (ends up in preview_log)
               Puppet.err(e.to_s)
-              raise PuppetX::Puppetlabs::Preview::PreviewCompileError, "Error while compiling the preview catalog"
+              raise PuppetX::Puppetlabs::Preview::PreviewCompileError, 'Error while compiling the preview catalog'
             end
 
             if checker
@@ -242,7 +256,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
   # Turn our host name into a node object.
   def find_node(name, environment, transaction_uuid)
-    Puppet::Util::Profiler.profile("Found node information", [:diff_compiler, :find_node]) do
+    Puppet::Util::Profiler.profile('Found node information', [:diff_compiler, :find_node]) do
       node = nil
       begin
         node = Puppet::Node.indirection.find(name,
@@ -269,7 +283,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
   def node_from_request(request)
     if node = request.options[:use_node]
       if request.remote?
-        raise Puppet::Error, "Invalid option use_node for a remote request"
+        raise Puppet::Error, 'Invalid option use_node for a remote request'
       else
         return node
       end
@@ -296,11 +310,11 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
     @server_facts = {}
 
     # Add our server version to the fact list
-    @server_facts["serverversion"] = Puppet.version.to_s
+    @server_facts['serverversion'] = Puppet.version.to_s
 
     # And then add the server name and IP
-    {"servername" => "fqdn",
-      "serverip" => "ipaddress"
+    { 'servername' => 'fqdn',
+      'serverip' => 'ipaddress'
     }.each do |var, fact|
       if value = Facter.value(fact)
         @server_facts[var] = value
@@ -309,12 +323,12 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
       end
     end
 
-    if @server_facts["servername"].nil?
+    if @server_facts['servername'].nil?
       host = Facter.value(:hostname)
       if domain = Facter.value(:domain)
-        @server_facts["servername"] = [host, domain].join(".")
+        @server_facts['servername'] = [host, domain].join('.')
       else
-        @server_facts["servername"] = host
+        @server_facts['servername'] = host
       end
     end
   end

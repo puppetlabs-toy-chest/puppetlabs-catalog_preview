@@ -17,11 +17,11 @@ module PuppetX::Puppetlabs::Migration::MigrationIssues
   end
 
   MIGRATE4_REVIEW_IN_EXPRESSION = issue :MIGRATE4_REVIEW_IN_EXPRESSION do
-    "Please review the expectations of using this in-expression against the 4.x specification (3.x. evaluation is undefined for many corner cases)"
+    'Please review the expectations of using this in-expression against the 4.x specification (3.x. evaluation is undefined for many corner cases)'
   end
 
   MIGRATE4_EMPTY_STRING_TRUE = issue :MIGRATE4_EMPTY_STRING_TRUE do
-    "Empty string evaluated to true (3.x evaluates to false)"
+    'Empty string evaluated to true (3.x evaluates to false)'
   end
 
   MIGRATE4_UC_BAREWORD_IS_TYPE = issue :MIGRATE4_UC_BAREWORD_IS_TYPE, :type do
@@ -41,6 +41,6 @@ module PuppetX::Puppetlabs::Migration::MigrationIssues
   end
 
   MIGRATE4_ARRAY_LAST_IN_BLOCK = issue :MIGRATE4_ARRAY_LAST_IN_BLOCK, :type do
-    "The expression parsed to an Array (3.x parses this as an [] operation on the preceding value even if [] is preceded by white-space)"
+    'The expression parsed to an Array (3.x parses this as an [] operation on the preceding value even if [] is preceded by white-space)'
   end
 end

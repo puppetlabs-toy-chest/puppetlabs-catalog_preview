@@ -17,7 +17,7 @@ end
 
 RSpec.configure do |c|
   unless ENV['RS_PROVISION'] == 'no' or ENV['BEAKER_provision'] == 'no'
-    puppet_sha   = ENV['PUPPET_VERSION']
+    puppet_sha   = ENV['PUPPET_VER']
     if hosts.options[:type] =~ /foss/ && puppet_sha
       install_package(master, 'git')
       tmp_repositories = []
@@ -32,14 +32,11 @@ RSpec.configure do |c|
       on master, "echo #{GitHubSig} >> $HOME/.ssh/known_hosts"
 
       repositories.each do |repository|
-        step "Install #{repository[:name]}"
         install_from_git master, SourcePath, repository
       end
 
-      step "ensure puppet user and group added to master because this is what the packages do" do
-        on master, puppet('resource user puppet ensure=present')
-        on master, puppet('resource group puppet ensure=present')
-      end
+      on master, puppet('resource user puppet ensure=present')
+      on master, puppet('resource group puppet ensure=present')
     else
       if default[:type] =~ /foss/
         install_puppet

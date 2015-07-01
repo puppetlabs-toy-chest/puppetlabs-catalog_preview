@@ -47,12 +47,12 @@ class PuppetX::Puppetlabs::Migration::MigrationChecker < Puppet::Pops::Migration
   attr_reader :diagnostic_producer
   attr_reader :acceptor
 
-  def initialize()
-    @acceptor = MigrationIssueAcceptor.new()
+  def initialize
+    @acceptor = MigrationIssueAcceptor.new
     @diagnostic_producer = Puppet::Pops::Validation::DiagnosticProducer.new(
       @acceptor,
-      SeverityProducer.new(),
-      Puppet::Pops::Model::ModelLabelProvider.new())
+      SeverityProducer.new,
+      Puppet::Pops::Model::ModelLabelProvider.new)
   end
 
   # @param issue [Puppet::Pops::Issue] the issue to report

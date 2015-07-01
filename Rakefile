@@ -10,8 +10,8 @@ rescue LoadError
 end
 
 PuppetLint.configuration.relative = true
-PuppetLint.configuration.send("disable_80chars")
-PuppetLint.configuration.log_format = "%{path}:%{linenumber}:%{check}:%{KIND}:%{message}"
+PuppetLint.configuration.send('disable_80chars')
+PuppetLint.configuration.log_format = '%{path}:%{linenumber}:%{check}:%{KIND}:%{message}'
 PuppetLint.configuration.fail_on_warnings = true
 
 # Forsake support for Puppet 2.6.2 for the benefit of cleaner code.
@@ -21,19 +21,19 @@ PuppetLint.configuration.send('disable_class_parameter_defaults')
 PuppetLint.configuration.send('disable_class_inherits_from_params_class')
 
 exclude_paths = [
-  "pkg/**/*",
-  "vendor/**/*",
-  "spec/**/*",
+  'pkg/**/*',
+  'vendor/**/*',
+  'spec/**/*',
 ]
 PuppetLint.configuration.ignore_paths = exclude_paths
 PuppetSyntax.exclude_paths = exclude_paths
 
-desc "Run acceptance tests"
+desc 'Run acceptance tests'
 RSpec::Core::RakeTask.new(:acceptance) do |t|
   t.pattern = 'spec/acceptance'
 end
 
-desc "Run syntax, lint, and spec tests."
+desc 'Run syntax, lint, and spec tests.'
 task :test => [
   :syntax,
   :lint,

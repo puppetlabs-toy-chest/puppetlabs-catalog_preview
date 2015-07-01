@@ -11,7 +11,7 @@ rvm:
   - 2.1.0
 
 env:
-  - "CHECK=rspec spec -c -fd spec/unit"
+  - "CHECK='rspec -fd -c spec/unit'"
 
 matrix:
   fast_finish: true

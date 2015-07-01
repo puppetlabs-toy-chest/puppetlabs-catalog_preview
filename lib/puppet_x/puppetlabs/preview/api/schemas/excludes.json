@@ -1,0 +1,31 @@
+{
+    "$schema":"http://json-schema.org/draft-04/schema#",
+    "title":"Catalog Delta Excludes",
+    "description": "Array of entries to describe attributes to be excluded for a given resource in a diff",
+    "type":"array",
+    "items":{
+        "$ref":"#/definitions/exclude_entry"
+    },
+    "definitions":{
+        "exclude_entry":{
+        "type":        "object",
+        "properties": {
+            "type": {
+                "description": "The type that this exclusion affects",
+                "type": "string"
+            },
+            "title": {
+                "description": "The title that this exclusion affects. If missing, all resources of the given 'type' are excluded",
+                "type": "string"
+            },
+            "attributes": {
+                "description": "The attributes to exclude. If missing, all attributes for the given 'title' or 'type' are excluded",
+                "type": "array",
+                "items": { "type": "string" }
+            }
+        },
+        "required": ["type"],
+        "additionalProperties": false
+        }
+    }
+}

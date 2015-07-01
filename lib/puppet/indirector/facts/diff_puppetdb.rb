@@ -26,8 +26,8 @@ class Puppet::Node::Facts::DiffPuppetdb < Puppet::Indirector::REST
   end
 
   def save(request)
-    profile("facts#save", [:puppetdb, :facts, :save, request.key]) do
-      payload = profile("Encode facts command submission payload",
+    profile('facts#save', [:puppetdb, :facts, :save, request.key]) do
+      payload = profile('Encode facts command submission payload',
                         [:puppetdb, :facts, :encode]) do
         facts = request.instance.dup
         facts.values = facts.strip_internal.dup
@@ -36,13 +36,13 @@ class Puppet::Node::Facts::DiffPuppetdb < Puppet::Indirector::REST
           facts.values[:trusted] = get_trusted_info(request.node)
         end
         {
-          "name" => facts.name,
-          "values" => facts.values,
+          'name' => facts.name,
+          'values' => facts.values,
           # PDB-453: we call to_s to avoid a 'stack level too deep' error
           # when we attempt to use ActiveSupport 2.3.16 on RHEL 5 with
           # legacy storeconfigs.
-          "environment" => request.options[:environment] || request.environment.to_s,
-          "producer-timestamp" => request.options[:producer_timestamp] || Time.now.iso8601,
+          'environment' => request.options[:environment] || request.environment.to_s,
+          'producer-timestamp' => request.options[:producer_timestamp] || Time.now.iso8601,
         }
       end
 
@@ -51,7 +51,7 @@ class Puppet::Node::Facts::DiffPuppetdb < Puppet::Indirector::REST
   end
 
   def find(request)
-    profile("facts#find", [:puppetdb, :facts, :find, request.key]) do
+    profile('facts#find', [:puppetdb, :facts, :find, request.key]) do
       begin
         url = Puppet::Util::Puppetdb.url_path("/v4/nodes/#{CGI.escape(request.key)}/facts")
         response = profile("Query for nodes facts: #{url}",
@@ -100,7 +100,7 @@ class Puppet::Node::Facts::DiffPuppetdb < Puppet::Indirector::REST
   # `operator` may be one of {eq, ne, lt, gt, le, ge}, and will default to 'eq'
   # if unspecified.
   def search(request)
-    profile("facts#search", [:puppetdb, :facts, :search, request.key]) do
+    profile('facts#search', [:puppetdb, :facts, :search, request.key]) do
       return [] unless request.options
       operator_map = {
         'eq' => '=',
@@ -120,7 +120,7 @@ class Puppet::Node::Facts::DiffPuppetdb < Puppet::Indirector::REST
         end
       end
 
-      query = ["and"] + filters
+      query = ['and'] + filters
       query_param = CGI.escape(query.to_json)
 
       begin
@@ -134,7 +134,7 @@ class Puppet::Node::Facts::DiffPuppetdb < Puppet::Indirector::REST
         if response.is_a? Net::HTTPSuccess
           profile("Parse fact query response (size: #{response.body.size})",
                   [:puppetdb, :facts, :search, :parse_query_response, request.key,]) do
-            JSON.parse(response.body).collect {|s| s["name"]}
+            JSON.parse(response.body).collect {|s| s['name']}
           end
         else
           # Newline characters cause an HTTP error, so strip them
@@ -148,8 +148,8 @@ class Puppet::Node::Facts::DiffPuppetdb < Puppet::Indirector::REST
 
   def headers
     {
-      "Accept" => "application/json",
-      "Content-Type" => "application/x-www-form-urlencoded; charset=UTF-8",
+      'Accept' => 'application/json',
+      'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8',
     }
   end
 end

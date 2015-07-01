@@ -5,66 +5,94 @@ require 'puppet/util/colors'
 require 'puppet/pops'
 
 class Puppet::Application::Preview < Puppet::Application
+
+  include PuppetX::Puppetlabs::Migration
+
+  NOT_EQUAL = 4
+  NOT_COMPLIANT = 5
+
+  MIGRATION_3to4 = '3.8/4.0'.freeze
+  RUNHELP = "Run 'puppet preview --help for more details".freeze
+
   run_mode :master
 
-  option("--debug", "-d")
+  option('--debug', '-d')
 
-  option("--baseline_environment ENV_NAME,", "--be ENV_NAME") do |arg|
+  option('--baseline_environment ENV_NAME,', '--be ENV_NAME') do |arg|
     options[:baseline_environment] = arg
   end
 
-  option("--preview_environment ENV_NAME", "--pe ENV_NAME") do |arg|
+  option('--preview_environment ENV_NAME', '--pe ENV_NAME') do |arg|
     options[:preview_environment] = arg
   end
 
-  option("--view OPTION") do |arg|
-    if %w{summary diff baseline preview baseline_log preview_log none status}.include?(arg)
+  option('--view OPTION') do |arg|
+    if %w{overview overview_json summary diff baseline preview baseline_log preview_log none status failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(arg)
       options[:view] = arg.to_sym
     else
-      raise "The --view option only accepts a restricted list of arguments. Run 'puppet preview --help' for more details"
+      raise "The --view option only accepts a restricted list of arguments.\n#{RUNHELP}"
     end
   end
 
-  option("--last", "-l")
+  option('--last', '-l')
 
-  option("--migrate", "-m") do |arg|
-    options[:migration_checker] = PuppetX::Puppetlabs::Migration::MigrationChecker.new
+  option('--migrate MIGRATION', '-m MIGRATION') do |arg|
+    if MIGRATION_3to4 == arg
+      options[:migrate] = arg
+    else
+      raise "The '#{arg}' is not a migration kind supported by this version of catalog preview. #{RUNHELP}"
+    end
+    options[:migration_checker] = MigrationChecker.new
+    # Puppet 3.8.0's MigrationChecker does not have the method 'available_migrations' (but it still supports the 3to4 migration)
+    unless Puppet.version.start_with?('3.8.0') || options[:migration_checker].available_migrations[MIGRATION_3to4]
+      raise "The (#{Puppet.version}) version of Puppet does not support the '#{arg}' migration kind.\n#{RUNHELP}"
+    end
   end
 
-  option("--assert OPTION") do |arg|
+  option('--assert OPTION') do |arg|
     if %w{equal compliant}.include?(arg)
       options[:assert] = arg.to_sym
     else
-      raise "The --assert option only accepts 'equal' or 'compliant' as arguments.\nRun 'puppet preview --help' for more details"
+      raise "The --assert option only accepts 'equal' or 'compliant' as arguments.\n#{RUNHELP}"
     end
   end
 
-  option("--schema CATALOG") do |arg|
-    if %w{catalog catalog_delta log help}.include?(arg)
+  option('--schema CATALOG') do |arg|
+    if %w{catalog catalog_delta log help excludes}.include?(arg)
       options[:schema] = arg.to_sym
     else
-      raise "The --schema option only accepts 'catalog', 'catalog_delta', 'log', or 'help' as arguments.\nRun 'puppet preview --help' for more details"
+      raise "The --schema option only accepts 'catalog', 'catalog_delta', 'log', 'excludes', or 'help' as arguments.\n#{RUNHELP}"
     end
   end
 
-  option("--skip_tags")
+  option('--skip_tags')
 
-  option("--diff_string_numeric")
+  option('--diff_string_numeric')
 
-  option("--trusted") do |arg|
+  option('--trusted') do |_|
     unless Puppet.features.root?
-      raise "The --trusted option is only available when running as root"
+      raise 'The --trusted option is only available when running as root'
     end
     # Allow root to keep authenticated in resurrected trusted data
     options[:trusted] = true
   end
 
-  option("--verbose_diff", "-vd")
+  option('--verbose_diff', '-vd')
 
-  CatalogDelta = PuppetX::Puppetlabs::Migration::CatalogDeltaModel::CatalogDelta
+  option('--nodes NODES_FILE') do |arg|
+    # Each line in the given file is a node name or space separated node names
+    options[:nodes] = (arg == '-' ? $stdin.each_line : File.foreach(arg)).map {|line| line.chomp!.split }.flatten
+  end
+
+  option('--excludes EXCLUDES_FILE') do |arg|
+    # File in excludes.json schema format
+    options[:excludes] = arg
+  end
+
+  option('--clean')
 
   def help
-    path = ::File.expand_path( "../../../puppet_x/puppetlabs/preview/api/documentation/preview-help.md", __FILE__)
+    path = ::File.expand_path( '../../../puppet_x/puppetlabs/preview/api/documentation/preview-help.md', __FILE__)
     Puppet::FileSystem.read(path)
   end
 
@@ -83,7 +111,7 @@ class Puppet::Application::Preview < Puppet::Application
 
   def preinit
     Signal.trap(:INT) do
-      $stderr.puts "Canceling startup"
+      $stderr.puts 'Canceling startup'
       exit(0)
     end
 
@@ -92,57 +120,92 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def run_command
-    options[:node] = command_line.args.shift
+    options[:node] = command_line.args
+    unless options[:nodes].is_a?(Array)
+      options[:nodes] = []
+    end
+    options[:nodes] |= command_line.args
+
+    if options[:clean]
+      raise '--clean can only be used with options --nodes and --debug' unless (options.keys - [:clean, :node, :nodes, :debug]).empty?
+      exit(clean)
+    end
+
+    if options[:excludes]
+      raise '--excludes cannot be used with --schema or --last' if options[:last] || options[:schema]
+    end
 
     if options[:schema]
-      if options[:node]
-        raise "A node was given but no compilation will be done when running with the --schema option"
+      unless options[:nodes].empty?
+        raise 'One or more nodes were given but no compilation will be done when running with the --schema option'
       end
 
-      if options[:schema] == :catalog
-        catalog_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/schemas/catalog.json", __FILE__)
+      case options[:schema]
+      when :catalog
+        catalog_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/catalog.json', __FILE__)
         display_file(catalog_path)
-      elsif options[:schema] == :catalog_delta
-        delta_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/schemas/catalog-delta.json", __FILE__)
+      when :catalog_delta
+        delta_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/catalog-delta.json', __FILE__)
         display_file(delta_path)
-      elsif options[:schema] == :log
-        log_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/schemas/log.json", __FILE__)
+      when :log
+        log_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/log.json', __FILE__)
         display_file(log_path)
+      when :excludes
+        excludes_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/excludes.json', __FILE__)
+        display_file(excludes_path)
       else
-        help_path = ::File.expand_path("../../../puppet_x/puppetlabs/preview/api/documentation/catalog-delta.md", __FILE__)
+        help_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/documentation/catalog-delta.md', __FILE__)
         display_file(help_path)
       end
     else
-      unless options[:node]
-        raise "No node to perform preview compilation given"
+      if options[:nodes].empty? && !options[:last]
+        raise 'No node(s) given to perform preview compilation for'
+      end
+
+      if node_names.size > 1 && %w{diff baseline preview baseline_log preview_log }.include?(options[:view].to_s)
+        raise "The --view option '#{options[:view]}' is not supported for multiple nodes"
       end
 
       if options[:last]
-        if %w{summary none}.include?(options[:view].to_s)
-          raise "--view #{options[:view].to_s} can not be combined with the --last option"
-        end
-
         last
       else
         unless options[:preview_environment]
-          raise "No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known"
+          raise 'No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known'
         end
 
-        if options[:diff_string_numeric] && !options[:migration_checker]
-          raise "--diff_string_numeric can only be used in combination with --migrate"
+        if options[:diff_string_numeric] && !options[:migration_checker] && !options[:migrate] == MIGRATION_3to4
+          raise '--diff_string_numeric can only be used in combination with --migrate 3.8/4.0'
         end
         compile
+
+        view
+
+        assert_and_exit
       end
     end
   end
 
+  def assert_and_exit
+    nodes = @overview.of_class(OverviewModel::Node)
+    @exit_code =  nodes.reduce(0) do |result, node|
+      exit_code = node.exit_code
+      break exit_code if exit_code == BASELINE_FAILED
+      exit_code > result ? exit_code : result
+    end
+
+    exit(@exit_code) unless @exit_code == CATALOG_DELTA
+
+    case options[:assert]
+    when :equal
+      @exit_code = NOT_EQUAL if nodes.any? { |node| node.severity != :equal }
+    when :compliant
+      @exit_code = NOT_COMPLIANT if nodes.any? { |node| node.severity != :equal && node.severity != :compliant }
+    end
+
+    exit(@exit_code)
+  end
+
   def compile
-    @exit_code = 1 # assume something will go wrong in general
-    prepare_output
-
-    # Compilation start time
-    timestamp = Time.now.iso8601(9)
-
     # COMPILE
     #
     Puppet[:catalog_terminus] = :diff_compiler
@@ -154,6 +217,58 @@ class Puppet::Application::Preview < Puppet::Application
     # TODO: Is there a better way to disable the cache ?
     #
     Puppet::Resource::Catalog.indirection.cache_class = false
+
+    factory = OverviewModel::Factory.new
+
+    # Hash where the DiffCompiler can propagate things like the name of the compiled baseline_environment even if the
+    # compilation fails.
+    #
+    options[:back_channel] = {}
+
+    node_names.each do |node|
+
+      options[:node] = node
+      begin
+        # This call produces a catalog_delta, or sets @exit_code to something other than 0
+        #
+        timestamp = Time.now.iso8601(9)
+        catalog_delta = compile_diff(timestamp)
+
+        if options[:back_channel][:baseline_environment].to_s == options[:preview_environment]
+          $stderr.puts "The baseline and preview environments for node '#{node}' are the same"
+        end
+
+        if @exit_code == CATALOG_DELTA
+          baseline_log = JSON.load(File.read(options[:baseline_log]))
+          preview_log = JSON.load(File.read(options[:preview_log]))
+          factory.merge(catalog_delta, baseline_log, preview_log)
+          @latest_catalog_delta = catalog_delta
+        else
+          case @exit_code
+          when GENERAL_ERROR
+            Puppet.log_exception(@exception)
+            Puppet::Util::Log.force_flushqueue
+            exit(@exit_code)
+          when BASELINE_FAILED
+            display_log(options[:baseline_log])
+            log = JSON.load(File.read(options[:baseline_log]))
+            factory.merge_failure(node, options[:back_channel][:baseline_environment], timestamp, @exit_code, log)
+          when PREVIEW_FAILED
+            display_log(options[:preview_log])
+            log = JSON.load(File.read(options[:preview_log]))
+            factory.merge_failure(node, options[:preview_environment], timestamp, @exit_code, log)
+          end
+        end
+      end
+      @overview = factory.create_overview
+    end
+  end
+
+  def compile_diff(timestamp)
+    prepare_output
+
+    # Compilation start time
+    @exit_code = 0
 
     begin
 
@@ -190,20 +305,10 @@ class Puppet::Application::Preview < Puppet::Application
       catalog_delta = catalog_diff(timestamp, baseline_hash, preview_hash)
 
       Puppet::FileSystem.open(options[:catalog_diff], 0640, 'wb') do |of|
-        of.write(PSON::pretty_generate(catalog_delta, :allow_nan => true, :max_nesting => false))
+        of.write(PSON::pretty_generate(catalog_delta.to_hash, :allow_nan => true, :max_nesting => false))
       end
 
-      view(catalog_delta)
-
-      # Set exit code for assertion status
-      case options[:assert]
-      when :equal
-        @exit_code = catalog_delta[:preview_equal] ? 0 : 4
-      when :compliant
-        @exit_code = catalog_delta[:preview_compliant] ? 0 : 5
-      else
-        @exit_code = 0
-      end
+      catalog_delta
 
     rescue PuppetX::Puppetlabs::Preview::GeneralError => e
       @exit_code = 1
@@ -223,56 +328,108 @@ class Puppet::Application::Preview < Puppet::Application
 
     ensure
       terminate_logs
-      Puppet::Util::Log.close_all()
-      Puppet::Util::Log.newdestination(:console)
-
-      case @exit_code
-      when 1
-        Puppet.log_exception(@exception)
-
-      when 2
-        display_log(options[:baseline_log], :pretty_json)
-        $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view baseline_log' for full details")
-        Puppet.err(@exception.message)
-
-      when 3
-        display_log(options[:preview_log], :pretty_json)
-        $stderr.puts Colorizer.new().colorize(:hred, "Run 'puppet preview #{options[:node]} --last --view preview_log' for full details")
-        Puppet.err(@exception.message)
-
+      Puppet::FileSystem.open(options[:compile_info], 0640, 'wb') do |of|
+        compile_info = {
+          :exit_code => @exit_code,
+          :baseline_environment => options[:back_channel][:baseline_environment].to_s,
+          :preview_environment => options[:preview_environment],
+          :time => timestamp
+        }
+        of.write(PSON::pretty_generate(compile_info))
       end
-      Puppet::Util::Log.force_flushqueue()
-      exit(@exit_code)
+      Puppet::Util::Log.close_all
+      Puppet::Util::Log.newdestination(:console)
     end
   end
 
   def last
-    prepare_output_options
-    view(nil)
+    node_directories = Dir["#{Puppet[:preview_outputdir]}/*"]
+    if node_directories.empty?
+      raise "There is no preview data in the specified output directory '#{Puppet[:preview_outputdir]}', you must have data from a previous preview run to use --last"
+    else
+
+      available_nodes = []
+      node_directories.each { |dir| available_nodes << dir.match(/^.*\/([^\/]*)$/)[1] }
+
+      unless (missing_nodes = node_names - available_nodes).empty?
+        raise "No preview data available for node(s) '#{missing_nodes.join(", ")}'"
+      end
+
+      prepare_output_options
+      view
+    end
   end
 
-  def view(catalog_delta)
+  def clean
+    output_dir = Puppet[:preview_outputdir]
+    node_names.each { |node| FileUtils.remove_entry_secure(File.join(output_dir, node)) }
+    0
+  rescue Exception => e
+    $stderr.puts("Clean operation failed: #{e.message}")
+    1
+  end
+
+  def node_names
+    # If no nodes were specified, print everything we have
+    if @node_names.nil?
+      given_names = options[:nodes]
+      @node_names = if given_names.nil? || given_names.empty?
+        # Use the directories in preview_outputdir to get the list of nodes
+        Dir.glob(File.join(Puppet[:preview_outputdir], '*')).select { |f| File.directory?(f) }.map { |f| File.basename(f) }
+      else
+        given_names
+      end
+    end
+    @node_names
+  end
+
+  def view(catalog_delta = @latest_catalog_delta)
+    if options[:last]
+      generate_last_overview
+      catalog_delta = @latest_catalog_delta
+    end
+
     # Produce output as directed by the :view option
     #
     case options[:view]
     when :diff
-        display_file(options[:catalog_diff])
+      display_file(options[:catalog_diff])
     when :baseline_log
-      display_file(options[:baseline_log])
+      display_file(options[:baseline_log], true)
     when :preview_log
-      display_file(options[:preview_log])
+      display_file(options[:preview_log], true)
     when :baseline
       display_file(options[:baseline_catalog])
     when :preview
       display_file(options[:preview_catalog])
     when :status
-      display_status(catalog_delta)
+      if node_names.size > 1
+        multi_node_status(generate_stats)
+      else
+        display_status
+      end
+    when :failed_nodes
+      print_node_list
+    when :diff_nodes
+      print_node_list
+    when :equal_nodes
+      print_node_list
+    when :compliant_nodes
+      print_node_list
+    when :overview
+      display_overview(@overview, false)
+    when :overview_json
+      display_overview(@overview, true)
     when :none
-      # One line status if catalogs are equal or not
-      display_status(catalog_delta)
+      # print nothing
     else
-      display_summary(catalog_delta)
-      display_status(catalog_delta)
+      if node_names.size > 1
+        multi_node_status(generate_stats)
+        multi_node_summary
+      else
+        display_summary(catalog_delta)
+        display_status
+      end
     end
   end
 
@@ -289,11 +446,12 @@ class Puppet::Application::Preview < Puppet::Application
     Puppet::FileSystem.chmod(0750, options[:node_output_dir])
 
     # Construct file name for this diff
-    options[:baseline_catalog] = Puppet::FileSystem.pathname(File.join(node_output_dir, "baseline_catalog.json"))
-    options[:baseline_log]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "baseline_log.json"))
-    options[:preview_catalog]  = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_catalog.json"))
-    options[:preview_log]      = Puppet::FileSystem.pathname(File.join(node_output_dir, "preview_log.json"))
-    options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, "catalog_diff.json"))
+    options[:baseline_catalog] = Puppet::FileSystem.pathname(File.join(node_output_dir, 'baseline_catalog.json'))
+    options[:baseline_log]     = Puppet::FileSystem.pathname(File.join(node_output_dir, 'baseline_log.json'))
+    options[:preview_catalog]  = Puppet::FileSystem.pathname(File.join(node_output_dir, 'preview_catalog.json'))
+    options[:preview_log]      = Puppet::FileSystem.pathname(File.join(node_output_dir, 'preview_log.json'))
+    options[:catalog_diff]     = Puppet::FileSystem.pathname(File.join(node_output_dir, 'catalog_diff.json'))
+    options[:compile_info]     = Puppet::FileSystem.pathname(File.join(node_output_dir, 'compile_info.json'))
   end
 
   def prepare_output
@@ -305,6 +463,7 @@ class Puppet::Application::Preview < Puppet::Application
     Puppet::FileSystem.open(options[:baseline_catalog], 0660, 'wb') { |of| of.write('') }
     Puppet::FileSystem.open(options[:preview_catalog],  0660, 'wb') { |of| of.write('') }
     Puppet::FileSystem.open(options[:catalog_diff], 0660, 'wb') { |of| of.write('') }
+    Puppet::FileSystem.open(options[:compile_info], 0660, 'wb') { |of| of.write('') }
 
     # make the log paths absolute (required to use them as log destinations).
     options[:preview_log]      = options[:preview_log].realpath
@@ -312,26 +471,41 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def catalog_diff(timestamp, baseline_hash, preview_hash)
-    CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp).to_hash
+    excl_file = options[:excludes]
+    excludes = excl_file.nil? ? [] : CatalogDeltaModel::Exclude.parse_file(excl_file)
+    CatalogDeltaModel::CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp, excludes)
   end
 
-  def display_file(file)
-    Puppet::FileSystem.open(file, nil, 'rb') do |source|
-      FileUtils.copy_stream(source, $stdout)
-      puts "" # ensure a new line at the end
+  # Displays a file, and if the argument pretty_json is truthy the file is loaded and displayed as
+  # pretty json
+  #
+  def display_file(file, pretty_json=false)
+    raise "Preview data for node '#{options[:node]}' does not exist" unless File.exists?(file)
+    if pretty_json
+      Puppet::FileSystem.open(file, nil, 'rb') do |input|
+        json = JSON.load(input)
+        $stdout.puts(PSON::pretty_generate(json, :allow_nan => true, :max_nesting => false))
+      end
+    else
+      Puppet::FileSystem.open(file, nil, 'rb') do |source|
+        FileUtils.copy_stream(source, $stdout)
+        puts '' # ensure a new line at the end
+      end
     end
   end
 
   def level_label(level)
     case level
-    when :err, "err"
-      "ERROR"
+    when :err, 'err'
+      'ERROR'
     else
       level.to_s.upcase
     end
   end
 
-  def display_log(file_name, pretty_json = false)
+  # Displays colorized essential information from the log (severity, message, and location)
+  #
+  def display_log(file_name)
     data = JSON.load(file_name)
     # Output only the bare essentials
     # TODO: PRE-16 (the stacktrace is in the message)
@@ -347,7 +521,7 @@ class Puppet::Application::Preview < Puppet::Application
       elsif file
         message << "at #{entry['file']}"
       end
-      $stderr.puts  Colorizer.new().colorize(:hred, message)
+      $stderr.puts  Colorizer.new.colorize(:hred, message)
     end
   end
 
@@ -356,53 +530,112 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def display_summary(delta)
-    compliant_count = delta[:conflicting_resources].count {|r| r[:compliant] }
-    compliant_attr_count = delta[:conflicting_resources].reduce(0) do |memo, r|
-      memo + r[:conflicting_attributes].count {|a| a[:compliant] }
+
+    if delta
+      compliant_count = delta.conflicting_resources.count {|r| r.compliant? }
+      compliant_attr_count = delta.conflicting_resources.reduce(0) do |memo, r|
+        memo + r.conflicting_attributes.count {|a| a.compliant? }
+      end
+
+      $stdout.puts <<-TEXT
+
+Catalog:
+  Versions......: #{delta.version_equal? ? 'equal' : 'different' }
+  Preview.......: #{delta.preview_equal? ? 'equal' : delta.preview_compliant? ? 'compliant' : 'conflicting'}
+  Tags..........: #{delta.tags_ignored? ? 'ignored' : 'compared'}
+  String/Numeric: #{delta.string_numeric_diff_ignored? ? 'numerically compared' : 'type significant compare'}
+
+Resources:
+  Baseline......: #{delta.baseline_resource_count}
+  Preview.......: #{delta.preview_resource_count}
+  Equal.........: #{delta.equal_resource_count}
+  Compliant.....: #{compliant_count}
+  Missing.......: #{delta.missing_resource_count}
+  Added.........: #{delta.added_resource_count}
+  Conflicting...: #{delta.conflicting_resource_count - compliant_count}
+
+Attributes:
+  Equal.........: #{delta.equal_attribute_count}
+  Compliant.....: #{compliant_attr_count}
+  Missing.......: #{delta.missing_attribute_count}
+  Added.........: #{delta.added_attribute_count}
+  Conflicting...: #{delta.conflicting_attribute_count - compliant_attr_count}
+
+Edges:
+  Baseline......: #{delta.baseline_edge_count}
+  Preview.......: #{delta.preview_edge_count}
+  Missing.......: #{count_of(delta.missing_edges)}
+  Added.........: #{count_of(delta.added_edges)}
+
+  TEXT
     end
 
     $stdout.puts <<-TEXT
-
-Catalog:
-  Versions......: #{delta[:version_equal] ? 'equal' : 'different' }
-  Preview.......: #{delta[:preview_equal] ? 'equal' : delta[:preview_compliant] ? 'compliant' : 'different'}
-  Tags..........: #{delta[:tags_ignored] ? 'ignored' : 'compared'}
-  String/Numeric: #{delta[:string_numeric_diff_ignored] ? 'numerically compared' : 'type significant compare'}
-
-Resources:
-  Baseline......: #{delta[:baseline_resource_count]}
-  Preview.......: #{delta[:preview_resource_count]}
-  Equal.........: #{delta[:equal_resource_count]}
-  Compliant.....: #{compliant_count}
-  Missing.......: #{delta[:missing_resource_count]}
-  Added.........: #{delta[:added_resource_count]}
-  Conflicting...: #{delta[:conflicting_resource_count] - compliant_count}
-
-Attributes:
-  Equal.........: #{delta[:equal_attribute_count]}
-  Compliant.....: #{compliant_attr_count}
-  Missing.......: #{delta[:missing_attribute_count]}
-  Added.........: #{delta[:added_attribute_count]}
-  Conflicting...: #{delta[:conflicting_attribute_count] - compliant_attr_count}
-
-Edges:
-  Baseline......: #{delta[:baseline_edge_count]}
-  Preview.......: #{delta[:preview_edge_count]}
-  Missing.......: #{count_of(delta[:missing_edges])}
-  Added.........: #{count_of(delta[:added_edges])}
-
 Output:
   For node......: #{Puppet[:preview_outputdir]}/#{options[:node]}
 
-      TEXT
+  TEXT
+
   end
 
-  def display_status(delta)
-    preview_equal     = !!(delta[:preview_equal])
-    preview_compliant = !!(delta[:preview_compliant])
-    status = preview_equal ? "equal" : preview_compliant ? "not equal but compliant" : "neither equal nor compliant"
-    color = preview_equal || preview_compliant ? :green : :hred
-    $stdout.puts Colorizer.new.colorize(color, "Catalogs for node '#{options[:node]}' are #{status}.")
+  # Outputs the given _overview_ on `$stdout`. The output is either in JSON format
+  # or in textual form as determined by _as_json_.
+  #
+  # @param overview [OverviewModel::Overview] the model to output
+  # @param as_json [Boolean] true for JSON output, false for textual output
+  #
+  def display_overview(overview, as_json)
+    report = OverviewModel::Report.new(overview)
+    $stdout.puts(as_json ? report.to_json : report.to_s)
+  end
+
+  def read_json(type)
+    json = File.read(options[type])
+    raise Puppet::Error.new("Output for node #{options[:node]} is invalid - use --clean and/or recompile") if json.nil? || json.empty?
+    JSON.load(json)
+  end
+
+  def generate_last_overview
+    factory = OverviewModel::Factory.new
+    node_names.each do |node|
+      options[:node] = node
+      prepare_output_options
+
+      compile_info = read_json(:compile_info)
+      case compile_info['exit_code']
+      when CATALOG_DELTA
+        catalog_delta = CatalogDeltaModel::CatalogDelta.from_hash(read_json(:catalog_diff))
+        factory.merge(catalog_delta, read_json(:baseline_log), read_json(:preview_log))
+        @latest_catalog_delta = catalog_delta
+      when BASELINE_FAILED
+        factory.merge_failure(node, compile_info['time'], compile_info['baseline_environment'], 2, read_json(:baseline_log))
+      when PREVIEW_FAILED
+        factory.merge_failure(node, compile_info['time'], compile_info['preview_environment'], 3, read_json(:preview_log))
+      end
+    end
+    @overview = factory.create_overview
+  end
+
+  def display_status
+
+    node = @overview.of_class(OverviewModel::Node)[0]
+
+    colorizer = Colorizer.new
+    case node.exit_code
+    when BASELINE_FAILED
+      $stdout.puts colorizer.colorize(:hred, "Node #{node.name} failed baseline compilation.")
+    when PREVIEW_FAILED
+      $stdout.puts colorizer.colorize(:hred, "Node #{node.name} failed preview compilation.")
+    when CATALOG_DELTA
+
+      if node.severity == :equal
+        $stdout.puts colorizer.colorize(:green, "Catalogs for node '#{options[:node]}' are equal.")
+      elsif node.severity == :compliant
+        $stdout.puts "Catalogs for '#{node.name}' are not equal but compliant."
+      else
+        $stdout.puts "Catalogs for '#{node.name}' are neither equal nor compliant."
+      end
+    end
   end
 
   def count_of(elements)
@@ -493,7 +726,7 @@ Output:
   end
 
   def setup
-    raise Puppet::Error.new("Puppet preview is not supported on Microsoft Windows") if Puppet.features.microsoft_windows?
+    raise Puppet::Error.new('Puppet preview is not supported on Microsoft Windows') if Puppet.features.microsoft_windows?
 
     setup_logs
 
@@ -507,6 +740,115 @@ Output:
     setup_node_cache
 
     setup_ssl
+  end
+
+
+  def generate_stats
+    @overview.of_class(OverviewModel::Node).reduce(Hash.new(0)) do | result, node |
+      case node.exit_code
+      when BASELINE_FAILED
+        result[:baseline_failed] += 1
+      when PREVIEW_FAILED
+        result[:preview_failed] += 1
+      when CATALOG_DELTA
+        result[:catalog_diff] += 1
+
+        if node.severity == :equal
+          result[:equal] += 1
+        elsif node.severity == :compliant
+          result[:compliant] += 1
+        end
+      end
+    result
+    end
+  end
+
+  def multi_node_summary
+    summary = Hash[[ :equal, :compliant, :conflicting, :error ].map do |severity|
+      [severity, @overview.of_class(OverviewModel::Node).select { |n| n.severity == severity }.sort.map do |n|
+        { :name => n.name,
+          :baseline_env => n.baseline_env.name,
+          :preview_env => n.preview_env.name,
+          :exit_code => n.exit_code
+        }
+      end]
+    end]
+
+    summary.each do |category, nodes|
+      case category
+      when :error
+        nodes.each do |node|
+          if node[:exit_code] == BASELINE_FAILED
+            $stdout.puts Colorizer.new.colorize(:red, "baseline failed (#{node[:baseline_env]}): #{node[:name]}")
+          elsif node[:exit_code] == PREVIEW_FAILED
+            $stdout.puts Colorizer.new.colorize(:red, "preview failed (#{node[:preview_env]}): #{node[:name]}")
+          else
+            $stdout.puts Colorizer.new.colorize(:red, "general error (#{node[:preview_env]}): #{node[:name]}")
+          end
+        end
+      when :conflicting
+        nodes.each do |node|
+          $stdout.puts "catalog delta: #{node[:name]}"
+        end
+      when :compliant
+        nodes.each do |node|
+          $stdout.puts "compliant: #{node[:name]}"
+        end
+      when :equal
+        nodes.each do |node|
+          $stdout.puts Colorizer.new.colorize(:green, "equal: #{node[:name]}")
+        end
+      end
+    end
+  end
+
+  def multi_node_status(stats)
+    $stdout.puts <<-TEXT
+
+Summary:
+  Total Number of Nodes...: #{@overview.of_class(OverviewModel::Node).length}
+  Baseline Failed.........: #{stats[:baseline_failed]}
+  Preview Failed..........: #{stats[:preview_failed]}
+  Catalogs with Difference: #{stats[:catalog_diff]}
+  Compliant Catalogs......: #{stats[:compliant]}
+  Equal Catalogs..........: #{stats[:equal]}
+
+  TEXT
+  end
+
+  def print_node_list
+    nodes = Hash[[ :equal, :compliant, :conflicting, :error ].map do |severity|
+      [severity, @overview.of_class(OverviewModel::Node).select { |n| n.severity == severity }.sort.map do |n|
+        n.name
+      end]
+    end]
+
+    if options[:view] == :equal_nodes
+      nodes[:equal].each do |node|
+        $stdout.puts node
+      end
+    elsif options[:view] == :compliant_nodes
+      nodes[:compliant].each do |node|
+        $stdout.puts node
+      end
+      nodes[:equal].each do |node|
+        $stdout.puts node
+      end
+    else
+      nodes[:error].each do |node|
+        $stdout.puts node
+      end
+      if options[:view] == :diff_nodes
+        nodes[:conflicting].each do |node|
+          $stdout.puts node
+        end
+        if options[:assert] == :equal
+          nodes[:compliant].each do |node|
+            $stdout.puts node
+          end
+        end
+      end
+    end
   end
 
 end

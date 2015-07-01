@@ -1,4 +1,4 @@
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
 def location_for(place, fake_version = nil)
   if place =~ /^(git[:@][^#]*)#(.*)/
@@ -12,11 +12,12 @@ end
 
 
 group :test do
-  gem "rake"
-  gem "puppet", *location_for(ENV['PUPPET_LOCATION'] || ENV['PUPPET_VERSION'] || '~> 3.8.0')
-  gem "puppet-lint"
-#  gem "rspec-puppet", :git => 'https://github.com/rodjek/rspec-puppet.git'
-  gem "puppet-syntax"
+  gem 'rake'
+  gem 'puppet', *location_for(ENV['PUPPET_LOCATION'] || ENV['PUPPET_VERSION'] || '~> 3.8.0')
+  gem 'puppet-lint'
+  gem 'puppet-syntax'
+  gem 'beaker'
+  gem 'beaker-rspec'
 end
 
 group :development, :unit_tests do
@@ -33,11 +34,14 @@ group :development, :unit_tests, :test do
 end
 
 group :development do
-  gem "travis"
-  gem "travis-lint"
-  gem "beaker"
-  gem "beaker-rspec"
-  gem "vagrant-wrapper"
-  gem "puppet-blacksmith"
-  gem "guard-rake"
+  gem 'travis'
+  gem 'travis-lint'
+  gem 'vagrant-wrapper'
+  gem 'puppet-blacksmith'
+  gem 'guard-rake'
 end
+
+if File.exists? "#{__FILE__}.local"
+  eval(File.read("#{__FILE__}.local"), binding)
+end
+
