@@ -35,6 +35,10 @@ module CatalogDeltaModel
       array.map { |hash| Exclude.new(hash['type'], hash['title'], hash['attributes']) }
     end
 
+    def excluded_title?(title)
+      (@title.nil? || @title == title) && @attributes.nil?
+    end
+
     DEFAULT_EXCLUSIONS = [
       Exclude.new('file', '/etc/puppetlabs/console-services/conf.d/console_secret_key.conf', ['content'])
     ]
@@ -616,10 +620,10 @@ module CatalogDeltaModel
       end
       @conflicting_resource_count = @conflicting_resources.size
 
-      baseline_edges = create_edges(baseline)
+      baseline_edges = create_edges(baseline, excludes_per_type)
       @baseline_edge_count = baseline_edges.size
 
-      preview_edges = create_edges(preview)
+      preview_edges = create_edges(preview, excludes_per_type)
       @preview_edge_count = preview_edges.size
 
       @added_edges = preview_edges.reject { |edge| baseline_edges.include?(edge) }
@@ -790,7 +794,7 @@ module CatalogDeltaModel
         type = rh['type']
         title = rh['title']
         excludes = excludes_per_type[type.downcase] || EMPTY_ARRAY
-        unless excludes.any? { |ex| ex.title.nil? && ex.attributes.nil? }
+        unless excludes.any? { |ex| ex.excluded_title?(title) }
           resource = create_resource(rh, excludes.select { |ex| ex.title.nil? || ex.title == title })
           result[resource.key] = resource
         end
@@ -812,10 +816,20 @@ module CatalogDeltaModel
     # @param hash [Hash] a Catalog hash
     # @return [Array<Edge>]
     # @api private
-    def create_edges(hash)
-      assert_type(Array, hash['edges'], []).map { |eh| create_edge(assert_type(Hash, eh, {})) }
+    def create_edges(hash, excludes)
+      assert_type(Array, hash['edges'], []).reject { |eh| !eh.is_a?(Hash) || excluded_resource?(eh['source'], excludes) || excluded_resource?(eh['target'], excludes) }.map { |eh| create_edge(eh) }
     end
     private :create_edges
+
+    def excluded_resource?(resource_string, excludes_per_type)
+      if resource_string =~ /^([^\[\]]+)\[(.+)\]$/m
+        excludes = excludes_per_type[$1.downcase]
+        excludes.is_a?(Array) && excludes.any? { |ex| ex.excluded_title?($2) }
+      else
+        true
+      end
+    end
+    private :excluded_resource?
 
     # @param hash [Hash] an Edge hash
     # @return [Edge]
