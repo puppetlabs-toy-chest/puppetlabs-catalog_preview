@@ -47,6 +47,10 @@ class Puppet::Application::Preview < Puppet::Application
     unless Puppet.version.start_with?('3.8.0') || options[:migration_checker].available_migrations[MIGRATION_3to4]
       raise "The (#{Puppet.version}) version of Puppet does not support the '#{arg}' migration kind.\n#{RUNHELP}"
     end
+
+    if Puppet.version.start_with?('3.8.0')
+     $stdout.puts "Warning: Due to a bug in PE 3.8.0 you cannot set the parser setting per environment. This means you  may not be able to use your desired migration workflow unless you upgrade to PE 3.8.1"
+    end
   end
 
   option('--assert OPTION') do |arg|
