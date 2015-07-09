@@ -1,4 +1,4 @@
-##2015-07-14
+##2015-07-14 - Release 2.0.1
 ###Summary
 
 This release includes a minor bug fix and additional version checking.
