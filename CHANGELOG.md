@@ -1,3 +1,12 @@
+##2015-07-14 - Release 2.0.1
+###Summary
+
+This release includes a minor bug fix and additional version checking.
+
+An exclude entry that has a null `attributes` property will completely exclude the resources that it will match. When this happens, it is important to also exclude all edges where the resource is either the source or the target. This release has been fixed to ensure that happens.
+
+Due to a bug in PE 3.8.0 which prevents you from setting your parser per environment, the documented migration work flow does not work with PE 3.8.0. This release adds some additional version checking so that the user will be warned when they are trying to migrate with PE 3.8.0.
+
 ##2015-06-30 - Release 2.0.0
 ###Summary
 

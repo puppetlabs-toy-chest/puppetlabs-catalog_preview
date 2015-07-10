@@ -44,6 +44,10 @@ file {
   '#{testdir_simple}/environments/test/manifests':;
   '#{testdir_simple}/environments/compliant':;
   '#{testdir_simple}/environments/compliant/manifests':;
+  '#{testdir_simple}/environments/missing':;
+  '#{testdir_simple}/environments/missing/manifests':;
+  '#{testdir_simple}/environments/added':;
+  '#{testdir_simple}/environments/added/manifests':;
   '#{testdir_broken_production}':;
   '#{testdir_broken_production}/environments':;
   '#{testdir_broken_production}/environments/production':;
@@ -85,6 +89,10 @@ file { '#{testdir_simple}/files/excludes_wo_attributes.json':
     {
       "type": "notify",
       "title": "yay we be the same"
+    },
+    {
+      "type": "notify",
+      "title": "added yay"
     }
   ]',
   mode => "0640",
@@ -106,6 +114,20 @@ file { '#{testdir_simple}/environments/test/environment.conf':
   mode => "0640",
 }
 file { '#{testdir_simple}/environments/compliant/environment.conf':
+  ensure => file,
+  content => 'environment_timeout = 0
+  #{use_future_parser}
+  ',
+  mode => "0640",
+}
+file { '#{testdir_simple}/environments/missing/environment.conf':
+  ensure => file,
+  content => 'environment_timeout = 0
+  #{use_future_parser}
+  ',
+  mode => "0640",
+}
+file { '#{testdir_simple}/environments/added/environment.conf':
   ensure => file,
   content => 'environment_timeout = 0
   #{use_future_parser}
@@ -139,6 +161,21 @@ file { '#{testdir_simple}/environments/compliant/manifests/init.pp':
   ensure => file,
   content => '
     notify{"yay we be the same": message => "something added"}
+  ',
+  mode => "0640",
+}
+file { '#{testdir_simple}/environments/missing/manifests/init.pp':
+  ensure => file,
+  content => '
+    # Nothing here
+  ',
+  mode => "0640",
+}
+file { '#{testdir_simple}/environments/added/manifests/init.pp':
+  ensure => file,
+  content => '
+    notify{"yay we be the same":}
+    notify{"added yay":}
   ',
   mode => "0640",
 }
@@ -353,32 +390,53 @@ EOS
 
   it 'should exit with 0 when -assert compliant is used and catalogs are compliant' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment compliant --assert compliant --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
-      :acceptable_exit_codes => [0]
+    on master, puppet("preview --preview_environment compliant --assert compliant --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
   end
 
-  it 'should exit with 0 when -assert equal is used and catalogs are equal due to exclude' do
-    env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
-      :acceptable_exit_codes => [0]
-  end
+  context 'when using --assert equal with --excludes' do
+    it 'should exit with 0 when excluding attributes qualified with type, title, and attribute name' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
+    end
 
-  it 'should exit with 0 when -assert equal is used and catalogs are equal due to exclude with no title' do
-    env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_title.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
-      :acceptable_exit_codes => [0]
-  end
+    it 'should exit with 0 when excluding attributes qualified with type and attribute name' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_title.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
+    end
 
-  it 'should exit with 0 when -assert equal is used and catalogs are equal due to exclude with no attributes' do
-    env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_attributes.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
-      :acceptable_exit_codes => [0]
-  end
+    it 'should exit with 0 when excluding conflicting resources qualified with type and title' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_attributes.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
+    end
 
-  it 'should exit with 0 when -assert equal is used and catalogs are equal due to exclude with neither title nor attributes' do
-    env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_title_and_attributes.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
-      :acceptable_exit_codes => [0]
+    it 'should exit with 0 when excluding conflicting resources qualified with type' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_title_and_attributes.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
+    end
+
+    it 'should exit with 0 when excluding missing resources qualified with type and title' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment missing --assert equal --excludes #{testdir_simple}/files/excludes_wo_attributes.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+        :acceptable_exit_codes => [0]
+    end
+
+    it 'should exit with 0 when excluding missing resources qualified with type' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment missing --assert equal --excludes #{testdir_simple}/files/excludes_wo_title_and_attributes.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+        :acceptable_exit_codes => [0]
+    end
+
+    it 'should exit with 0 when excluding added resources qualified with type and title' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment added --assert equal --excludes #{testdir_simple}/files/excludes_wo_attributes.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+        :acceptable_exit_codes => [0]
+    end
+
+    it 'should exit with 0 when excluding added resources qualified with type' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment added --assert equal --excludes #{testdir_simple}/files/excludes_wo_title_and_attributes.json --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+        :acceptable_exit_codes => [0]
+    end
   end
 
   it 'should exit with 5 when -assert compliant is used and preview is not compliant' do

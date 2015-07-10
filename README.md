@@ -401,6 +401,8 @@ Preview always excludes one PE-specific File resource that has random content; o
 This option can be used to exclude additional resources that are expected to change in each compilation (e.g. if they have random or time-based content). Exclusions can be
 per resource type, type and title, or combined with one or more attributes.
 
+An exclusion that isn't combined with any attributes will exclude matching resources completely together with all edges where the resource is either the source or the target.
+
 Note that `--excludes` is in effect when compiling and cannot be combined with
 `--last`.
 

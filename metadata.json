@@ -1,6 +1,6 @@
 {
   "name": "puppetlabs-catalog_preview",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "author": "puppetlabs",
   "summary": "PE-only module providing catalog preview and migration features",
   "license": "PuppetLabs-Enterprise",
@@ -17,68 +17,68 @@
     "delta"
   ],
   "operatingsystem_support": [
-  {
-    "operatingsystem": "RedHat",
-    "operatingsystemrelease": [
-      "5",
-    "6",
-    "7"
+    {
+      "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
       ]
-  },
-  {
-    "operatingsystem": "CentOS",
-    "operatingsystemrelease": [
-      "5",
-    "6",
-    "7"
+    },
+    {
+      "operatingsystem": "CentOS",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
       ]
-  },
-  {
-    "operatingsystem": "OracleLinux",
-    "operatingsystemrelease": [
-      "5",
-    "6",
-    "7"
+    },
+    {
+      "operatingsystem": "OracleLinux",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
       ]
-  },
-  {
-    "operatingsystem": "Scientific",
-    "operatingsystemrelease": [
-      "5",
-    "6",
-    "7"
+    },
+    {
+      "operatingsystem": "Scientific",
+      "operatingsystemrelease": [
+        "5",
+        "6",
+        "7"
       ]
-  },
-  {
-    "operatingsystem": "SLES",
-    "operatingsystemrelease": [
-      "11 SP1"
+    },
+    {
+      "operatingsystem": "SLES",
+      "operatingsystemrelease": [
+        "11 SP1"
       ]
-  },
-  {
-    "operatingsystem": "Debian",
-    "operatingsystemrelease": [
-      "6",
-    "7"
+    },
+    {
+      "operatingsystem": "Debian",
+      "operatingsystemrelease": [
+        "6",
+        "7"
       ]
-  },
-  {
-    "operatingsystem": "Ubuntu",
-    "operatingsystemrelease": [
-      "10.04",
-    "12.04",
-    "14.04"
+    },
+    {
+      "operatingsystem": "Ubuntu",
+      "operatingsystemrelease": [
+        "10.04",
+        "12.04",
+        "14.04"
       ]
-  }
+    }
   ],
   "requirements": [
     {
       "name": "pe",
-      "version_requirement": ">= 3.8.1"
+      "version_requirement": ">= 3.8.0"
     },
     {
       "name": "puppet",
-      "version_requirement": ">= 3.8.1"
+      "version_requirement": ">= 3.8.0"
     }
   ],
   "dependencies": [
