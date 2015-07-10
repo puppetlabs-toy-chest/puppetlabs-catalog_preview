@@ -24,6 +24,9 @@ describe 'preview subcommand' do
   puppet_version            =  on(master, 'puppet --version').stdout.chomp
   use_future_parser         =  puppet_version =~ /^3\./ ? 'parser=future' : ''
 
+  node_names_file = ['file_node1', 'file_node2']
+  node_names_filename = "#{testdir_simple}/nodez"
+
   pp = <<-EOS
 File {
   ensure => directory,
@@ -157,18 +160,16 @@ file { '#{testdir_broken_test}/environments/test/manifests/init.pp':
   ',
   mode => "0640",
 }
-file { '/tmp/onenode': 
+file { '#{node_names_filename}':
   ensure => file,
-  content => $::certname,
+  content => '#{node_names_file.join(' ')}',
   mode => "0640",
 }
 EOS
 
   apply_manifest_on(master, pp, :catch_failures => true)
   node_names_cli = ['nonesuch', 'andanother']
-  node_names_file = ['file_node1', 'file_node2']
   node_names_all = node_names_cli + node_names_file
-  node_names_filename = '/root/nodez'
   create_remote_file(master, node_names_filename, node_names_file.join(' '))
 
   it 'should be able to compare simple catalogs and exit with 0 and produce json logfiles' do
@@ -240,65 +241,21 @@ EOS
     on(master, puppet("preview --preview_environment test #{node_names_cli[first]} --environmentpath #{env_path}"),
       :acceptable_exit_codes => [3]) { |r| }
     on(master, puppet("preview #{node_names_cli[first]} --last --view preview_log"),
-      {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| JSON.parse(r.stdout) }
+      {:catch_failures => true}) { |r| JSON.parse(r.stdout) }
   end
 
-  it 'should produce a report for a successful run with --view overview' do
+  # TODO: match on known good output on these:
+  it 'should produce a report for a successful run with --view overview and --last' do
     env_path = File.join(testdir_simple, 'environments')
-    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path}"),
-     :acceptable_exit_codes => [0]) { |r| }
-  end
-
-  it 'should produce a report for a previous successful run with --view overview' do
-    env_path = File.join(testdir_simple, 'environments')
-    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path}"),
-     :acceptable_exit_codes => [0]) { |r| }
-    on(master, puppet("preview #{node_name} --last --preview_environment test --environmentpath #{env_path}"),
-     :acceptable_exit_codes => [0]) { |r| }
+    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"))
+    on(master, puppet("preview --environmentpath #{env_path} --view overview --last"))
   end
 
   it 'should produce a report for a failed run with --view overview' do
     env_path = File.join(testdir_broken_test, 'environments')
-    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path}"),
-     :acceptable_exit_codes => [3]) { |r| }
-  end
-
-  it 'should produce a report for a previous failed run with --view overview' do
-    env_path = File.join(testdir_broken_test, 'environments')
-    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path}"),
-     :acceptable_exit_codes => [3]) { |r| }
-    on(master, puppet("preview #{node_name} --last --preview_environment test --environmentpath #{env_path}"),
-     :acceptable_exit_codes => [0]) { |r| }
-  end
-
-  nodefile = '/tmp/onenode'
-  it 'should produce a report for a successful run with --view overview --nodes filename' do
-    env_path = File.join(testdir_simple, 'environments')
-    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path} --nodes #{nodefile}"),
-     :acceptable_exit_codes => [0]) { |r| }
-  end
-
-  it 'should produce a report for a previous successful run with --view overview --nodes filename' do
-    env_path = File.join(testdir_simple, 'environments')
-    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path} --nodes #{nodefile}"),
-     :acceptable_exit_codes => [0]) { |r| }
-    on(master, puppet("preview #{node_name} --last --preview_environment test --environmentpath #{env_path} --nodes #{nodefile}"),
-     :acceptable_exit_codes => [0]) { |r| }
-  end
-
-  it 'should produce a report for a failed run with --view overview --nodes filename' do
-    env_path = File.join(testdir_broken_test, 'environments')
-    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path} --nodes #{nodefile}"),
-     :acceptable_exit_codes => [3]) { |r| }
-  end
-
-  it 'should produce a report for a previous failed run with --view overview --nodes filename' do
-    env_path = File.join(testdir_broken_test, 'environments')
-    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path} --nodes #{nodefile}"),
-     :acceptable_exit_codes => [3]) { |r| }
-    env_path = File.join(testdir_broken_test, 'environments')
-    on(master, puppet("preview #{node_name} --last --preview_environment test --environmentpath #{env_path} --nodes #{nodefile}"),
-     :acceptable_exit_codes => [0]) { |r| }
+    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+       :acceptable_exit_codes => [3])
+    on(master, puppet("preview --environmentpath #{env_path} --view overview --last"))
   end
 
   it 'should reconstruct the node list from a previous successful run when using --last' do
