@@ -687,7 +687,16 @@ Output:
     # So, if PuppetDB is in use, we swap in a copy of the 2.x terminus which
     # uses the v4 API which returns properly structured and typed facts.
     if Puppet::Node::Facts.indirection.terminus_class.to_s == 'puppetdb'
-      Puppet::Node::Facts.indirection.terminus_class = :diff_puppetdb
+      # Versions prior to pdb 3 uses the v3 REST API, but there is not easy
+      # way to figure out which version is in use that works for both old
+      # and new versions. The method 'Puppet::Util::Puppetdb.url_path' has
+      # been removed in pdb 3 and is therefore used as a test. This means
+      # that on pdb 3 catalog preview uses the default fact indirection.
+      #
+      require 'puppet/util/puppetdb'
+      if Puppet::Util::Puppetdb.respond_to?(:url_path)
+        Puppet::Node::Facts.indirection.terminus_class = :diff_puppetdb
+      end
       # Ensure we don't accidentally use any facts that were cached from the
       # PuppetDB v3 API.
       Puppet::Node::Facts.indirection.cache_class = false
