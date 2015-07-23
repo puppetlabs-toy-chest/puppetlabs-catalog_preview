@@ -477,7 +477,14 @@ class Puppet::Application::Preview < Puppet::Application
   def catalog_diff(timestamp, baseline_hash, preview_hash)
     excl_file = options[:excludes]
     excludes = excl_file.nil? ? [] : CatalogDeltaModel::Exclude.parse_file(excl_file)
-    CatalogDeltaModel::CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp, excludes)
+    # Puppet 3 (Before PUP-3355) used a catalog format where the real data was under a
+    # 'data' tag. After PUP-3355, the content outside 'data' was removed, and everything in
+    # 'data' move up to the main body of "the hash".
+    # Here this is normalized in order to support a mix of 3.x and 4.x catalogs.
+    #
+    baseline_hash = baseline_hash['data'] if baseline_hash.has_key?('data')
+    preview_hash  = preview_hash['data']  if preview_hash.has_key?('data')
+    CatalogDeltaModel::CatalogDelta.new(baseline_hash, preview_hash, options, timestamp, excludes)
   end
 
   # Displays a file, and if the argument pretty_json is truthy the file is loaded and displayed as
