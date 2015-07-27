@@ -12,7 +12,7 @@ require 'beaker-rspec/helpers/serverspec'
 
 def initialize_repo_on_host(host, os)
   case os
-  when /debian/
+  when /(debian|ubuntu)/
     if options[:type] =~ /(aio|foss)/ then
       on host, "curl -O http://apt.puppetlabs.com/puppetlabs-release-pc1-$(lsb_release -sc).deb"
       on host, "dpkg -i puppetlabs-release-pc1-$(lsb_release -sc).deb"
@@ -297,7 +297,7 @@ RSpec.configure do |c|
 
       initialize_repo_on_host(master, master[:template])
       on master, puppet('module install puppetlabs/puppetdb')
-      on master, puppet('agent -t --server $(hostname -f)')
+      on master, puppet("agent -t --server #{master.hostname}")
       puppet_version = on(master, 'puppet --version').stdout.chomp
       puppetdb_ver = puppet_version =~ /3\./ ? '2.3.5' : 'latest'
       install_puppetdb(master, 'embedded', puppetdb_ver)
@@ -336,7 +336,7 @@ HERE
       url = 'https://localhost:8140'
       retry_on(master, "curl -m 1 #{url}", opts)
 
-      on master, 'puppet agent -t --server $(hostname -f)'
+      on master, puppet("agent -t --server #{master.hostname}")
     else
       step 'install/configure PE puppetdb'
       on master, puppet('resource service pe-puppetserver ensure=running')
