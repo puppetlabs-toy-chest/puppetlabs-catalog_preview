@@ -524,6 +524,20 @@ describe 'CatalogDelta' do
     end
   end
 
+  it 'converts the value of attributes that use Set semantics into an array' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['before'] = %w(c b)
+    delta = CatalogDelta.new(baseline_hash, pv, options, timestamp)
+    crs = delta.conflicting_resources
+    expect(crs.size).to eq(1)
+    cas = crs[0].conflicting_attributes
+    expect(cas.size).to eq(1)
+    ca = cas[0]
+    expect(ca.baseline_value).to be_an(Array)
+    expect(ca.preview_value).to be_an(Array)
+    JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
+  end
+
   it 'allows variables that have Set semantics to be strings' do
     pv = preview_hash
     pv['resources'][3]['parameters'] =  {
