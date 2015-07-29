@@ -127,6 +127,23 @@ def install_repos_on(host, project, sha)
 end
 
 # TODO: remove this once beaker has it merged in
+def start_puppetserver(host)
+  # TODO: reconcile the various sources of options
+  if options[:type] =~ /(foss|git)/
+    on host, 'service puppetserver start'
+  else
+    on host, puppet('resource service pe-puppetserver ensure=running')
+  end
+    opts = {
+      :desired_exit_codes => [35, 60],
+      :max_retries => 60,
+      :retry_interval => 1
+    }
+    url = 'https://localhost:8140'
+    retry_on(host, "curl -m 1 #{url}", opts)
+end
+
+# TODO: remove this once beaker has it merged in
 def start_puppetdb(host, version)
   test_url = version == '2.3.5' ? '/v4/version' : '/pdb/meta/v1/version'
 
@@ -286,14 +303,7 @@ RSpec.configure do |c|
     on master, puppet('config set trusted_node_data true --section main')
     if default[:type] =~ /(foss|git)/
       step 'install/configure foss puppetdb'
-      on master, 'service puppetserver start'
-      opts = {
-        :desired_exit_codes => [35, 60],
-        :max_retries => 60,
-        :retry_interval => 1
-      }
-      url = 'https://localhost:8140'
-      retry_on(master, "curl -m 1 #{url}", opts)
+      start_puppetserver(master)
 
       initialize_repo_on_host(master, master[:template])
       on master, puppet('module install puppetlabs/puppetdb')
@@ -327,14 +337,7 @@ HERE
                         )
       on master, "chown -R puppet:puppet #{puppet_confdir}"
       start_puppetdb(master, puppetdb_ver)
-      on master, 'service puppetserver start'
-      opts = {
-        :desired_exit_codes => [35, 60],
-        :max_retries => 60,
-        :retry_interval => 1
-      }
-      url = 'https://localhost:8140'
-      retry_on(master, "curl -m 1 #{url}", opts)
+      start_puppetserver(master)
 
       on master, puppet("agent -t --server #{master.hostname}")
     else

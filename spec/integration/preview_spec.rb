@@ -30,7 +30,7 @@ describe 'preview subcommand' do
   pp = <<-EOS
 File {
   ensure => directory,
-  mode => "0750",
+  mode => "0777",
   owner => #{master.puppet['user']},
   group => #{master.puppet['group']},
 }
@@ -71,7 +71,7 @@ file { '#{testdir_simple}/files/excludes.json':
       "attributes": ["message"]
     }
   ]',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_simple}/files/excludes_wo_title.json':
   ensure => file,
@@ -81,7 +81,7 @@ file { '#{testdir_simple}/files/excludes_wo_title.json':
       "attributes": ["message"]
     }
   ]',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_simple}/files/excludes_wo_attributes.json':
   ensure => file,
@@ -95,7 +95,7 @@ file { '#{testdir_simple}/files/excludes_wo_attributes.json':
       "title": "added yay"
     }
   ]',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_simple}/files/excludes_wo_title_and_attributes.json':
   ensure => file,
@@ -104,80 +104,85 @@ file { '#{testdir_simple}/files/excludes_wo_title_and_attributes.json':
       "type": "notify"
     }
   ]',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_simple}/environments/test/environment.conf':
   ensure => file,
   content => 'environment_timeout = 0
   #{use_future_parser}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_simple}/environments/compliant/environment.conf':
   ensure => file,
   content => 'environment_timeout = 0
   #{use_future_parser}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_simple}/environments/missing/environment.conf':
   ensure => file,
   content => 'environment_timeout = 0
   #{use_future_parser}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_simple}/environments/added/environment.conf':
   ensure => file,
   content => 'environment_timeout = 0
   #{use_future_parser}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_broken_test}/environments/test/environment.conf':
   ensure => file,
   content => 'environment_timeout = 0
   #{use_future_parser}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 
 file { '#{testdir_simple}/environments/production/manifests/init.pp':
   ensure => file,
   content => '
     notify{"yay we be the same":}
+    notify{"trusted_authenticated": message=>"${trusted[\\'authenticated\\']}"}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 
 file { '#{testdir_simple}/environments/test/manifests/init.pp':
   ensure => file,
   content => '
     notify{"yay we be the same, but different":}
+    notify{"trusted_authenticated": message=>"${trusted[\\'authenticated\\']}"}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_simple}/environments/compliant/manifests/init.pp':
   ensure => file,
   content => '
     notify{"yay we be the same": message => "something added"}
+    notify{"trusted_authenticated": message=>"${trusted[\\'authenticated\\']}"}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_simple}/environments/missing/manifests/init.pp':
   ensure => file,
   content => '
     # Nothing here
+    notify{"trusted_authenticated": message=>"${trusted[\\'authenticated\\']}"}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{testdir_simple}/environments/added/manifests/init.pp':
   ensure => file,
   content => '
     notify{"yay we be the same":}
     notify{"added yay":}
+    notify{"trusted_authenticated": message=>"${trusted[\\'authenticated\\']}"}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 
 file { '#{testdir_broken_production}/environments/production/manifests/init.pp':
@@ -186,7 +191,7 @@ file { '#{testdir_broken_production}/environments/production/manifests/init.pp':
     # this should fail compilation in any parser
     name = notify{"yay we be the same":}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 
 file { '#{testdir_broken_test}/environments/test/manifests/init.pp':
@@ -195,12 +200,12 @@ file { '#{testdir_broken_test}/environments/test/manifests/init.pp':
     # this should fail compilation in any parser
     name = notify{"yay we be the same":}
   ',
-  mode => "0640",
+  mode => "0777",
 }
 file { '#{node_names_filename}':
   ensure => file,
   content => '#{node_names_file.join(' ')}',
-  mode => "0640",
+  mode => "0777",
 }
 EOS
 
@@ -461,6 +466,83 @@ EOS
       on master, puppet("preview --preview_environment test --migrate 3.8/4.0 #{node_names_cli} --nodes #{node_names_filename} --environmentpath #{env_path}"),
                   :acceptable_exit_codes => [1]
     end
+  end
+
+  context 'when compiling with trusted facts and puppetdb' do
+    env_path = File.join(testdir_simple, 'environments')
+    it 'should find the trusted facts using --trusted as root' do
+      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted")).stdout)
+      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
+      expect(resources[0]).to be_a(Hash)
+      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
+      expect(resource_one['parameters']['message']).to eq('local')
+    end
+    it 'should find the trusted facts without --trusted as root' do
+      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
+      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
+      expect(resources[0]).to be_a(Hash)
+      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
+      expect(resource_one['parameters']['message']).to eq('local')
+    end
+    master['user'] = 'previewser'
+    it 'should find the trusted facts using --trusted as non-root' do
+      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted")).stdout)
+      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
+      expect(resources[0]).to be_a(Hash)
+      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
+      expect(resource_one['parameters']['message']).to eq('local')
+    end
+    it 'should find the trusted facts without --trusted as non-root' do
+      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
+      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
+      expect(resources[0]).to be_a(Hash)
+      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
+      expect(resource_one['parameters']['message']).to eq('local')
+    end
+    master['user'] = 'root'
+  end
+
+   #warning: turning off puppetdb terminus here
+  context 'when compiling with trusted facts without puppetdb' do
+    env_path = File.join(testdir_simple, 'environments')
+    on master, puppet('config set storeconfigs         false --section master')
+    on master, puppet('config set storeconfigs_backend active_record --section master')
+    route_file = on(master, puppet('master --configprint route_file')).stdout.chomp
+    on master, "rm #{route_file}"
+    # bounce the server to pickup the config changes
+    on master, 'service puppetserver stop'
+    start_puppetserver(master)
+    on master, puppet("agent --test --server #{master.hostname}")
+    it 'should find the trusted facts using --trusted as root' do
+      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted")).stdout)
+      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
+      expect(resources[0]).to be_a(Hash)
+      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
+      expect(resource_one['parameters']['message']).to eq('local')
+    end
+    it 'should find the trusted facts without --trusted as root' do
+      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
+      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
+      expect(resources[0]).to be_a(Hash)
+      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
+      expect(resource_one['parameters']['message']).to eq('local')
+    end
+    master['user'] = 'previewser'
+    it 'should find the trusted facts using --trusted as non-root' do
+      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted")).stdout)
+      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
+      expect(resources[0]).to be_a(Hash)
+      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
+      expect(resource_one['parameters']['message']).to eq('local')
+    end
+    it 'should find the trusted facts without --trusted as non-root' do
+      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
+      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
+      expect(resources[0]).to be_a(Hash)
+      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
+      expect(resource_one['parameters']['message']).to eq('local')
+    end
+    master['user'] = 'root'
   end
 
 end
