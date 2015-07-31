@@ -127,6 +127,14 @@ def install_repos_on(host, project, sha)
 end
 
 # TODO: remove this once beaker has it merged in
+def stop_puppetserver(host)
+  if options[:type] =~ /(foss|git)/
+    on host, 'service puppetserver stop'
+  else
+    on host, 'service pe-puppetserver stop'
+  end
+end
+
 def start_puppetserver(host)
   # TODO: reconcile the various sources of options
   if options[:type] =~ /(foss|git)/
@@ -323,7 +331,7 @@ server = #{master.hostname}
 port = 8081
 HERE
                         )
-      on master, 'service puppetserver stop'
+      stop_puppetserver(master)
       on master, puppet('config set storeconfigs         true --section master')
       on master, puppet('config set storeconfigs_backend puppetdb --section master')
       route_file = on(master, puppet('master --configprint route_file')).stdout.chomp

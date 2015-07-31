@@ -510,9 +510,10 @@ EOS
     route_file = on(master, puppet('master --configprint route_file')).stdout.chomp
     on master, "rm #{route_file}"
     # bounce the server to pickup the config changes
-    on master, 'service puppetserver stop'
+    stop_puppetserver(master)
     start_puppetserver(master)
-    on master, puppet("agent --test --server #{master.hostname}")
+    on master, puppet("agent --enable")
+    on(master, puppet("agent --test --server #{master.hostname}"), {:accept_all_exit_codes => true})
     it 'should find the trusted facts using --trusted as root' do
       report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted")).stdout)
       resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
