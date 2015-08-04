@@ -130,6 +130,10 @@ module CatalogDeltaModel
       end
       @value = value
     end
+
+    def finish
+      value = value.to_a.sort! if value.is_a?(Set)
+    end
   end
 
   # A Catalog Edge
@@ -194,6 +198,11 @@ module CatalogDeltaModel
       @preview_value = preview_value
       @compliant = compliant
     end
+
+    def finish
+      @baseline_value = @baseline_value.to_a.sort! if @baseline_value.is_a?(Set)
+      @preview_value = @preview_value.to_a.sort! if @preview_value.is_a?(Set)
+    end
   end
 
   # Represents a resource in the Catalog.
@@ -227,7 +236,7 @@ module CatalogDeltaModel
     # @param location [Location]
     # @param type [String]
     # @param title [String]
-    # @param attributes [Array<Attribute>]
+    # @param attributes [Hash<String,Attribute>]
     def initialize(location, type, title, attributes)
       @location = location
       @type = assert_type(String, type)
@@ -245,7 +254,6 @@ module CatalogDeltaModel
     end
 
     def assign_ids(start)
-      @attributes = @attributes.values if @attributes.is_a?(Hash)
       assign_ids_on_each(super(start), @attributes)
     end
 
@@ -255,6 +263,10 @@ module CatalogDeltaModel
     # @api private
     def clear_attributes
       @attributes = nil
+    end
+
+    def finish_attributes
+      @attributes = @attributes.values.each { |v| v.finish } if @attributes.is_a?(Hash)
     end
 
     def initialize_from_hash(hash)
@@ -364,6 +376,12 @@ module CatalogDeltaModel
 
     def compliant?
       @missing_attribute_count == 0 && @conflicting_attributes.all? { |ca| ca.compliant? }
+    end
+
+    def finish_attributes
+      @added_attributes.each {|a| a.finish}
+      @missing_attributes.each {|a| a.finish}
+      @conflicting_attributes.each {|a| a.finish}
     end
 
     def initialize_from_hash(hash)
@@ -638,7 +656,11 @@ module CatalogDeltaModel
         # Clear attributes in the added and missing resources array
         @added_resources.each { |r| r.clear_attributes }
         @missing_resources.each { |r| r.clear_attributes }
+      else
+        @added_resources.each { |r| r.finish_attributes }
+        @missing_resources.each { |r| r.finish_attributes }
       end
+      @conflicting_resources.each { |r| r.finish_attributes }
 
       assign_ids(1)
     end

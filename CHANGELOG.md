@@ -1,3 +1,14 @@
+##2015-08-04 - Release 2.0.2
+###Summary
+
+This release includes several bug fixes.
+
+Previously when running with the Puppet 4x parser, --view diff_nodes would produce an incorrect list of nodes both with --last and without. That bug has been fixed and now the correct list of nodes will be printed.
+
+With previous versions of PuppetDB, catalog_preview used its own variant of the fact terminus. With the release of PuppetDB 3, catalog_preview needs to use PuppetDB's fact terminus instead which meant it was broken with PuppetDB 3. That bug has been fixed and catalog_preview will now adjust accordingly based on the version of PuppetDB being used.
+
+Previously, catalog_preview diffs were not displaying tag parameters in a human readable format. It would just display a Ruby object reference. Now that bug has been fixed and the tags are displayed properly.
+
 ##2015-07-14 - Release 2.0.1
 ###Summary
 

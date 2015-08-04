@@ -477,7 +477,14 @@ class Puppet::Application::Preview < Puppet::Application
   def catalog_diff(timestamp, baseline_hash, preview_hash)
     excl_file = options[:excludes]
     excludes = excl_file.nil? ? [] : CatalogDeltaModel::Exclude.parse_file(excl_file)
-    CatalogDeltaModel::CatalogDelta.new(baseline_hash['data'], preview_hash['data'], options, timestamp, excludes)
+    # Puppet 3 (Before PUP-3355) used a catalog format where the real data was under a
+    # 'data' tag. After PUP-3355, the content outside 'data' was removed, and everything in
+    # 'data' move up to the main body of "the hash".
+    # Here this is normalized in order to support a mix of 3.x and 4.x catalogs.
+    #
+    baseline_hash = baseline_hash['data'] if baseline_hash.has_key?('data')
+    preview_hash  = preview_hash['data']  if preview_hash.has_key?('data')
+    CatalogDeltaModel::CatalogDelta.new(baseline_hash, preview_hash, options, timestamp, excludes)
   end
 
   # Displays a file, and if the argument pretty_json is truthy the file is loaded and displayed as
@@ -687,7 +694,16 @@ Output:
     # So, if PuppetDB is in use, we swap in a copy of the 2.x terminus which
     # uses the v4 API which returns properly structured and typed facts.
     if Puppet::Node::Facts.indirection.terminus_class.to_s == 'puppetdb'
-      Puppet::Node::Facts.indirection.terminus_class = :diff_puppetdb
+      # Versions prior to pdb 3 uses the v3 REST API, but there is not easy
+      # way to figure out which version is in use that works for both old
+      # and new versions. The method 'Puppet::Util::Puppetdb.url_path' has
+      # been removed in pdb 3 and is therefore used as a test. This means
+      # that on pdb 3 catalog preview uses the default fact indirection.
+      #
+      require 'puppet/util/puppetdb'
+      if Puppet::Util::Puppetdb.respond_to?(:url_path)
+        Puppet::Node::Facts.indirection.terminus_class = :diff_puppetdb
+      end
       # Ensure we don't accidentally use any facts that were cached from the
       # PuppetDB v3 API.
       Puppet::Node::Facts.indirection.cache_class = false
