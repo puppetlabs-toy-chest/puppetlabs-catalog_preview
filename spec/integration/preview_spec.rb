@@ -286,25 +286,56 @@ EOS
       {:catch_failures => true}) { |r| JSON.parse(r.stdout) }
   end
 
-  # TODO: match on known good output on these:
   it 'should produce a report for a successful run with --view overview and --last' do
     env_path = File.join(testdir_simple, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"))
-    on(master, puppet("preview --environmentpath #{env_path} --view overview --last"))
+    # match over (m)ultiple lines, case (i)nsensitive
+    matches = [/total number of nodes.*: #{node_names_all.length}/mi,
+               /(Catalogs with Difference|Conflicting).* #{node_names_all.length}/mi,
+               /(Compliant Catalogs|Compliant)\S* 0/mi,
+               /#{node_names_all[0]}/mi,
+               /#{node_names_all[1]}/mi,
+               /#{node_names_all[2]}/mi,
+               /#{node_names_all[3]}/mi,
+    ]
+    result = on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")).stdout
+    matches.each do |match|
+      assert_match(match,result,'preview output from a successful run did not match expected')
+    end
+    result = on(master, puppet("preview --environmentpath #{env_path} --view overview --last")).stdout
+    matches.each do |match|
+      assert_match(match,result,'preview output from successful --last did not match expected')
+    end
   end
 
   it 'should produce a report for a failed run with --view overview' do
     env_path = File.join(testdir_broken_test, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
-       :acceptable_exit_codes => [3])
-    on(master, puppet("preview --environmentpath #{env_path} --view overview --last"))
+    matches = [/Preview Failed.* #{node_names_all.length}/mi,
+               /number of nodes.* #{node_names_all.length}/mi,
+               /#{node_names_all[0]}/mi,
+               /#{node_names_all[1]}/mi,
+               /#{node_names_all[2]}/mi,
+               /#{node_names_all[3]}/mi,
+    ]
+    result = on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+                :acceptable_exit_codes => [3]).stdout
+    matches.each do |match|
+      assert_match(match,result,'preview output from failed preview did not match expected')
+    end
+    matches = [/#{node_names_all[0]}/mi,
+               /#{node_names_all[1]}/mi,
+               /#{node_names_all[2]}/mi,
+               /#{node_names_all[3]}/mi,
+    ]
+    result = on(master, puppet("preview --environmentpath #{env_path} --view overview --last")).stdout
+    matches.each do |match|
+      assert_match(match,result,'preview output from failed overview --last did not match expected')
+    end
   end
 
   it 'should reconstruct the node list from a previous successful run when using --last' do
     env_path = File.join(testdir_simple, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
-      :acceptable_exit_codes => [0]) { |r| }
-    on(master, puppet("preview --last --view diff_nodes"),
+    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"))
+    result = on(master, puppet("preview --last --view diff_nodes"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| expect(r.stdout).to match(/#{node_names_all}/) }
   end
 
