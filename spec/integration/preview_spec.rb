@@ -216,7 +216,7 @@ EOS
 
   # TODO: this requires use of run_as_previewser command to be enclosed in quotes.
   #   nasty.  refactor me into a method string replacement
-  let(:run_as_previewser) {'runuser -l previewser -c '}
+  let(:run_as_previewser) {'su previewser --command '}
   let(:puppet_path) {on(master, 'which puppet').stdout.chomp}
   context 'when comparing simple catalogs' do
     it 'as root, should exit with 0 and produce json logfiles' do
