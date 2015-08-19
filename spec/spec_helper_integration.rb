@@ -382,5 +382,8 @@ HERE
     else
       puppet_module_install(:source => proj_root, :module_name => 'preview', :target_module_path => target_module_path)
     end
+    # ensure non-root users can access the module in PE 3x:
+    on master, "mkdir -p /usr/share/puppet/modules && ln -s #{target_module_path}/preview /usr/share/puppet/modules"
+
   end
 end
