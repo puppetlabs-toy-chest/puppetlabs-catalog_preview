@@ -214,29 +214,63 @@ EOS
   node_names_all = node_names_cli + node_names_file
   create_remote_file(master, node_names_filename, node_names_file.join(' '))
 
-  it 'should be able to compare simple catalogs and exit with 0 and produce json logfiles' do
-    env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
-                {:catch_failures => true} do |r|
-      expect(r.exit_code).to be_zero
+  # TODO: this requires use of run_as_previewser command to be enclosed in quotes.
+  #   nasty.  refactor me into a method string replacement
+  let(:run_as_previewser) {'su previewser --command '}
+  let(:puppet_path) {on(master, 'which puppet').stdout.chomp}
+  context 'when comparing simple catalogs' do
+    it 'as root, should exit with 0 and produce json logfiles' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+        {:catch_failures => true} do |r|
+        expect(r.exit_code).to be_zero
+      end
+
+      vardir = on(master, puppet('master --configprint vardir')).stdout.strip
+      logfile_extension  = '.json'
+      # create a string to send to on master that tests all the files at once
+      test_files_short   = ['baseline_catalog','baseline_log','catalog_diff','preview_catalog','preview_log']
+      # make the filenames fully qualified and with extensions
+      node_names_all.each do |node_name|
+        test_files_long    = test_files_short.map { |logfile| File.join(vardir,'preview',node_name,logfile + logfile_extension) }
+        # add the test to each filename
+        test_strings       = test_files_long.map { |logfile| "test -f #{logfile}" }
+        # join the array with && to test each file in series
+        test_files_command = test_strings.join(' && ')
+        on master, test_files_command
+        # validate if json
+        test_files_long.each do |file|
+          on master, "cat #{file}" do
+            JSON.parse(stdout)
+          end
+        end
+      end
     end
 
-    vardir = on(master, puppet('master --configprint vardir')).stdout.strip
-    logfile_extension  = '.json'
-    # create a string to send to on master that tests all the files at once
-    test_files_short   = ['baseline_catalog','baseline_log','catalog_diff','preview_catalog','preview_log']
-    # make the filenames fully qualified and with extensions
-    node_names_all.each do |node_name|
-      test_files_long    = test_files_short.map { |logfile| File.join(vardir,'preview',node_name,logfile + logfile_extension) }
-      # add the test to each filename
-      test_strings       = test_files_long.map { |logfile| "test -f #{logfile}" }
-      # join the array with && to test each file in series
-      test_files_command = test_strings.join(' && ')
-      on master, test_files_command
-      # validate if json
-      test_files_long.each do |file|
-        on master, "cat #{file}" do
-          JSON.parse(stdout)
+    it 'as non-root, should exit with 0 and produce json logfiles' do
+      env_path = File.join(testdir_simple, 'environments')
+      on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
+        {:catch_failures => true}) do |r|
+        expect(r.exit_code).to be_zero
+      end
+
+      vardir = on(master, "#{run_as_previewser} '#{puppet_path} master --configprint vardir'").stdout.strip
+      logfile_extension  = '.json'
+      # create a string to send to on master that tests all the files at once
+      test_files_short   = ['baseline_catalog','baseline_log','catalog_diff','preview_catalog','preview_log']
+      # make the filenames fully qualified and with extensions
+      node_names_all.each do |node_name|
+        test_files_long    = test_files_short.map { |logfile| File.join(vardir,'preview',node_name,logfile + logfile_extension) }
+        # add the test to each filename
+        test_strings       = test_files_long.map { |logfile| "test -f #{logfile}" }
+        # join the array with && to test each file in series
+        test_files_command = test_strings.join(' && ')
+        on(master, "#{run_as_previewser} '#{test_files_command}'")
+        # validate if json
+        test_files_long.each do |file|
+          on master, "cat #{file}" do
+            JSON.parse(stdout)
+          end
         end
       end
     end
@@ -286,25 +320,56 @@ EOS
       {:catch_failures => true}) { |r| JSON.parse(r.stdout) }
   end
 
-  # TODO: match on known good output on these:
   it 'should produce a report for a successful run with --view overview and --last' do
     env_path = File.join(testdir_simple, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"))
-    on(master, puppet("preview --environmentpath #{env_path} --view overview --last"))
+    # match over (m)ultiple lines, case (i)nsensitive
+    matches = [/total number of nodes.*: #{node_names_all.length}/mi,
+               /(Catalogs with Difference|Conflicting).* #{node_names_all.length}/mi,
+               /(Compliant Catalogs|Compliant)\S* 0/mi,
+               /#{node_names_all[0]}/mi,
+               /#{node_names_all[1]}/mi,
+               /#{node_names_all[2]}/mi,
+               /#{node_names_all[3]}/mi,
+    ]
+    result = on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")).stdout
+    matches.each do |match|
+      assert_match(match,result,'preview output from a successful run did not match expected')
+    end
+    result = on(master, puppet("preview --environmentpath #{env_path} --view overview --last")).stdout
+    matches.each do |match|
+      assert_match(match,result,'preview output from successful --last did not match expected')
+    end
   end
 
   it 'should produce a report for a failed run with --view overview' do
     env_path = File.join(testdir_broken_test, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
-       :acceptable_exit_codes => [3])
-    on(master, puppet("preview --environmentpath #{env_path} --view overview --last"))
+    matches = [/Preview Failed.* #{node_names_all.length}/mi,
+               /number of nodes.* #{node_names_all.length}/mi,
+               /#{node_names_all[0]}/mi,
+               /#{node_names_all[1]}/mi,
+               /#{node_names_all[2]}/mi,
+               /#{node_names_all[3]}/mi,
+    ]
+    result = on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+                :acceptable_exit_codes => [3]).stdout
+    matches.each do |match|
+      assert_match(match,result,'preview output from failed preview did not match expected')
+    end
+    matches = [/#{node_names_all[0]}/mi,
+               /#{node_names_all[1]}/mi,
+               /#{node_names_all[2]}/mi,
+               /#{node_names_all[3]}/mi,
+    ]
+    result = on(master, puppet("preview --environmentpath #{env_path} --view overview --last")).stdout
+    matches.each do |match|
+      assert_match(match,result,'preview output from failed overview --last did not match expected')
+    end
   end
 
   it 'should reconstruct the node list from a previous successful run when using --last' do
     env_path = File.join(testdir_simple, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
-      :acceptable_exit_codes => [0]) { |r| }
-    on(master, puppet("preview --last --view diff_nodes"),
+    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"))
+    result = on(master, puppet("preview --last --view diff_nodes"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| expect(r.stdout).to match(/#{node_names_all}/) }
   end
 
@@ -484,22 +549,18 @@ EOS
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
       expect(resource_one['parameters']['message']).to eq('local')
     end
-    master['user'] = 'previewser'
     it 'should find the trusted facts using --trusted as non-root' do
-      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted")).stdout)
-      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
-      expect(resources[0]).to be_a(Hash)
-      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
-      expect(resource_one['parameters']['message']).to eq('local')
+      report = on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted'",
+                  :acceptable_exit_codes => [1]).stderr
+      expect(report).to match(/Error:.* --trusted .*as root/)
     end
     it 'should find the trusted facts without --trusted as non-root' do
-      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
+      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
       resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
       expect(resources[0]).to be_a(Hash)
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
       expect(resource_one['parameters']['message']).to eq('local')
     end
-    master['user'] = 'root'
   end
 
    #warning: turning off puppetdb terminus here
@@ -528,22 +589,18 @@ EOS
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
       expect(resource_one['parameters']['message']).to eq('local')
     end
-    master['user'] = 'previewser'
     it 'should find the trusted facts using --trusted as non-root' do
-      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted")).stdout)
-      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
-      expect(resources[0]).to be_a(Hash)
-      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
-      expect(resource_one['parameters']['message']).to eq('local')
+      report = on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted'",
+                  :acceptable_exit_codes => [1]).stderr
+      expect(report).to match(/Error:.* --trusted .*as root/)
     end
     it 'should find the trusted facts without --trusted as non-root' do
-      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
+      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
       resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
       expect(resources[0]).to be_a(Hash)
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
       expect(resource_one['parameters']['message']).to eq('local')
     end
-    master['user'] = 'root'
   end
 
 end
