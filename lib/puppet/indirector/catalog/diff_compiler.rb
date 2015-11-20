@@ -161,6 +161,9 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
         if options[:baseline_environment]
           # Switch the node's environment (it finds and instantiates the Environment)
           node.environment = options[:baseline_environment]
+
+          # Ugly workaround for PUP-5522
+          node.parameters['environment'] = node.environment.name
         end
         options[:back_channel][:baseline_environment] = node.environment
 
@@ -197,6 +200,9 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
       Puppet::Util::Log.with_destination(preview_dest) do
 
         node.environment = options[:preview_environment]
+
+        # Ugly workaround for PUP-5522
+        node.parameters['environment'] = node.environment.name
 
         Puppet::Util::Profiler.profile(preview_dest, [:diff_compiler, :compile_preview, node.environment, node.name]) do
           # Switch the node's environment (it finds and instantiates the Environment)
