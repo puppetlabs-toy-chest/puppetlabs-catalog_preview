@@ -56,7 +56,7 @@ To get started, you'll need:
 
 As mentioned above, if you're performing a migration check, your current production environment should be configured to use the current, or Puppet 3, parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or Puppet 4, parser. Configure which parser each environment uses via the [`parser`][parser_config_38] setting in each environment's `environment.conf`.
 
-Note that your PE version must be **less than** PE 2015.2 to use this tool for previewing a migration. Because PE 2015.2 contains only the "future" parser, if you are running 2015.2, no migration-specific check can be made.
+Note that your PE version must be **less than** PE 2015.2 to use this tool for previewing a migration. Because starting with 2015.2, PE contains only the "future" parser, if you are running 2015.2 or later, no migration-specific check can be made.
  
 ###Installation
 
