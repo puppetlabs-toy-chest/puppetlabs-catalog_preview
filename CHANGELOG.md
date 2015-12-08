@@ -1,3 +1,11 @@
+##2015-12-08 - Release 2.0.3
+###Summary
+
+This release adds support for the latest 2015.3 release of PE, and includes one bug fix.
+
+Previously, the wrong environment was in effect for Hiera causing the preview environment to use the same Hiera data as the non-preview env. For most users the two sets of data would be identical and problem did then not occur. The problem was in Puppet and is fixed in later Puppet releases. This bug fix in catalog preview works around the problem in older Puppet releases, and with this fix Hiera now get the correct environment and subsequently perform lookups the correct way even when Hiera data is different between the two environments compared by catalog preview.
+
+
 ##2015-08-04 - Release 2.0.2
 ###Summary
 
