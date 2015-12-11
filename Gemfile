@@ -10,27 +10,22 @@ def location_for(place, fake_version = nil)
   end
 end
 
+gem 'rubocop',                   :require => false
 
-group :test do
+group :system_tests do
   gem 'rake'
-  gem 'puppet', *location_for(ENV['PUPPET_LOCATION'] || ENV['PUPPET_VERSION'] || '~> 3.8.0')
-  gem 'puppet-lint'
-  gem 'puppet-syntax'
   gem 'beaker'
   gem 'beaker-rspec'
 end
 
 group :development, :unit_tests do
+  gem 'puppetlabs_spec_helper',  :require => false
+  gem 'puppet', *location_for(ENV['PUPPET_LOCATION'] || ENV['PUPPET_VERSION'] || '~> 3.8.0')
   gem 'rspec',                   :require => false
   gem 'rspec-core',              :require => false
   gem 'rspec-puppet',            :require => false
   gem 'mocha',                   :require => false
-  gem 'rubocop',                 :require => false
   gem 'json-schema',             :require => false
-end
-
-group :development, :unit_tests, :test do
-  gem 'puppetlabs_spec_helper',  :require => false
 end
 
 group :development do
@@ -40,7 +35,14 @@ group :development do
   gem 'guard-rake'
 end
 
-if File.exists? "#{__FILE__}.local"
-  eval(File.read("#{__FILE__}.local"), binding)
+local_gemfile = "#{__FILE__}.local"
+if File.exists? local_gemfile
+  puts "using #{local_gemfile}"
+  eval(File.read(local_gemfile), binding)
 end
 
+user_gemfile = File.join(Dir.home,'.Gemfile')
+if File.exists? user_gemfile
+  puts "using #{user_gemfile}"
+  eval(File.read(user_gemfile), binding)
+end
