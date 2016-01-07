@@ -10,8 +10,6 @@ def location_for(place, fake_version = nil)
   end
 end
 
-gem 'rubocop',                   :require => false
-
 group :system_tests do
   gem 'rake'
   gem 'beaker'
@@ -33,6 +31,7 @@ group :development do
   gem 'travis-lint'
   gem 'puppet-blacksmith'
   gem 'guard-rake'
+  gem 'rubocop',                 :require => false
 end
 
 local_gemfile = "#{__FILE__}.local"
