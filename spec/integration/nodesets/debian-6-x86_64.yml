@@ -1,0 +1,18 @@
+HOSTS:
+  'debian-6-x86_64':
+    pe_dir:
+    pe_ver:
+    pe_upgrade_dir:
+    pe_upgrade_ver:
+    hypervisor: vmpooler
+    platform: debian-6-x86_64
+    template: debian-6-x86_64
+    roles:
+    - agent
+    - master
+    - database
+CONFIG:
+  type: foss
+  nfs_server: none
+  consoleport: 443
+  pooling_api: http://vmpooler.delivery.puppetlabs.net/
