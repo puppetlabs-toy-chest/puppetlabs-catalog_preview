@@ -1,0 +1,19 @@
+---
+HOSTS:
+  ubuntu1204-64-1:
+    pe_dir: 
+    pe_ver: 
+    pe_upgrade_dir: 
+    pe_upgrade_ver: 
+    hypervisor: vmpooler
+    platform: ubuntu-12.04-amd64
+    template: ubuntu-1204-x86_64
+    roles:
+    - agent
+    - master
+    - database
+CONFIG:
+  type: foss
+  nfs_server: none
+  consoleport: 443
+  pooling_api: http://vmpooler.delivery.puppetlabs.net/

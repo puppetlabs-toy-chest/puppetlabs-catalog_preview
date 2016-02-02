@@ -21,7 +21,7 @@ def initialize_repo_on_host(host, os)
       on host, "dpkg -i puppetlabs-release-$(lsb_release -sc).deb"
     end
       on host, "apt-get update"
-  when /redhat/
+  when /(redhat|centos|scientific)/
     if options[:type] =~ /(aio|foss)/ then
       /^(el|centos)-(\d+)-(.+)$/.match(host.platform)
       variant = ($1 == 'centos') ? 'el' : $1
