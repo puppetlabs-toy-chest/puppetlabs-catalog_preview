@@ -640,11 +640,17 @@ Output:
   end
 
   def read_json(node, type)
-    json = File.read(options[type])
-    if json.nil? || json.empty?
-      raise Puppet::Error.new("Output for node #{node} is invalid - use --clean and/or recompile")
+    filename = options[type]
+    json = nil
+    source = File.read(filename)
+    unless source.nil? || source.empty?
+      begin
+        json = JSON.load(source)
+      rescue JSON::ParserError
+      end
     end
-    JSON.load(json)
+    raise Puppet::Error, "Output for node #{node} is invalid - use --clean and/or recompile" if json.nil?
+    json
   end
 
   def generate_last_overview
