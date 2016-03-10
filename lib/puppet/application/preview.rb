@@ -8,6 +8,8 @@ class Puppet::Application::Preview < Puppet::Application
 
   include PuppetX::Puppetlabs::Migration
 
+  class UsageError < RuntimeError; end
+
   NOT_EQUAL = 4
   NOT_COMPLIANT = 5
 
@@ -129,26 +131,46 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def run_command
-    options[:node] = command_line.args
-    unless options[:nodes].is_a?(Array)
-      options[:nodes] = []
+    nodes = options[:nodes]
+    if nodes.nil?
+      nodes = command_line.args
+    else
+      nodes += command_line.args
     end
-    options[:nodes] |= command_line.args
+    options[:nodes] = nodes.uniq
 
+    begin
+      main
+    rescue UsageError => err
+      raise RuntimeError, err.message
+    rescue Exception => err
+      ## NOTE: when debugging spec failures, these two lines can be very useful
+      #puts err.inspect
+      #puts Puppet::Util.pretty_backtrace(err.backtrace)
+      Puppet.log_exception(err)
+      Puppet::Util::Log.force_flushqueue()
+      @exit_code = GENERAL_ERROR
+    end
+    exit(@exit_code)
+  end
+
+  def main
     if options[:clean]
       unless (options.keys - [:clean, :node, :nodes, :debug]).empty?
-        raise '--clean can only be used with options --nodes and --debug'
+        raise UsageError, '--clean can only be used with options --nodes and --debug'
       end
-      exit(clean)
+      clean
+      return @exit_code
     end
 
     if options[:excludes]
-      raise '--excludes cannot be used with --schema or --last' if options[:last] || options[:schema]
+      raise UsageError, '--excludes cannot be used with --schema or --last' if options[:last] || options[:schema]
     end
 
     if options[:schema]
       unless options[:nodes].empty?
-        raise 'One or more nodes were given but no compilation will be done when running with the --schema option'
+        raise UsageError,
+          'One or more nodes were given but no compilation will be done when running with the --schema option'
       end
 
       case options[:schema]
@@ -168,36 +190,39 @@ class Puppet::Application::Preview < Puppet::Application
         help_path = api_path('documentation', 'catalog-delta.md')
         display_file(help_path)
       end
+      @exit_code = 0
     else
       if options[:nodes].nil? || options[:nodes].empty? && !options[:last]
         raise UsageError, 'No node(s) given to perform preview compilation for'
       end
 
       if node_names.size > 1 && %w{diff baseline preview baseline_log preview_log }.include?(options[:view].to_s)
-        raise "The --view option '#{options[:view]}' is not supported for multiple nodes"
+        raise UsageError, "The --view option '#{options[:view]}' is not supported for multiple nodes"
       end
 
       if options[:last]
         last
+        @exit_code = 0
       else
         unless options[:preview_environment]
-          raise 'No --preview_environment given - cannot compile and produce a diff when only"\
+          raise UsageError, 'No --preview_environment given - cannot compile and produce a diff when only"\
                 " the environment of the node is known'
         end
 
         if options[:diff_string_numeric] && !options[:migration_checker] && !options[:migrate] == MIGRATION_3to4
-          raise '--diff_string_numeric can only be used in combination with --migrate 3.8/4.0'
+          raise UsageError, '--diff_string_numeric can only be used in combination with --migrate 3.8/4.0'
         end
         compile
 
         view
 
-        assert_and_exit
+        assert_and_set_exit_code
       end
     end
+    @exit_code
   end
 
-  def assert_and_exit
+  def assert_and_set_exit_code
     nodes = @overview.of_class(OverviewModel::Node)
     @exit_code =  nodes.reduce(0) do |result, node|
       exit_code = node.exit_code
@@ -213,8 +238,6 @@ class Puppet::Application::Preview < Puppet::Application
         @exit_code = NOT_COMPLIANT if nodes.any? { |node| node.severity != :equal && node.severity != :compliant }
       end
     end
-
-    exit(@exit_code)
   end
 
   def compile
@@ -246,8 +269,10 @@ class Puppet::Application::Preview < Puppet::Application
         timestamp = Time.now.iso8601(9)
         catalog_delta = compile_diff(timestamp)
 
-        if options[:back_channel][:baseline_environment].to_s == options[:preview_environment]
-          $stderr.puts "The baseline and preview environments for node '#{node}' are the same"
+        baseline_env = options[:back_channel][:baseline_environment]
+        preview_env = options[:preview_environment]
+        if baseline_env.to_s == preview_env.to_s && !options[:migrate]
+          raise UsageError, "The baseline and preview environments for node '#{node}' are the same: '#{baseline_env}'"
         end
 
         if @exit_code == CATALOG_DELTA
@@ -257,18 +282,14 @@ class Puppet::Application::Preview < Puppet::Application
           @latest_catalog_delta = catalog_delta
         else
           case @exit_code
-          when GENERAL_ERROR
-            Puppet.log_exception(@exception)
-            Puppet::Util::Log.force_flushqueue
-            exit(@exit_code)
           when BASELINE_FAILED
             display_log(options[:baseline_log])
             log = JSON.load(File.read(options[:baseline_log]))
-            factory.merge_failure(node, options[:back_channel][:baseline_environment], timestamp, @exit_code, log)
+            factory.merge_failure(node, baseline_env, timestamp, @exit_code, log)
           when PREVIEW_FAILED
             display_log(options[:preview_log])
             log = JSON.load(File.read(options[:preview_log]))
-            factory.merge_failure(node, options[:preview_environment], timestamp, @exit_code, log)
+            factory.merge_failure(node, preview_env, timestamp, @exit_code, log)
           end
         end
       end
@@ -288,7 +309,7 @@ class Puppet::Application::Preview < Puppet::Application
       unless result = Puppet::Resource::Catalog.indirection.find(options[:node], options)
         # TODO: Should always produce a result and give better error depending on what failed
         #
-        raise "Could not compile catalogs for #{options[:node]}"
+        raise GeneralError, "Could not compile catalogs for #{options[:node]}"
       end
 
       # WRITE the two catalogs to output files
@@ -322,20 +343,12 @@ class Puppet::Application::Preview < Puppet::Application
 
       catalog_delta
 
-    rescue PuppetX::Puppetlabs::Preview::GeneralError => e
-      @exit_code = 1
-      @exception = e
-
     rescue PuppetX::Puppetlabs::Preview::BaselineCompileError => e
-      @exit_code = 2
+      @exit_code = BASELINE_FAILED
       @exception = e
 
     rescue PuppetX::Puppetlabs::Preview::PreviewCompileError => e
-      @exit_code = 3
-      @exception = e
-
-    rescue => e
-      @exit_code = 1
+      @exit_code = PREVIEW_FAILED
       @exception = e
 
     ensure
@@ -357,7 +370,7 @@ class Puppet::Application::Preview < Puppet::Application
   def last
     node_directories = Dir["#{Puppet[:preview_outputdir]}/*"]
     if node_directories.empty?
-      raise "There is no preview data in the specified output directory "\
+      raise UsageError, "There is no preview data in the specified output directory "\
         "'#{Puppet[:preview_outputdir]}', you must have data from a previous preview run to use --last"
     else
 
@@ -365,7 +378,7 @@ class Puppet::Application::Preview < Puppet::Application
       node_directories.each { |dir| available_nodes << dir.match(/^.*\/([^\/]*)$/)[1] }
 
       unless (missing_nodes = node_names - available_nodes).empty?
-        raise "No preview data available for node(s) '#{missing_nodes.join(", ")}'"
+        raise UsageError, "No preview data available for node(s) '#{missing_nodes.join(", ")}'"
       end
 
       prepare_output_options
@@ -376,10 +389,7 @@ class Puppet::Application::Preview < Puppet::Application
   def clean
     output_dir = Puppet[:preview_outputdir]
     node_names.each { |node| FileUtils.remove_entry_secure(File.join(output_dir, node)) }
-    0
-  rescue Exception => e
-    $stderr.puts("Clean operation failed: #{e.message}")
-    1
+    @exit_code = 0
   end
 
   def node_names
