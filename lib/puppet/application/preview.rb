@@ -51,9 +51,9 @@ class Puppet::Application::Preview < Puppet::Application
     end
 
     if Puppet.version.start_with?('3.8.0')
-      $stdout.puts(
-        "Warning: Due to a bug in PE 3.8.0 you cannot set the parser setting per environment. "\
-        "This means you  may not be able to use your desired migration workflow unless you upgrade to PE 3.8.1")
+      output_stream.puts(
+        'Warning: Due to a bug in PE 3.8.0 you cannot set the parser setting per environment. '\
+        'This means you  may not be able to use your desired migration workflow unless you upgrade to PE 3.8.1')
     end
   end
 
@@ -169,8 +169,8 @@ class Puppet::Application::Preview < Puppet::Application
         display_file(help_path)
       end
     else
-      if options[:nodes].empty? && !options[:last]
-        raise 'No node(s) given to perform preview compilation for'
+      if options[:nodes].nil? || options[:nodes].empty? && !options[:last]
+        raise UsageError, 'No node(s) given to perform preview compilation for'
       end
 
       if node_names.size > 1 && %w{diff baseline preview baseline_log preview_log }.include?(options[:view].to_s)
@@ -205,13 +205,13 @@ class Puppet::Application::Preview < Puppet::Application
       exit_code > result ? exit_code : result
     end
 
-    exit(@exit_code) unless @exit_code == CATALOG_DELTA
-
-    case options[:assert]
-    when :equal
-      @exit_code = NOT_EQUAL if nodes.any? { |node| node.severity != :equal }
-    when :compliant
-      @exit_code = NOT_COMPLIANT if nodes.any? { |node| node.severity != :equal && node.severity != :compliant }
+    if @exit_code == CATALOG_DELTA
+      case options[:assert]
+      when :equal
+        @exit_code = NOT_EQUAL if nodes.any? { |node| node.severity != :equal }
+      when :compliant
+        @exit_code = NOT_COMPLIANT if nodes.any? { |node| node.severity != :equal && node.severity != :compliant }
+      end
     end
 
     exit(@exit_code)
@@ -500,16 +500,17 @@ class Puppet::Application::Preview < Puppet::Application
   # pretty json
   #
   def display_file(file, pretty_json=false)
-    raise "Preview data for node '#{options[:node]}' does not exist" unless File.exists?(file)
+    raise UsageError, "Preview data for node '#{options[:node]}' does not exist" unless File.exists?(file)
+    out = output_stream
     if pretty_json
       Puppet::FileSystem.open(file, nil, 'rb') do |input|
         json = JSON.load(input)
-        $stdout.puts(PSON::pretty_generate(json, :allow_nan => true, :max_nesting => false))
+        out.puts(PSON::pretty_generate(json, :allow_nan => true, :max_nesting => false))
       end
     else
       Puppet::FileSystem.open(file, nil, 'rb') do |source|
-        FileUtils.copy_stream(source, $stdout)
-        puts '' # ensure a new line at the end
+        FileUtils.copy_stream(source, out)
+        out.puts '' # ensure a new line at the end
       end
     end
   end
@@ -541,7 +542,7 @@ class Puppet::Application::Preview < Puppet::Application
       elsif file
         message << "at #{entry['file']}"
       end
-      $stderr.puts  Colorizer.new.colorize(:hred, message)
+      error_stream.puts  Colorizer.new.colorize(:hred, message)
     end
   end
 
@@ -550,6 +551,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def display_summary(delta)
+    out = output_stream
 
     if delta
       compliant_count = delta.conflicting_resources.count {|r| r.compliant? }
@@ -557,7 +559,7 @@ class Puppet::Application::Preview < Puppet::Application
         memo + r.conflicting_attributes.count {|a| a.compliant? }
       end
 
-      $stdout.puts <<-TEXT
+      out.puts <<-TEXT
 
 Catalog:
   Versions......: #{delta.version_equal? ? 'equal' : 'different' }
@@ -590,7 +592,7 @@ Edges:
   TEXT
     end
 
-    $stdout.puts <<-TEXT
+    out.puts <<-TEXT
 Output:
   For node......: #{Puppet[:preview_outputdir]}/#{options[:node]}
 
@@ -598,7 +600,7 @@ Output:
 
   end
 
-  # Outputs the given _overview_ on `$stdout`. The output is either in JSON format
+  # Outputs the given _overview_ on `$stdout` or configured `:output_stream`. The output is either in JSON format
   # or in textual form as determined by _as_json_.
   #
   # @param overview [OverviewModel::Overview] the model to output
@@ -606,7 +608,7 @@ Output:
   #
   def display_overview(overview, as_json)
     report = OverviewModel::Report.new(overview)
-    $stdout.puts(as_json ? report.to_json : report.to_s)
+    output_stream.puts(as_json ? report.to_json : report.to_s)
   end
 
   def read_json(type)
@@ -641,21 +643,22 @@ Output:
   def display_status
 
     node = @overview.of_class(OverviewModel::Node)[0]
+    out = output_stream
 
     colorizer = Colorizer.new
     case node.exit_code
     when BASELINE_FAILED
-      $stdout.puts colorizer.colorize(:hred, "Node #{node.name} failed baseline compilation.")
+      out.puts colorizer.colorize(:hred, "Node #{node.name} failed baseline compilation.")
     when PREVIEW_FAILED
-      $stdout.puts colorizer.colorize(:hred, "Node #{node.name} failed preview compilation.")
+      out.puts colorizer.colorize(:hred, "Node #{node.name} failed preview compilation.")
     when CATALOG_DELTA
 
       if node.severity == :equal
-        $stdout.puts colorizer.colorize(:green, "Catalogs for node '#{options[:node]}' are equal.")
+        out.puts colorizer.colorize(:green, "Catalogs for node '#{options[:node]}' are equal.")
       elsif node.severity == :compliant
-        $stdout.puts "Catalogs for '#{node.name}' are not equal but compliant."
+        out.puts "Catalogs for '#{node.name}' are not equal but compliant."
       else
-        $stdout.puts "Catalogs for '#{node.name}' are neither equal nor compliant."
+        out.puts "Catalogs for '#{node.name}' are neither equal nor compliant."
       end
     end
   end
@@ -674,13 +677,16 @@ Output:
   end
 
   def terminate_logs
-    # Terminate the JSON logs (the final ] is missing, and it must be provided to produce correct JSON)
+    terminate_log(options[:baseline_log])
+    terminate_log(options[:preview_log])
+  end
+
+  def terminate_log(filename)
+    # Terminate a JSON log (the final ] is missing, and it must be provided to produce correct JSON)
     # Also, if nothing was logged, the opening [ is required, or the file will not be valid JSON
     #
-    endtext = Puppet::FileSystem.size(options[:baseline_log]) == 0 ? "[\n]" : "\n]"
-    Puppet::FileSystem.open(options[:baseline_log], nil, 'ab') { |of| of.write(endtext) }
-    endtext = Puppet::FileSystem.size(options[:preview_log]) == 0 ? "[\n]" : "\n]"
-    Puppet::FileSystem.open(options[:preview_log],  nil, 'ab') { |of| of.write(endtext) }
+    endtext = Puppet::FileSystem.size(filename) == 0 ? "[\n]\n" : "\n]\n"
+    Puppet::FileSystem.open(filename, nil, 'ab') { |of| of.write(endtext) }
   end
 
   def configure_indirector_routes
@@ -811,36 +817,38 @@ Output:
       end]
     end]
 
+    out = output_stream
+
     summary.each do |category, nodes|
       case category
       when :error
         nodes.each do |node|
           if node[:exit_code] == BASELINE_FAILED
-            $stdout.puts Colorizer.new.colorize(:red, "baseline failed (#{node[:baseline_env]}): #{node[:name]}")
+            out.puts Colorizer.new.colorize(:red, "baseline failed (#{node[:baseline_env]}): #{node[:name]}")
           elsif node[:exit_code] == PREVIEW_FAILED
-            $stdout.puts Colorizer.new.colorize(:red, "preview failed (#{node[:preview_env]}): #{node[:name]}")
+            out.puts Colorizer.new.colorize(:red, "preview failed (#{node[:preview_env]}): #{node[:name]}")
           else
-            $stdout.puts Colorizer.new.colorize(:red, "general error (#{node[:preview_env]}): #{node[:name]}")
+            out.puts Colorizer.new.colorize(:red, "general error (#{node[:preview_env]}): #{node[:name]}")
           end
         end
       when :conflicting
         nodes.each do |node|
-          $stdout.puts "catalog delta: #{node[:name]}"
+          out.puts "catalog delta: #{node[:name]}"
         end
       when :compliant
         nodes.each do |node|
-          $stdout.puts "compliant: #{node[:name]}"
+          out.puts "compliant: #{node[:name]}"
         end
       when :equal
         nodes.each do |node|
-          $stdout.puts Colorizer.new.colorize(:green, "equal: #{node[:name]}")
+          out.puts Colorizer.new.colorize(:green, "equal: #{node[:name]}")
         end
       end
     end
   end
 
   def multi_node_status(stats)
-    $stdout.puts <<-TEXT
+    output_stream.puts <<-TEXT
 
 Summary:
   Total Number of Nodes...: #{@overview.of_class(OverviewModel::Node).length}
@@ -860,28 +868,29 @@ Summary:
       end]
     end]
 
+    out = output_stream
     if options[:view] == :equal_nodes
       nodes[:equal].each do |node|
-        $stdout.puts node
+        out.puts node
       end
     elsif options[:view] == :compliant_nodes
       nodes[:compliant].each do |node|
-        $stdout.puts node
+        out.puts node
       end
       nodes[:equal].each do |node|
-        $stdout.puts node
+        out.puts node
       end
     else
       nodes[:error].each do |node|
-        $stdout.puts node
+        out.puts node
       end
       if options[:view] == :diff_nodes
         nodes[:conflicting].each do |node|
-          $stdout.puts node
+          out.puts node
         end
         if options[:assert] == :equal
           nodes[:compliant].each do |node|
-            $stdout.puts node
+            out.puts node
           end
         end
       end
@@ -892,5 +901,13 @@ Summary:
 
   def api_path(*segments)
     ::File.join(API_BASE, *segments)
+  end
+
+  def error_stream
+    options[:error_stream] || $stderr
+  end
+
+  def output_stream
+    options[:output_stream] || $stdout
   end
 end
