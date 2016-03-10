@@ -27,7 +27,8 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   option('--view OPTION') do |arg|
-    if %w{overview overview_json summary diff baseline preview baseline_log preview_log none status failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(arg)
+    if %w{overview overview_json summary diff baseline preview baseline_log preview_log none status
+        failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(arg)
       options[:view] = arg.to_sym
     else
       raise "The --view option only accepts a restricted list of arguments.\n#{RUNHELP}"
@@ -43,13 +44,16 @@ class Puppet::Application::Preview < Puppet::Application
       raise "The '#{arg}' is not a migration kind supported by this version of catalog preview. #{RUNHELP}"
     end
     options[:migration_checker] = MigrationChecker.new
-    # Puppet 3.8.0's MigrationChecker does not have the method 'available_migrations' (but it still supports the 3to4 migration)
+    # Puppet 3.8.0's MigrationChecker does not have the method 'available_migrations' (but
+    # it still supports the 3to4 migration)
     unless Puppet.version.start_with?('3.8.0') || options[:migration_checker].available_migrations[MIGRATION_3to4]
       raise "The (#{Puppet.version}) version of Puppet does not support the '#{arg}' migration kind.\n#{RUNHELP}"
     end
 
     if Puppet.version.start_with?('3.8.0')
-     $stdout.puts "Warning: Due to a bug in PE 3.8.0 you cannot set the parser setting per environment. This means you  may not be able to use your desired migration workflow unless you upgrade to PE 3.8.1"
+      $stdout.puts(
+        "Warning: Due to a bug in PE 3.8.0 you cannot set the parser setting per environment. "\
+        "This means you  may not be able to use your desired migration workflow unless you upgrade to PE 3.8.1")
     end
   end
 
@@ -65,7 +69,8 @@ class Puppet::Application::Preview < Puppet::Application
     if %w{catalog catalog_delta log help excludes}.include?(arg)
       options[:schema] = arg.to_sym
     else
-      raise "The --schema option only accepts 'catalog', 'catalog_delta', 'log', 'excludes', or 'help' as arguments.\n#{RUNHELP}"
+      raise "The --schema option only accepts 'catalog', 'catalog_delta', 'log', 'excludes', "\
+       "or 'help' as arguments.\n#{RUNHELP}"
     end
   end
 
@@ -131,7 +136,9 @@ class Puppet::Application::Preview < Puppet::Application
     options[:nodes] |= command_line.args
 
     if options[:clean]
-      raise '--clean can only be used with options --nodes and --debug' unless (options.keys - [:clean, :node, :nodes, :debug]).empty?
+      unless (options.keys - [:clean, :node, :nodes, :debug]).empty?
+        raise '--clean can only be used with options --nodes and --debug'
+      end
       exit(clean)
     end
 
@@ -146,19 +153,19 @@ class Puppet::Application::Preview < Puppet::Application
 
       case options[:schema]
       when :catalog
-        catalog_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/catalog.json', __FILE__)
+        catalog_path = api_path('schemas', 'catalog.json')
         display_file(catalog_path)
       when :catalog_delta
-        delta_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/catalog-delta.json', __FILE__)
+        delta_path = api_path('schemas', 'catalog-delta.json')
         display_file(delta_path)
       when :log
-        log_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/log.json', __FILE__)
+        log_path = api_path('schemas', 'log.json')
         display_file(log_path)
       when :excludes
-        excludes_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/schemas/excludes.json', __FILE__)
+        excludes_path = api_path('schemas', 'excludes.json')
         display_file(excludes_path)
       else
-        help_path = ::File.expand_path('../../../puppet_x/puppetlabs/preview/api/documentation/catalog-delta.md', __FILE__)
+        help_path = api_path('documentation', 'catalog-delta.md')
         display_file(help_path)
       end
     else
@@ -174,7 +181,8 @@ class Puppet::Application::Preview < Puppet::Application
         last
       else
         unless options[:preview_environment]
-          raise 'No --preview_environment given - cannot compile and produce a diff when only the environment of the node is known'
+          raise 'No --preview_environment given - cannot compile and produce a diff when only"\
+                " the environment of the node is known'
         end
 
         if options[:diff_string_numeric] && !options[:migration_checker] && !options[:migrate] == MIGRATION_3to4
@@ -349,7 +357,8 @@ class Puppet::Application::Preview < Puppet::Application
   def last
     node_directories = Dir["#{Puppet[:preview_outputdir]}/*"]
     if node_directories.empty?
-      raise "There is no preview data in the specified output directory '#{Puppet[:preview_outputdir]}', you must have data from a previous preview run to use --last"
+      raise "There is no preview data in the specified output directory "\
+        "'#{Puppet[:preview_outputdir]}', you must have data from a previous preview run to use --last"
     else
 
       available_nodes = []
@@ -602,7 +611,9 @@ Output:
 
   def read_json(type)
     json = File.read(options[type])
-    raise Puppet::Error.new("Output for node #{options[:node]} is invalid - use --clean and/or recompile") if json.nil? || json.empty?
+    if json.nil? || json.empty?
+      raise Puppet::Error.new("Output for node #{options[:node]} is invalid - use --clean and/or recompile")
+    end
     JSON.load(json)
   end
 
@@ -746,7 +757,7 @@ Output:
   end
 
   def setup
-    raise Puppet::Error.new('Puppet preview is not supported on Microsoft Windows') if Puppet.features.microsoft_windows?
+    raise Puppet::Error, 'Puppet preview is not supported on Microsoft Windows' if Puppet.features.microsoft_windows?
 
     # Make process owner current user unless process owner is 'root'
     unless Puppet.features.root?
@@ -877,4 +888,9 @@ Summary:
     end
   end
 
+  API_BASE = ::File.expand_path(::File.join('..', '..', '..', 'puppet_x', 'puppetlabs', 'preview', 'api'), __FILE__)
+
+  def api_path(*segments)
+    ::File.join(API_BASE, *segments)
+  end
 end
