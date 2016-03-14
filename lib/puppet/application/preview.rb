@@ -748,6 +748,12 @@ Output:
   def setup
     raise Puppet::Error.new('Puppet preview is not supported on Microsoft Windows') if Puppet.features.microsoft_windows?
 
+    # Make process owner current user unless process owner is 'root'
+    unless Puppet.features.root?
+      Puppet[:user] = Etc.getpwuid(Process.uid).name
+      Puppet[:group] = Etc.getgrgid(Process.gid).name
+    end
+
     setup_logs
 
     exit(Puppet.settings.print_configs ? 0 : 1) if Puppet.settings.print_configs?
