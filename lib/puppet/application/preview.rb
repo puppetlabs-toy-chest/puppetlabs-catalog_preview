@@ -208,9 +208,9 @@ class Puppet::Application::Preview < Puppet::Application
         last
         @exit_code = 0
       else
-        unless options[:preview_environment]
-          raise UsageError, 'No --preview_environment given - cannot compile and produce a diff when only"\
-                " the environment of the node is known'
+        unless options[:preview_environment] || options[:migrate]
+          raise UsageError, 'Neither --preview_environment or --migrate given - cannot compile and produce a diff "\
+                "when only the environment of the node is known'
         end
 
         if options[:diff_string_numeric] && !options[:migration_checker] && !options[:migrate] == MIGRATION_3to4
@@ -273,7 +273,7 @@ class Puppet::Application::Preview < Puppet::Application
         catalog_delta = compile_diff(node, timestamp)
 
         baseline_env = options[:back_channel][:baseline_environment]
-        preview_env = options[:preview_environment]
+        preview_env = options[:back_channel][:preview_environment]
         if baseline_env.to_s == preview_env.to_s && !options[:migrate]
           raise UsageError, "The baseline and preview environments for node '#{node}' are the same: '#{baseline_env}'"
         end
@@ -360,7 +360,7 @@ class Puppet::Application::Preview < Puppet::Application
         compile_info = {
           :exit_code => @exit_code,
           :baseline_environment => options[:back_channel][:baseline_environment].to_s,
-          :preview_environment => options[:preview_environment],
+          :preview_environment => options[:back_channel][:preview_environment].to_s,
           :time => timestamp
         }
         of.write(PSON::pretty_generate(compile_info))

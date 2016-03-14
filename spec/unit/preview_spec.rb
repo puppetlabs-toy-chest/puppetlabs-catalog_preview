@@ -257,4 +257,48 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
       end
     end
   end
+
+  context 'when running with --migrate' do
+    let(:preview) {
+      preview = Puppet::Application[:preview]
+      preview.options[:nodes] = ['default']
+      preview
+    }
+
+    let(:options) { preview.options }
+
+    around(:each) do |example|
+      Dir.mktmpdir do |output_dir|
+        Puppet.initialize_settings([
+          '--confdir', fixtures('etc', 'puppet'),
+          '--preview_outputdir', output_dir
+        ])
+        example.run
+      end
+    end
+
+    it 'can produce a diff between two environments' do
+      options[:preview_environment] = 'env4x'
+      options[:migrate] = '3.8/4.0'
+      options[:view] = :diff
+
+      output_stream = StringIO.new
+      options[:output_stream] = output_stream
+      expect(preview.main).to eq(PuppetX::Puppetlabs::Migration::CATALOG_DELTA)
+      json_diff = JSON.parse(output_stream.string)
+      expect(json_diff['conflicting_attribute_count']).to eql(2)
+    end
+
+    it 'can produce a diff by compiling the same environment twice with different parsers' do
+      options[:migrate] = '3.8/4.0'
+      options[:view] = :diff
+
+      output_stream = StringIO.new
+      options[:output_stream] = output_stream
+      expect(preview.main).to eq(PuppetX::Puppetlabs::Migration::CATALOG_DELTA)
+
+      json_diff = JSON.parse(output_stream.string)
+      expect(json_diff['conflicting_attribute_count']).to eql(2)
+    end
+  end
 end

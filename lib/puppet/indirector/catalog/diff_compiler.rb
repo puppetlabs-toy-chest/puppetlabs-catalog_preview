@@ -150,6 +150,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
     baseline_dest = options[:baseline_log].to_s
     preview_dest = options[:preview_log].to_s
+    parser = Puppet[:parser]
 
     begin
       # Baseline compilation
@@ -158,9 +159,14 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
       Puppet::Util::Log.newdestination(baseline_dest)
       Puppet::Util::Log.with_destination(baseline_dest) do
 
-        if options[:baseline_environment]
+        baseline_env = options[:baseline_environment]
+        if baseline_env.nil?
+          baseline_env = 'production' if node.environment.name == :'*root*'
+        end
+
+        unless baseline_env.nil?
           # Switch the node's environment (it finds and instantiates the Environment)
-          node.environment = options[:baseline_environment]
+          node.environment = baseline_env
 
           # Ugly workaround for PUP-5522
           node.parameters['environment'] = node.environment.name
@@ -199,10 +205,20 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
       Puppet::Util::Log.newdestination(preview_dest)
       Puppet::Util::Log.with_destination(preview_dest) do
 
-        node.environment = options[:preview_environment]
+        env = options[:preview_environment]
+        if env.nil?
+          # Preview and baseline uses the same environment and parser=future
+          # must be enforced when it is compiled the second time
+          Puppet[:parser] = 'future' unless parser == :future
+          # Loose the cached environment
+          node.environment = node.environment.name
+        else
+          node.environment = env
 
-        # Ugly workaround for PUP-5522
-        node.parameters['environment'] = node.environment.name
+          # Ugly workaround for PUP-5522
+          node.parameters['environment'] = node.environment.name
+        end
+        options[:back_channel][:preview_environment] = node.environment
 
         Puppet::Util::Profiler.profile(preview_dest, [:diff_compiler, :compile_preview, node.environment, node.name]) do
           # Switch the node's environment (it finds and instantiates the Environment)
@@ -253,6 +269,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
       Puppet.err(detail.to_s) if networked?
       raise
     ensure
+      Puppet[:parser] = parser
       Puppet::Util::Log.close(baseline_dest)
       Puppet::Util::Log.close(preview_dest)
     end
