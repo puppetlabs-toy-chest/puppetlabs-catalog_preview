@@ -154,6 +154,10 @@ class Puppet::Application::Preview < Puppet::Application
     exit(@exit_code)
   end
 
+  def latest_catalog_delta=(catalog_delta)
+    @latest_catalog_delta = catalog_delta
+  end
+
   def main
     if options[:clean]
       unless (options.keys - [:clean, :node, :nodes, :debug]).empty?
@@ -262,12 +266,11 @@ class Puppet::Application::Preview < Puppet::Application
 
     node_names.each do |node|
 
-      options[:node] = node
       begin
         # This call produces a catalog_delta, or sets @exit_code to something other than 0
         #
         timestamp = Time.now.iso8601(9)
-        catalog_delta = compile_diff(timestamp)
+        catalog_delta = compile_diff(node, timestamp)
 
         baseline_env = options[:back_channel][:baseline_environment]
         preview_env = options[:preview_environment]
@@ -276,19 +279,19 @@ class Puppet::Application::Preview < Puppet::Application
         end
 
         if @exit_code == CATALOG_DELTA
-          baseline_log = JSON.load(File.read(options[:baseline_log]))
-          preview_log = JSON.load(File.read(options[:preview_log]))
+          baseline_log = read_json(node, :baseline_log)
+          preview_log = read_json(node, :preview_log)
           factory.merge(catalog_delta, baseline_log, preview_log)
           @latest_catalog_delta = catalog_delta
         else
           case @exit_code
           when BASELINE_FAILED
             display_log(options[:baseline_log])
-            log = JSON.load(File.read(options[:baseline_log]))
+            log = read_json(node, :baseline_log)
             factory.merge_failure(node, baseline_env, timestamp, @exit_code, log)
           when PREVIEW_FAILED
             display_log(options[:preview_log])
-            log = JSON.load(File.read(options[:preview_log]))
+            log = read_json(node, :preview_log)
             factory.merge_failure(node, preview_env, timestamp, @exit_code, log)
           end
         end
@@ -297,8 +300,8 @@ class Puppet::Application::Preview < Puppet::Application
     end
   end
 
-  def compile_diff(timestamp)
-    prepare_output
+  def compile_diff(node, timestamp)
+    prepare_output(node)
 
     # Compilation start time
     @exit_code = 0
@@ -306,10 +309,10 @@ class Puppet::Application::Preview < Puppet::Application
     begin
 
       # Do the compilations and get the catalogs
-      unless result = Puppet::Resource::Catalog.indirection.find(options[:node], options)
+      unless result = Puppet::Resource::Catalog.indirection.find(node, options)
         # TODO: Should always produce a result and give better error depending on what failed
         #
-        raise GeneralError, "Could not compile catalogs for #{options[:node]}"
+        raise GeneralError, "Could not compile catalogs for #{node}"
       end
 
       # WRITE the two catalogs to output files
@@ -335,7 +338,7 @@ class Puppet::Application::Preview < Puppet::Application
       baseline_hash = JSON::parse(baseline_as_resource.to_pson)
       preview_hash  = JSON::parse(preview_as_resource.to_pson)
 
-      catalog_delta = catalog_diff(timestamp, baseline_hash, preview_hash)
+      catalog_delta = catalog_diff(node, timestamp, baseline_hash, preview_hash)
 
       Puppet::FileSystem.open(options[:catalog_diff], 0640, 'wb') do |of|
         of.write(PSON::pretty_generate(catalog_delta.to_hash, :allow_nan => true, :max_nesting => false))
@@ -373,15 +376,13 @@ class Puppet::Application::Preview < Puppet::Application
       raise UsageError, "There is no preview data in the specified output directory "\
         "'#{Puppet[:preview_outputdir]}', you must have data from a previous preview run to use --last"
     else
-
-      available_nodes = []
-      node_directories.each { |dir| available_nodes << dir.match(/^.*\/([^\/]*)$/)[1] }
+      available_nodes = node_directories.map { |dir| dir.match(/^.*\/([^\/]*)$/)[1] }
 
       unless (missing_nodes = node_names - available_nodes).empty?
         raise UsageError, "No preview data available for node(s) '#{missing_nodes.join(", ")}'"
       end
 
-      prepare_output_options
+      generate_last_overview
       view
     end
   end
@@ -406,25 +407,32 @@ class Puppet::Application::Preview < Puppet::Application
     @node_names
   end
 
-  def view(catalog_delta = @latest_catalog_delta)
-    if options[:last]
-      generate_last_overview
-      catalog_delta = @latest_catalog_delta
-    end
-
+  def view_node(node)
     # Produce output as directed by the :view option
     #
     case options[:view]
     when :diff
-      display_file(options[:catalog_diff])
+      display_node_file(node, options[:catalog_diff])
     when :baseline_log
-      display_file(options[:baseline_log], true)
+      display_node_file(node, options[:baseline_log], true)
     when :preview_log
-      display_file(options[:preview_log], true)
+      display_node_file(node, options[:preview_log], true)
     when :baseline
-      display_file(options[:baseline_catalog])
+      display_node_file(node, options[:baseline_catalog])
     when :preview
-      display_file(options[:preview_catalog])
+      display_node_file(node, options[:preview_catalog])
+    end
+  end
+
+  def view
+    # Produce output as directed by the :view option
+    #
+    case options[:view]
+    when :diff, :baseline_log, :preview_log, :baseline, :preview
+      node_names.each do |node|
+        prepare_output_options(node)
+        view_node(node)
+      end
     when :status
       if node_names.size > 1
         multi_node_status(generate_stats)
@@ -450,20 +458,20 @@ class Puppet::Application::Preview < Puppet::Application
         multi_node_status(generate_stats)
         multi_node_summary
       else
-        display_summary(catalog_delta)
+        display_summary(node_names[0], @latest_catalog_delta) unless @latest_catalog_delta.nil?
         display_status
       end
     end
   end
 
-  def prepare_output_options
+  def prepare_output_options(node)
     # TODO: Deal with the output directory
     # It should come from a puppet setting which user can override - that currently does not exist
     # while developing simply write files to CWD
     options[:output_dir] = Puppet[:preview_outputdir] # "./PREVIEW_OUTPUT"
 
     # Make sure the output directory for the node exists
-    node_output_dir = Puppet::FileSystem.pathname(File.join(options[:output_dir], options[:node]))
+    node_output_dir = Puppet::FileSystem.pathname(File.join(options[:output_dir], node))
     options[:node_output_dir] = node_output_dir
     Puppet::FileSystem.mkpath(options[:node_output_dir])
     Puppet::FileSystem.chmod(0750, options[:node_output_dir])
@@ -477,8 +485,8 @@ class Puppet::Application::Preview < Puppet::Application
     options[:compile_info]     = Puppet::FileSystem.pathname(File.join(node_output_dir, 'compile_info.json'))
   end
 
-  def prepare_output
-    prepare_output_options
+  def prepare_output(node)
+    prepare_output_options(node)
 
     # Truncate all output files to ensure output is not a mismatch of old and new
     Puppet::FileSystem.open(options[:baseline_log], 0660, 'wb') { |of| of.write('') }
@@ -493,7 +501,7 @@ class Puppet::Application::Preview < Puppet::Application
     options[:baseline_log]     = options[:baseline_log].realpath
   end
 
-  def catalog_diff(timestamp, baseline_hash, preview_hash)
+  def catalog_diff(node, timestamp, baseline_hash, preview_hash)
     excl_file = options[:excludes]
     excludes = excl_file.nil? ? [] : CatalogDeltaModel::Exclude.parse_file(excl_file)
     # Puppet 3 (Before PUP-3355) used a catalog format where the real data was under a
@@ -503,14 +511,24 @@ class Puppet::Application::Preview < Puppet::Application
     #
     baseline_hash = baseline_hash['data'] if baseline_hash.has_key?('data')
     preview_hash  = preview_hash['data']  if preview_hash.has_key?('data')
-    CatalogDeltaModel::CatalogDelta.new(baseline_hash, preview_hash, options, timestamp, excludes)
+    delta_options = options.merge({:node => node})
+    CatalogDeltaModel::CatalogDelta.new(baseline_hash, preview_hash, delta_options, timestamp, excludes)
   end
 
   # Displays a file, and if the argument pretty_json is truthy the file is loaded and displayed as
   # pretty json
   #
   def display_file(file, pretty_json=false)
-    raise UsageError, "Preview data for node '#{options[:node]}' does not exist" unless File.exists?(file)
+    raise UsageError, "File '#{file} does not exist" unless File.exists?(file)
+    display_existing_file(file, pretty_json)
+  end
+
+  def display_node_file(node, file, pretty_json=false)
+    raise UsageError, "Preview data for node '#{node}' does not exist" unless File.exists?(file)
+    display_existing_file(file, pretty_json)
+  end
+
+  def display_existing_file(file, pretty_json)
     out = output_stream
     if pretty_json
       Puppet::FileSystem.open(file, nil, 'rb') do |input|
@@ -560,7 +578,7 @@ class Puppet::Application::Preview < Puppet::Application
     include Puppet::Util::Colors
   end
 
-  def display_summary(delta)
+  def display_summary(node, delta)
     out = output_stream
 
     if delta
@@ -604,7 +622,7 @@ Edges:
 
     out.puts <<-TEXT
 Output:
-  For node......: #{Puppet[:preview_outputdir]}/#{options[:node]}
+  For node......: #{Puppet[:preview_outputdir]}/#{node}
 
   TEXT
 
@@ -621,10 +639,10 @@ Output:
     output_stream.puts(as_json ? report.to_json : report.to_s)
   end
 
-  def read_json(type)
+  def read_json(node, type)
     json = File.read(options[type])
     if json.nil? || json.empty?
-      raise Puppet::Error.new("Output for node #{options[:node]} is invalid - use --clean and/or recompile")
+      raise Puppet::Error.new("Output for node #{node} is invalid - use --clean and/or recompile")
     end
     JSON.load(json)
   end
@@ -632,19 +650,18 @@ Output:
   def generate_last_overview
     factory = OverviewModel::Factory.new
     node_names.each do |node|
-      options[:node] = node
-      prepare_output_options
+      prepare_output_options(node)
 
-      compile_info = read_json(:compile_info)
+      compile_info = read_json(node, :compile_info)
       case compile_info['exit_code']
       when CATALOG_DELTA
-        catalog_delta = CatalogDeltaModel::CatalogDelta.from_hash(read_json(:catalog_diff))
-        factory.merge(catalog_delta, read_json(:baseline_log), read_json(:preview_log))
+        catalog_delta = CatalogDeltaModel::CatalogDelta.from_hash(read_json(node, :catalog_diff))
+        factory.merge(catalog_delta, read_json(node, :baseline_log), read_json(node, :preview_log))
         @latest_catalog_delta = catalog_delta
       when BASELINE_FAILED
-        factory.merge_failure(node, compile_info['time'], compile_info['baseline_environment'], 2, read_json(:baseline_log))
+        factory.merge_failure(node, compile_info['time'], compile_info['baseline_environment'], 2, read_json(node, :baseline_log))
       when PREVIEW_FAILED
-        factory.merge_failure(node, compile_info['time'], compile_info['preview_environment'], 3, read_json(:preview_log))
+        factory.merge_failure(node, compile_info['time'], compile_info['preview_environment'], 3, read_json(node, :preview_log))
       end
     end
     @overview = factory.create_overview
@@ -664,7 +681,7 @@ Output:
     when CATALOG_DELTA
 
       if node.severity == :equal
-        out.puts colorizer.colorize(:green, "Catalogs for node '#{options[:node]}' are equal.")
+        out.puts colorizer.colorize(:green, "Catalogs for node '#{node}' are equal.")
       elsif node.severity == :compliant
         out.puts "Catalogs for '#{node.name}' are not equal but compliant."
       else
