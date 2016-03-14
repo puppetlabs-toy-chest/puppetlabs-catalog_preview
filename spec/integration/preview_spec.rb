@@ -549,7 +549,7 @@ EOS
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
       expect(resource_one['parameters']['message']).to eq('local')
     end
-    it 'should find the trusted facts using --trusted as non-root' do
+    it 'should not allow --trusted as non-root' do
       report = on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted'",
                   :acceptable_exit_codes => [1]).stderr
       expect(report).to match(/Error:.* --trusted .*as root/)
@@ -589,7 +589,7 @@ EOS
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
       expect(resource_one['parameters']['message']).to eq('local')
     end
-    it 'should find the trusted facts using --trusted as non-root' do
+    it 'should not allow --trusted as non-root' do
       report = on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted'",
                   :acceptable_exit_codes => [1]).stderr
       expect(report).to match(/Error:.* --trusted .*as root/)
