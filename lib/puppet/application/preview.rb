@@ -103,8 +103,7 @@ class Puppet::Application::Preview < Puppet::Application
   option('--clean')
 
   def help
-    path = ::File.expand_path( '../../../puppet_x/puppetlabs/preview/api/documentation/preview-help.md', __FILE__)
-    Puppet::FileSystem.read(path)
+    Puppet::FileSystem.read(api_path('documentation', 'preview-help.md'))
   end
 
   # Sets up the 'node_cache_terminus' default to use the Write Only Yaml terminus :write_only_yaml.
