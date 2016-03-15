@@ -45,9 +45,9 @@ used when producing the preview catalog (see option --migrate below).
 
 If '--baseline_environment' is set, a node will first be configured as directed by
 an ENC, the environment is then switched to the '--baseline_environment'.
-The '--preview_environment' option is intended to aid when changing code (for the purpose
-of making it work with the future parser) while the original environment is unchanged and
-is configured with the 3.x current parser (i.e. what is in 'production').
+The '--basline_environment' and '--preview_environment' options are intended to aid when changing
+code (for the purpose of making it work with the future parser) while the original environment is
+unchanged and is configured with the 3.x current parser (i.e. what is in 'production').
 If the intent is to make backwards compatible changes in the preview
 environment (i.e. changes that work for both parsers) it is of value to have yet another
 environment configured for current (3.x) parser where the same code as in the preview
@@ -56,7 +56,7 @@ environments without having to modify the environment assigned by the ENC. All o
 assignments made by the ENC are unchanged.
 
 By default the command outputs a summary report of the difference between the two catalogs on 'stdout'
-if the command operates on a single node, and outputs an summary per node when the
+if the command operates on a single node, and outputs a summary per node when the
 command operates on multiple nodes. The output for a single node can be changed with '--view'
 to instead view one of the catalogs, the diff, or one of the compilation logs. For
 multiple nodes --view overview produces and overview of aggregated and correlated
