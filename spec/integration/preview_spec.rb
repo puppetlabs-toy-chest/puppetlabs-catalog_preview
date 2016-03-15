@@ -524,6 +524,20 @@ EOS
         expect(r.exit_code).to be_zero
       end
     end
+
+    it 'accepts --migrate 3.8/4.0 and no --preview_environment' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+         { :catch_failures => true } do |r|
+        expect(r.exit_code).to be_zero
+      end
+    end
+
+    it 'errors with exit 1 when neither --migrate nor --preview_environment is given' do
+      env_path = File.join(testdir_simple, 'environments')
+      on master, puppet("preview #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+         :acceptable_exit_codes => [1]
+    end
   else
 
     it 'errors with exit 1 on --migrate 3.8/4.0' do

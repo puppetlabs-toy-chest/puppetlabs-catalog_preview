@@ -3,8 +3,10 @@ puppet-preview(8) -- Puppet catalog preview compiler
 
 SYNOPSIS
 --------
-Compiles two catalogs for one or more nodes: one catalog in the baseline environment and one in a preview environment and computes a diff between the two. Produces the two catalogs, the diff, and
-the logs from each compilation for each node and then summaries/aggregates and correlates found issues in various views of the produced information.
+Compiles two catalogs for one or more nodes and computes a diff between the two. The catalogs may
+reflect different environments, be compiled with different compilers, or both. Produces the two
+catalogs, the diff, and the logs from each compilation for each node and then summaries/aggregates
+and correlates found issues in various views of the produced information.
 
 USAGE
 -----
@@ -23,7 +25,7 @@ puppet preview [
     [-vd|--verbose_diff]
     [--trusted]
     [--baseline_environment <ENV-NAME> | --be <ENV-NAME>]
-    --preview_environment <ENV-NAME> | --pe <ENV-NAME>
+    [--preview_environment <ENV-NAME> | --pe <ENV-NAME>]
     <NODE-NAME>+ | --nodes <FILE> <NODE_NAME>*
   ]|[--schema catalog|catalog_delta|excludes|log|help]
    |[-h|--help]
@@ -36,15 +38,16 @@ This command compiles, compares, and asserts a baseline catalog and a preview ca
 for one or several node(s) that has previously requested a catalog from a puppet master
 (thereby making the node's facts available). The compilation of the baseline catalog takes
 place in the environment configured for each given node (optionally overridden
-with '--baseline_environment'). The compilation of the preview takes place in the environment
-designated by '--preview_environment'.
+with '--baseline_environment'). The compilation of the preview takes place in the same environment
+or in the environment designated by '--preview_environment'. Using the same environment is only
+meaningful when the compiler used for producing the baseline catalog is different from the one
+used when producing the preview catalog (see option --migrate below).
 
 If '--baseline_environment' is set, a node will first be configured as directed by
 an ENC, the environment is then switched to the '--baseline_environment'.
-The '--baseline_environment' option is intended to aid when changing code in the
-preview environment (for the purpose of making it work with the future parser) while
-the original environment is unchanged and is configured with the 3.x current parser
-(i.e. what is in 'production').
+The '--basline_environment' and '--preview_environment' options are intended to aid when changing
+code (for the purpose of making it work with the future parser) while the original environment is
+unchanged and is configured with the 3.x current parser (i.e. what is in 'production').
 If the intent is to make backwards compatible changes in the preview
 environment (i.e. changes that work for both parsers) it is of value to have yet another
 environment configured for current (3.x) parser where the same code as in the preview
@@ -52,7 +55,8 @@ environment is checked out. It is then simple to diff between compilations in an
 environments without having to modify the environment assigned by the ENC. All other
 assignments made by the ENC are unchanged.
 
-By default the command outputs a summary report of the difference between the two catalogs on 'stdout' if the command operates on a single node, and outputs an summary per node when the
+By default the command outputs a summary report of the difference between the two catalogs on 'stdout'
+if the command operates on a single node, and outputs a summary per node when the
 command operates on multiple nodes. The output for a single node can be changed with '--view'
 to instead view one of the catalogs, the diff, or one of the compilation logs. For
 multiple nodes --view overview produces and overview of aggregated and correlated
@@ -66,12 +70,15 @@ When the preview compilation is performed, it is possible to turn on extra
 migration validation using '--migrate 3.8/4.0'. This will turn on extra validations
 of future compatibility flagging puppet code that needs to be reviewed. This
 feature was introduced to help with the migration from puppet 3.x to puppet 4.x.
-and requires that the '--preview_envenvironment' references an environment configured
-to use the future parser in its environment.conf.
+If the '--preview_environment' is used, then it must reference an environment configured
+to use the future parser in its environment.conf. If no preview environment has been designated,
+then the same environment will be compiled twice and the use of the future parser will be enforced
+during the second compilation.
 
 The wanted kind of migration checks to perform must be given with the '--migrate' option.
 This version of preview support the migration kind '3.8/4.0'. The version of Puppet used
-with this version of preview must also support this migration kind (which Puppet does between the versions >= 3.8.0 and < 4.0.0 does). Newer versions of Puppet may contain additional
+with this version of preview must also support this migration kind (which Puppet does between the
+versions >= 3.8.0 and < 4.0.0 does). Newer versions of Puppet may contain additional
 new migration strategies.
 
 All output (except the summary/status and overview reports intended for human use) is written in
@@ -110,6 +117,7 @@ The 'compilation_info.json' is a catalog preview internal file.
 
 SETUP
 -----
+Using two environments:
 * Include this (the catalog-preview) module in the puppet configuration
 * Create an environment in which the preview compilation should take place (the version
   of the source and the version of the environment configuration you want to diff against
@@ -122,6 +130,16 @@ SETUP
   for information about the parser setting).
 * Run preview for one or multiple nodes that have already checked in with the master
 * Slice and dice the information to find problems
+
+Using only one environment (limited to --migrate '3.8/4.0'):
+* Include this (the catalog-preview) module in the puppet configuration
+* When using preview to migrate from 3.8 to 4.0 configure the baseline environment to use
+  the current parser. (This is specific to puppet versions >= 3.8 <= 4.0.0), see:
+    https://docs.puppetlabs.com/puppet/3.8/reference/config_file_environment.html#parser
+  for information about the parser setting).
+* Run preview for one or multiple nodes that have already checked in with the master
+* Slice and dice the information to find problems
+
 
 OPTIONS
 -------
@@ -297,6 +315,10 @@ resources of File type using 'jq' to filter the output (the command is given as 
 
     puppet preview --pe future_production --view diff mynode 
     | jq -f '.conflicting_resources | map(select(.type == "File"))'
+
+To perform a full migration preview for multiple nodes using only one environment:
+
+    puppet preview --migrate 3.8/4.0 --view overview mynode1 mynode2 mynode3
 
 View the catalog schema:
 
