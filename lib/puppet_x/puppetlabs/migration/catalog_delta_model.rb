@@ -590,8 +590,13 @@ module CatalogDeltaModel
       @baseline_catalog = options[:baseline_catalog]
       @preview_catalog  = options[:preview_catalog]
       @node_name        = options[:node]
-      @tags_ignored     = options[:skip_tags]
-      @string_numeric_diff_ignored = options[:migration_checker] && !options[:diff_string_numeric]
+      @tags_ignored     = options.include?(:skip_tags) ? options[:skip_tags] : false
+
+      if options[:migration_checker]
+        @string_numeric_diff_ignored = options.include?(:diff_string_numeric) ? !options[:diff_string_numeric] : true
+      else
+        @string_numeric_diff_ignored = false
+      end
 
       baseline = assert_type(Hash, baseline, {})
       preview = assert_type(Hash, preview, {})
@@ -652,7 +657,7 @@ module CatalogDeltaModel
       @preview_compliant = @missing_resources.empty? && @missing_edges.empty? && @conflicting_resources.all? { |cr| cr.compliant? }
       @preview_equal = @preview_compliant && @conflicting_resources.empty? && @added_resources.empty? && @added_edges.empty?
 
-      unless options[:verbose_diff]
+      unless options[:verbose_diff] == true
         # Clear attributes in the added and missing resources array
         @added_resources.each { |r| r.clear_attributes }
         @missing_resources.each { |r| r.clear_attributes }

@@ -20,15 +20,16 @@ class Puppet::Application::Preview < Puppet::Application
 
   option('--debug', '-d')
 
-  option('--baseline_environment ENV_NAME,', '--be ENV_NAME') do |arg|
+  option('--baseline-environment ENV_NAME', '--baseline_environment ENV_NAME', '--be ENV_NAME') do |arg|
     options[:baseline_environment] = arg
   end
 
-  option('--preview_environment ENV_NAME', '--pe ENV_NAME') do |arg|
+  option('--preview-environment ENV_NAME', '--preview_environment ENV_NAME', '--pe ENV_NAME') do |arg|
     options[:preview_environment] = arg
   end
 
   option('--view OPTION') do |arg|
+    arg = arg.gsub(/-/, '_')
     if %w{overview overview_json summary diff baseline preview baseline_log preview_log none status
         failed_nodes diff_nodes equal_nodes compliant_nodes}.include?(arg)
       options[:view] = arg.to_sym
@@ -76,15 +77,15 @@ class Puppet::Application::Preview < Puppet::Application
     end
   end
 
-  option('--skip_tags')
+  option('--[no-]skip-tags', '--skip_tags')
 
-  option('--diff_string_numeric')
+  option('--[no-]diff-string-numeric', '--diff_string_numeric')
 
   option('--trusted') do |_|
     options[:trusted] = true
   end
 
-  option('--verbose_diff', '-vd')
+  option('--[no-]verbose-diff', '--verbose_diff', '-vd')
 
   option('--nodes NODES_FILE') do |arg|
     # Each line in the given file is a node name or space separated node names
@@ -200,8 +201,8 @@ class Puppet::Application::Preview < Puppet::Application
         raise UsageError, 'No node(s) given to perform preview compilation for'
       end
 
-      if node_names.size > 1 && %w{diff baseline preview baseline_log preview_log }.include?(options[:view].to_s)
-        raise UsageError, "The --view option '#{options[:view]}' is not supported for multiple nodes"
+      if node_names.size > 1 && [:diff, :baseline, :preview, :baseline_log, :preview_log].include?(options[:view])
+        raise UsageError, "The --view option '#{options[:view].to_s.gsub(/_/, '-')}' is not supported for multiple nodes"
       end
 
       if options[:last]
@@ -213,8 +214,13 @@ class Puppet::Application::Preview < Puppet::Application
                 "when only the environment of the node is known'
         end
 
-        if options[:diff_string_numeric] && !options[:migration_checker] && !options[:migrate] == MIGRATION_3to4
-          raise UsageError, '--diff_string_numeric can only be used in combination with --migrate 3.8/4.0'
+        if options.include?(:diff_string_numeric)
+          if options[:migrate] != MIGRATION_3to4
+            raise UsageError, '--diff-string-numeric can only be used in combination with --migrate 3.8/4.0'
+          end
+        else
+          # the string/numeric diff is ignored when migrating from 3 to 4
+          options[:diff_string_numeric] = options[:migrate] != MIGRATION_3to4
         end
         compile
 
@@ -738,7 +744,7 @@ Output:
 
     # NOTE: PE 3.x ships PuppetDB 2.x and uses the v3 PuppetDB API endpoints.
     # These return stringified, non-structured facts. However, many Future
-    # parser comparisions are type-sensitive. For example, a variable holding a
+    # parser comparisons are type-sensitive. For example, a variable holding a
     # stringified fact will fail to compare against an integer.
     #
     # So, if PuppetDB is in use, we swap in a copy of the 2.x terminus which

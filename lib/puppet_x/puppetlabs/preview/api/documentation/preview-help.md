@@ -16,18 +16,18 @@ puppet preview [
     [-d|--debug]
     [-l|--last]
     [--clean]
-    [-m <MIGRATION>|--migrate <MIGRATION> [--diff_string_numeric]]
-    [--preview_outputdir <PATH-TO-OUTPUT-DIR>]
-    [--skip_tags]
+    [-m <MIGRATION>|--migrate <MIGRATION> [--[no-]diff-string-numeric]]
+    [--preview-outputdir <PATH-TO-OUTPUT-DIR>]
+    [--[no-]skip-tags]
     |--excludes <PATH-TO-EXCLUSIONS-FILE>]
-    [--view summary|overview|overview_json|baseline|preview|diff|baseline_log|preview_log|none|
-    failed_nodes|diff_nodes|compliant_nodes|equal_nodes]
-    [-vd|--verbose_diff]
+    [--view summary|overview|overview-json|baseline|preview|diff|baseline-log|preview-log|none|
+    failed-nodes|diff-nodes|compliant-nodes|equal-nodes]
+    [-vd|--[no-]verbose-diff]
     [--trusted]
-    [--baseline_environment <ENV-NAME> | --be <ENV-NAME>]
-    [--preview_environment <ENV-NAME> | --pe <ENV-NAME>]
+    [--baseline-environment <ENV-NAME> | --be <ENV-NAME>]
+    [--preview-environment <ENV-NAME> | --pe <ENV-NAME>]
     <NODE-NAME>+ | --nodes <FILE> <NODE_NAME>*
-  ]|[--schema catalog|catalog_delta|excludes|log|help]
+  ]|[--schema catalog|catalog-delta|excludes|log|help]
    |[-h|--help]
    |[-V|--version]
 ```
@@ -38,14 +38,14 @@ This command compiles, compares, and asserts a baseline catalog and a preview ca
 for one or several node(s) that has previously requested a catalog from a puppet master
 (thereby making the node's facts available). The compilation of the baseline catalog takes
 place in the environment configured for each given node (optionally overridden
-with '--baseline_environment'). The compilation of the preview takes place in the same environment
-or in the environment designated by '--preview_environment'. Using the same environment is only
+with '--baseline-environment'). The compilation of the preview takes place in the same environment
+or in the environment designated by '--preview-environment'. Using the same environment is only
 meaningful when the compiler used for producing the baseline catalog is different from the one
 used when producing the preview catalog (see option --migrate below).
 
-If '--baseline_environment' is set, a node will first be configured as directed by
-an ENC, the environment is then switched to the '--baseline_environment'.
-The '--basline_environment' and '--preview_environment' options are intended to aid when changing
+If '--baseline-environment' is set, a node will first be configured as directed by
+an ENC, the environment is then switched to the '--baseline-environment'.
+The '--basline-environment' and '--preview-environment' options are intended to aid when changing
 code (for the purpose of making it work with the future parser) while the original environment is
 unchanged and is configured with the 3.x current parser (i.e. what is in 'production').
 If the intent is to make backwards compatible changes in the preview
@@ -70,7 +70,7 @@ When the preview compilation is performed, it is possible to turn on extra
 migration validation using '--migrate 3.8/4.0'. This will turn on extra validations
 of future compatibility flagging puppet code that needs to be reviewed. This
 feature was introduced to help with the migration from puppet 3.x to puppet 4.x.
-If the '--preview_environment' is used, then it must reference an environment configured
+If the '--preview-environment' is used, then it must reference an environment configured
 to use the future parser in its environment.conf. If no preview environment has been designated,
 then the same environment will be compiled twice and the use of the future parser will be enforced
 during the second compilation.
@@ -85,9 +85,9 @@ All output (except the summary/status and overview reports intended for human us
 JSON format to allow further processing with tools like 'jq' (JSON query).
 
 The output is written to a subdirectory named after the node of the directory appointed
-by the setting 'preview_outputdir' (defaults to '$vardir/preview'):
+by the setting 'preview-outputdir' (defaults to '$vardir/preview'):
 
-    |- "$preview_output-dir"
+    |- "$preview_output_dir"
     |  |
     |  |- <NODE-NAME-1>
     |  |  |- preview_catalog_.json
@@ -108,7 +108,7 @@ The two catalogs are written in JSON compliant with a json-schema
 viewable on stdout using '--schema catalog'
 
 The 'catalog_diff.json' file is written in JSON compliant with a json-schema
-viewable on stdout using '--schema catalog_delta'.
+viewable on stdout using '--schema catalog-delta'.
 
 The two '<type>_log.json' files are written in JSON compliant with a json-schema
 viewable on stdout using '--schema log'.
@@ -152,7 +152,7 @@ Note that all settings (such as 'log_level') affect both compilations.
   catalog is not compliant instead of an exit with 0 to indicate that the preview run
   was successful in itself. 
 
-* --baseline_environment <ENV-NAME> | --be <ENV-NAME>
+* --baseline-environment <ENV-NAME> | --be <ENV-NAME>
   Makes the baseline compilation take place in the given <ENV-NAME>. This overrides
   the environment set for the node via an ENC.
   Uses facts obtained from the configured facts terminus to compile the catalog.
@@ -164,10 +164,13 @@ Note that all settings (such as 'log_level') affect both compilations.
   Note that debugging information for the startup and end of the application
   itself is sent to the console.
 
-* --diff_string_numeric
+* --\[no-]diff-string-numeric
   Makes a difference in type between a string and a numeric value (that are equal numerically)
-  be a conflicting diff. Can only be combined with '--migrate 3.8/4.0'. A type difference
-  for the `mode` attribute in `File` will always be reported since this is a significant change.
+  be a conflicting diff. A type difference for the `mode` attribute in `File` will always be
+  reported since this is a significant change. If the option is prefixed with `no-`, then a
+  difference in type will be ignored. This option can only be combined with `--migrate 3.8/4.0` and
+  will then default to `--no-diff-string-numeric`. The behavior for other types of conversions is
+  always equivalent to `--diff-string-numeric`
 
 * --excludes <FILE>
   Adds resource diff exclusion of specified attributes to prevent them from being included
@@ -199,10 +202,10 @@ Note that all settings (such as 'log_level') affect both compilations.
 
 * --migrate <MIGRATION>
   Turns on migration validation for the preview compilation. Validation result
-  is produced to the preview log file or optionally to stdout with '--view preview_log'.
+  is produced to the preview log file or optionally to stdout with '--view preview-log'.
   When --migrate is on, values where one value is a string and the other numeric
   are considered equal if they represent the same number. This can be turned off
-  with --diff_string_numeric, but turning this off may result in many conflicts
+  with --diff-string-numeric, but turning this off may result in many conflicts
   being reported that need no action. The <MIGRATION> value is required. Currently only
   '3.8/4.0' which requires a Puppet version between >= 3.8.0 and < 4.0.0. The preview module
   may be used with versions >= 4.0.0, but can then not accept the '3.8/4.0' migration.
@@ -213,22 +216,23 @@ Note that all settings (such as 'log_level') affect both compilations.
   This may be combined with additional nodes given on the command line. Duplicate entries (in given  
   file, or on command line) are skipped.
 
-* --preview_environment <ENV-NAME> | --pe <ENV-NAME>
+* --preview-environment <ENV-NAME> | --pe <ENV-NAME>
   Makes the preview compilation take place in the given <ENV-NAME>.
   Uses facts obtained from the configured facts terminus to compile the catalog.
 
-* --preview_outputdir <DIR>
+* --preview-outputdir <DIR>
   Defines the directory to which output is produced.
   This is a puppet setting that can be overridden on the command line.
 
-* --schema catalog | catalog_delta | excludes | log | help
-  Outputs the json-schema for the puppet catalog, catalog_delta, exclusions, or log. The option
+* --schema catalog | catalog-delta | excludes | log | help
+  Outputs the json-schema for the puppet catalog, catalog-delta, exclusions, or log. The option
   'help' will display the semantics of the catalog-diff schema. Can not be combined with
   any other option.
 
-* --skip_tags
-  Ignores comparison of tags, catalogs are considered equal/compliant if they only
-  differ in tags.
+* --\[no-\]skip-tags
+  Ignores (skips) comparison of tags, catalogs are considered equal/compliant if they only
+  differ in tags. If the option is prefixed with `no-`, then tags will be included in the
+  comparison. The default is `--no-skip-tags`.
 
 * --trusted
   Makes trusted node data obtained from a fact terminus retain its authentication
@@ -237,10 +241,10 @@ Note that all settings (such as 'log_level') affect both compilations.
   authenticated key is set to false. The --trusted option is only available when running
   as root, and should only be turned on when also trusting the facts store.
 
-* --verbose_diff
+* --\[no-\]verbose-diff
   Includes more information in the catalog diff such as attribute values in
   missing and added resources. Does not affect if catalogs are considered equal or
-  compliant.
+  compliant. The default is `--no-verbose-diff`.
 
 * --version:
   Prints the puppet version number and exit.
@@ -254,16 +258,16 @@ Note that all settings (such as 'log_level') affect both compilations.
   | diff            | The catalog diff for one node in json format  
   | baseline        | The baseline catalog for one node in json
   | preview         | The preview catalog for one node in json
-  | baseline_log    | The baseline log for one node in json
-  | preview_log     | The preview log for one node in json
+  | baseline-log    | The baseline log for one node in json
+  | preview-log     | The preview log for one node in json
   | status          | Short compliance status output for one or multiple nodes
   | none            | No output, useful when using preview as a test of exit code in a script
   | overview        | Aggregated & correlated report of errors/warnings/diffs across nodes
-  | overview_json   | (Experimental) The overview output in json format
-  | failed_nodes    | A list of nodes where compilation of the two catalogs failed
-  | diff_nodes      | A list of nodes where there are diffs in the two catalogs
-  | compliant_nodes | A list of nodes that have catalogs that are equal, or with compliant diffs
-  | equal_nodes     | A list of nodes where catalogs where equal
+  | overview-json   | (Experimental) The overview output in json format
+  | failed-nodes    | A list of nodes where compilation of the two catalogs failed
+  | diff-nodes      | A list of nodes where there are diffs in the two catalogs
+  | compliant-nodes | A list of nodes that have catalogs that are equal, or with compliant diffs
+  | equal-nodes     | A list of nodes where catalogs where equal
 
 
   The 'overview' report is intended to be the most informative in terms of answering "what
@@ -272,15 +276,15 @@ Note that all settings (such as 'log_level') affect both compilations.
   The reports 'status' and 'summary' are intended to be brief information for human consumption
   to understand the outcome of running a preview command.
 
-  The 'xxx_nodes' reports are intended to be used for saving to a file and using it
+  The 'xxx-nodes' reports are intended to be used for saving to a file and using it
   to selectively clean information or focus the next run on those nodes (i.e. the file is
   given as an argument to --nodes in the next run of the command).
 
-  The 'diff', 'baseline', 'preview', 'baseline_log', and 'preview_log' reports are intended
+  The 'diff', 'baseline', 'preview', 'baseline-log', and 'preview-log' reports are intended
   to provide drill down into the details and for being able to pipe the information to custom
   commands that further process the output.
 
-  The 'overview_json' is "all the data" and it is used as the basis for the 'overview' report.
+  The 'overview-json' is "all the data" and it is used as the basis for the 'overview' report.
   The fact that it contains "all the data" means it can be used to produce other views of the 
   results across a set of nodes without having to load and interpret the output for each node
   from the file system.
@@ -324,14 +328,14 @@ View the catalog schema:
 
     puppet preview --schema catalog
 
-View the catalog-diff schema:
+View the catalog-delta schema:
 
-    puppet preview --schema catalog_diff
+    puppet preview --schema catalog-delta
 
 Run a diff (with the default summary view) then view the preview log:
 
     puppet preview --pe future_production mynode
-    puppet preview --pe future_production mynode --view preview_log --last
+    puppet preview --pe future_production mynode --view preview-log --last
 
 Node name can be placed anywhere:
 
@@ -341,7 +345,7 @@ Node name can be placed anywhere:
 Run a migration check, then view a report that only includes failed nodes:
 
     puppet preview --pe future_production --migrate 3.8/4.0 --view none mynode1 mynode2 mynode3
-    puppet preview --view failed_nodes --last > tmpfile
+    puppet preview --view failed-nodes --last > tmpfile
     puppet preview --view overview --last --nodes tmpfile
 
 DIAGNOSTICS
