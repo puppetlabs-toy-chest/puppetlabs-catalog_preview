@@ -16,7 +16,7 @@ puppet preview [
     [-d|--debug]
     [-l|--last]
     [--clean]
-    [-m <MIGRATION>|--migrate <MIGRATION> [--[no-]diff-string-numeric]]
+    [-m <MIGRATION>|--migrate <MIGRATION> [--[no-]diff-string-numeric] [--[no-]diff-array-value]]
     [--preview-outputdir <PATH-TO-OUTPUT-DIR>]
     [--[no-]skip-tags]
     |--excludes <PATH-TO-EXCLUSIONS-FILE>]
@@ -171,6 +171,13 @@ Note that all settings (such as 'log_level') affect both compilations.
   difference in type will be ignored. This option can only be combined with `--migrate 3.8/4.0` and
   will then default to `--no-diff-string-numeric`. The behavior for other types of conversions is
   always equivalent to `--diff-string-numeric`
+
+* --\[no-\]diff-array-value
+  A value in the baseline catalog that is compared to a one element array containing that value in
+  the preview catalog is normally considered a conflict. Using `--no-diff-array-value` will prevent
+  this conflict from being reported. This option can only be combined with `--migrate 3.8/4.0` and
+  will default to `--diff-array-value`. The behavior for other types of conversions is always
+  equivalent to `--diff-array-value`.
 
 * --excludes <FILE>
   Adds resource diff exclusion of specified attributes to prevent them from being included

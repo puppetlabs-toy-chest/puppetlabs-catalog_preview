@@ -626,6 +626,63 @@ describe 'CatalogDelta' do
     expect(delta.string_numeric_diff_ignored?).to be(false)
   end
 
+  it 'ignores array[value]/value differences when --migration MIGRATION is used with --no-diff-array-value' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['mol'] = ['42']
+    delta = CatalogDelta.new(baseline_hash, pv, options.merge(:migration_checker => true, :diff_array_value => false), timestamp)
+    expect(delta.preview_equal?).to be(true)
+    expect(delta.preview_compliant?).to be(true)
+    expect(delta.array_value_diff_ignored?).to be(true)
+    JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
+  end
+
+  it 'ignores both string/int differences and array[value]/value differences when --migration MIGRATION is used with --no-diff-array-value' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['mol'] = [42]
+    delta = CatalogDelta.new(baseline_hash, pv, options.merge(:migration_checker => true, :diff_array_value => false), timestamp)
+    expect(delta.preview_equal?).to be(true)
+    expect(delta.preview_compliant?).to be(true)
+    expect(delta.array_value_diff_ignored?).to be(true)
+    JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
+  end
+
+  it 'detects array[value]/value differences when --migration MIGRATION is used with --diff-array-value' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['mol'] = ['42']
+    delta = CatalogDelta.new(baseline_hash, pv, options.merge(:migration_checker => true, :diff_array_value => true), timestamp)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(false)
+    expect(delta.array_value_diff_ignored?).to be(false)
+    expect(delta.conflicting_resource_count).to eq(1)
+    expect(delta.conflicting_resources).to contain_exactly(be_a(ResourceConflict))
+    conflict = delta.conflicting_resources[0]
+    expect(conflict.type).to eq('File')
+    expect(conflict.title).to eq('/tmp/bartest')
+    expect(conflict.missing_attribute_count).to eq(0)
+    expect(conflict.added_attribute_count).to eq(0)
+    expect(conflict.conflicting_attribute_count).to eq(1)
+    expect(conflict.conflicting_attributes).to contain_exactly(be_a(AttributeConflict))
+    attr = conflict.conflicting_attributes[0]
+    expect(attr.name).to eq('mol')
+    expect(attr.baseline_value).to eq('42')
+    expect(attr.preview_value).to eq(['42'])
+    JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
+  end
+
+  it 'ignores setting of --diff-array-value unless --migration MIGRATION is used' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['mol'] = ['42']
+    delta = CatalogDelta.new(baseline_hash, pv, options.merge(:migration_checker => false, :diff_array_value => true), timestamp)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(false)
+    expect(delta.array_value_diff_ignored?).to be(false)
+
+    delta = CatalogDelta.new(baseline_hash, pv, options.merge(:migration_checker => false, :diff_array_value => false), timestamp)
+    expect(delta.preview_equal?).to be(false)
+    expect(delta.preview_compliant?).to be(false)
+    expect(delta.array_value_diff_ignored?).to be(false)
+  end
+
   it "reports string/int differences of the File 'mode' attribute regardless of migration_checker and diff_string_numeric flag" do
     pv = preview_hash
     pv['resources'][0]['parameters']['mode'] = 0600

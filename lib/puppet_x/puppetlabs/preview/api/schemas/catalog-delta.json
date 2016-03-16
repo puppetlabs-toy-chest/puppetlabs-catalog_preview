@@ -129,6 +129,10 @@
             "type": "boolean",
             "description": "This delta was produced with tags being ignored"
         },
+        "array_value_diff_ignored": {
+            "type": "boolean",
+            "description": "This delta was produced considering a value equal to a one element array containing that value"
+        },
         "string_numeric_diff_ignored": {
             "type": "boolean",
             "description": "This delta was produced considering strings and numbers equal if their numeric representation is the same"

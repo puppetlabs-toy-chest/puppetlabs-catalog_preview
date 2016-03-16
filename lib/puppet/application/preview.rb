@@ -81,6 +81,8 @@ class Puppet::Application::Preview < Puppet::Application
 
   option('--[no-]diff-string-numeric', '--diff_string_numeric')
 
+  option('--[no-]diff-array-value')
+
   option('--trusted') do |_|
     options[:trusted] = true
   end
@@ -222,6 +224,15 @@ class Puppet::Application::Preview < Puppet::Application
           # the string/numeric diff is ignored when migrating from 3 to 4
           options[:diff_string_numeric] = options[:migrate] != MIGRATION_3to4
         end
+
+        if options.include?(:diff_array_value)
+          if options[:migrate] != MIGRATION_3to4
+            raise UsageError, '--diff-array-value can only be used in combination with --migrate 3.8/4.0'
+          end
+        else
+          options[:diff_array_value] = true # this is the default
+        end
+
         compile
 
         view

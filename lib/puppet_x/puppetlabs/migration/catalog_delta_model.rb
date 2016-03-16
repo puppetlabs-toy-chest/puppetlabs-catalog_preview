@@ -423,6 +423,12 @@ module CatalogDeltaModel
     end
 
     # @api public
+    # @return [Boolean] `true` if array[value]/value diffs were ignored when comparing resources
+    def array_value_diff_ignored?
+      @array_value_diff_ignored
+    end
+
+    # @api public
     # @return [Boolean] `true` if string/numeric diffs were ignored when comparing resources
     def string_numeric_diff_ignored?
       @string_numeric_diff_ignored
@@ -594,8 +600,10 @@ module CatalogDeltaModel
 
       if options[:migration_checker]
         @string_numeric_diff_ignored = options.include?(:diff_string_numeric) ? !options[:diff_string_numeric] : true
+        @array_value_diff_ignored = options.include?(:diff_array_value) ? !options[:diff_array_value] : false
       else
         @string_numeric_diff_ignored = false
+        @array_value_diff_ignored = false
       end
 
       baseline = assert_type(Hash, baseline, {})
@@ -749,15 +757,25 @@ module CatalogDeltaModel
     end
     private :create_attribute_conflict
 
-    # Compares the two values for equality taking #string_to_numeric_diff? into account if set
+    # Compares the two values for equality taking #string_to_numeric_diff? and #array_value_diff? into account if set
     #
     # @param bav [Object] value of baseline attribute
     # @param pav [Object] value of preview attribute
     # @return [Boolean] the result of the comparison
     def values_equal?(bav, pav)
-      bav == pav || string_numeric_diff_ignored? && bav.is_a?(String) && pav.is_a?(Numeric) && to_number_or_nil(bav) == pav
+      values_sndiff_equal?(bav, pav) || array_value_diff_ignored? && pav.is_a?(Array) && pav.size == 1 && values_sndiff_equal?(bav, pav[0])
     end
     private :values_equal?
+
+    # Compares the two values for equality taking #string_to_numeric_diff? into account if set
+    #
+    # @param bav [Object] value of baseline attribute
+    # @param pav [Object] value of preview attribute
+    # @return [Boolean] the result of the comparison
+    def values_sndiff_equal?(bav, pav)
+      bav == pav || string_numeric_diff_ignored? && bav.is_a?(String) && pav.is_a?(Numeric) && to_number_or_nil(bav) == pav
+    end
+    private :values_sndiff_equal?
 
     # Coerce value to a number, or return `nil` if it isn't one
     #
