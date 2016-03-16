@@ -636,6 +636,16 @@ describe 'CatalogDelta' do
     JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
   end
 
+  it 'ignores both string/int differences and array[value]/value differences when --migration MIGRATION is used with --no-diff-array-value' do
+    pv = preview_hash
+    pv['resources'][1]['parameters']['mol'] = [42]
+    delta = CatalogDelta.new(baseline_hash, pv, options.merge(:migration_checker => true, :diff_array_value => false), timestamp)
+    expect(delta.preview_equal?).to be(true)
+    expect(delta.preview_compliant?).to be(true)
+    expect(delta.array_value_diff_ignored?).to be(true)
+    JSON::Validator.validate!(catalog_delta_schema, JSON.dump(delta.to_hash))
+  end
+
   it 'detects array[value]/value differences when --migration MIGRATION is used with --diff-array-value' do
     pv = preview_hash
     pv['resources'][1]['parameters']['mol'] = ['42']
