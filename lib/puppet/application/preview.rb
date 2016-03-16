@@ -81,10 +81,6 @@ class Puppet::Application::Preview < Puppet::Application
   option('--diff_string_numeric')
 
   option('--trusted') do |_|
-    unless Puppet.features.root?
-      raise 'The --trusted option is only available when running as root'
-    end
-    # Allow root to keep authenticated in resurrected trusted data
     options[:trusted] = true
   end
 
@@ -168,6 +164,11 @@ class Puppet::Application::Preview < Puppet::Application
 
     if options[:excludes]
       raise UsageError, '--excludes cannot be used with --schema or --last' if options[:last] || options[:schema]
+    end
+
+    # Issue a deprecation warning unless JSON output is expected to avoid that the warning invalidates the output
+    if options.include?(:trusted) && ![:overview_json, :baseline_log, :preview_log].include?(options[:view])
+      Puppet.deprecation_warning('The --trusted option is deprecated and has no effect')
     end
 
     if options[:schema]

@@ -51,21 +51,20 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
   # The find request should
   # - change logging to json output (as directed by baseline-log option)
   # - compile in the baseline (reqular) environment given by the node/infrastructure
-  # - write baseline catalog to file as directed by option
   # - change logging to json output (as directed by preview-log option)
   # - compile in the preview environment as directed by options
-  # - write preview catalog to file as directed by option
-  # - produce a diff (passing options to it from the request
-  # - write diff to file as directed by options
-  #
-  # - return a hash of information
+  # - return a hash containing the baseline and preview catalogs
   #
   # Compile a node's catalog.
   def find(request)
     extract_facts_from_request(request)
+    node = sanitize_node(node_from_request(request))
+    compile(node, request.options)
+  end
 
-    node = node_from_request(request)
-
+  # This method is copied from a Puppet::Parser::Compiler in Puppet 4.4.0
+  #
+  def sanitize_node(node)
     # Resurrect "trusted information" that comes from node/fact terminus.
     # The current way this is done in puppet db (currently the only one)
     # is to store the node parameter 'trusted' as a hash of the trusted information.
@@ -87,14 +86,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
     if trusted_param
       # Blows up if it is a parameter as it will be set as $trusted by the compiler as if it was a variable
       node.parameters.delete('trusted')
-      if trusted_param.is_a?(Hash) && %w{authenticated certname extensions}.all? {|key| trusted_param.has_key?(key) }
-        # looks like a hash of trusted data - resurrect it
-        # Allow root to trust the authenticated information if option --trusted is given
-        if ! (Puppet.features.root? && request.options[:trusted])
-          # Set as not trusted - but keep the information
-          trusted_param['authenticated'] = false
-        end
-      else
+      unless trusted_param.is_a?(Hash) && %w{authenticated certname extensions}.all? {|key| trusted_param.has_key?(key) }
         # trusted is some kind of garbage, do not resurrect
         trusted_param = nil
       end
@@ -103,18 +95,24 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
       trusted_param = nil
     end
 
-    node.trusted_data = Puppet.lookup(:trusted_information) do
-      # resurrect trusted param if set, else use a local node
-      trusted_param || Puppet::Context::TrustedInformation.local(node).to_h
+    # The options for node.trusted_data in priority order are:
+    # 1) node came with trusted_data so use that
+    # 2) else if there is :trusted_information in the puppet context
+    # 3) else if the node provided a 'trusted' parameter (parsed out above)
+    # 4) last, fallback to local node trusted information
+    #
+    # Note that trusted_data should be a hash, but (2) and (4) are not
+    # hashes, so we to_h at the end
+    if !node.trusted_data
+      trusted = Puppet.lookup(:trusted_information) do
+        trusted_param || Puppet::Context::TrustedInformation.local(node)
+      end
+
+      # Ruby 1.9.3 can't apply to_h to a hash, so check first
+      node.trusted_data = trusted.is_a?(Hash) ? trusted : trusted.to_h
     end
 
-    if catalog = compile(node, request.options)
-      return catalog
-    else
-      # This shouldn't actually happen; we should either return
-      # a config or raise an exception.
-      return nil
-    end
+    node
   end
 
   # filter-out a catalog to remove exported resources

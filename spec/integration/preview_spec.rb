@@ -249,7 +249,7 @@ EOS
 
     it 'as non-root, should exit with 0 and produce json logfiles' do
       env_path = File.join(testdir_simple, 'environments')
-      on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
+      on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
         {:catch_failures => true}) do |r|
         expect(r.exit_code).to be_zero
       end
@@ -549,27 +549,17 @@ EOS
 
   context 'when compiling with trusted facts and puppetdb' do
     env_path = File.join(testdir_simple, 'environments')
-    it 'should find the trusted facts using --trusted as root' do
-      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted")).stdout)
-      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
-      expect(resources[0]).to be_a(Hash)
-      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
-      expect(resource_one['parameters']['message']).to eq('local')
-    end
-    it 'should find the trusted facts without --trusted as root' do
+
+    it 'should find the trusted facts' do
       report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
       resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
       expect(resources[0]).to be_a(Hash)
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
       expect(resource_one['parameters']['message']).to eq('local')
     end
-    it 'should not allow --trusted as non-root' do
-      report = on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted'",
-                  :acceptable_exit_codes => [1]).stderr
-      expect(report).to match(/Error:.* --trusted .*as root/)
-    end
-    it 'should find the trusted facts without --trusted as non-root' do
-      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
+
+    it 'should find the trusted facts as non-root' do
+      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview_environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
       resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
       expect(resources[0]).to be_a(Hash)
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
@@ -577,44 +567,12 @@ EOS
     end
   end
 
-   #warning: turning off puppetdb terminus here
-  context 'when compiling with trusted facts without puppetdb' do
+  context 'when using deprecated options' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet('config set storeconfigs         false --section master')
-    on master, puppet('config set storeconfigs_backend active_record --section master')
-    route_file = on(master, puppet('master --configprint route_file')).stdout.chomp
-    on master, "rm #{route_file}"
-    # bounce the server to pickup the config changes
-    stop_puppetserver(master)
-    start_puppetserver(master)
-    on master, puppet("agent --enable")
-    on(master, puppet("agent --test --server #{master.hostname}"), {:accept_all_exit_codes => true})
-    it 'should find the trusted facts using --trusted as root' do
-      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted")).stdout)
-      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
-      expect(resources[0]).to be_a(Hash)
-      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
-      expect(resource_one['parameters']['message']).to eq('local')
-    end
-    it 'should find the trusted facts without --trusted as root' do
-      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
-      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
-      expect(resources[0]).to be_a(Hash)
-      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
-      expect(resource_one['parameters']['message']).to eq('local')
-    end
-    it 'should not allow --trusted as non-root' do
-      report = on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch --trusted'",
-                  :acceptable_exit_codes => [1]).stderr
-      expect(report).to match(/Error:.* --trusted .*as root/)
-    end
-    it 'should find the trusted facts without --trusted as non-root' do
-      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
-      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
-      expect(resources[0]).to be_a(Hash)
-      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
-      expect(resource_one['parameters']['message']).to eq('local')
+
+    it 'should warn that --trusted is deprecated' do
+      err = (on master, puppet("preview --trusted --preview_environment test --environmentpath #{env_path} --view overview nonesuch")).stderr
+      expect(err).to match_regex(/trusted option is deprecated/)
     end
   end
-
 end
