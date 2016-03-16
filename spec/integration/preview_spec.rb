@@ -221,7 +221,7 @@ EOS
   context 'when comparing simple catalogs' do
     it 'as root, should exit with 0 and produce json logfiles' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+      on master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
         {:catch_failures => true} do |r|
         expect(r.exit_code).to be_zero
       end
@@ -249,7 +249,7 @@ EOS
 
     it 'as non-root, should exit with 0 and produce json logfiles' do
       env_path = File.join(testdir_simple, 'environments')
-      on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
+      on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
         {:catch_failures => true}) do |r|
         expect(r.exit_code).to be_zero
       end
@@ -279,7 +279,7 @@ EOS
   # view types: [summary|overview|overview_json|baseline|preview|diff|baseline_log|preview_log|none|
   # failed_nodes|diff_nodes|compliant_nodes|equal_nodes]
   it 'should error if using an unsupported --view type with multiple nodes' do
-    view_types = %w{baseline preview diff baseline_log preview_log}
+    view_types = %w{baseline preview diff baseline-log preview-log}
     view_types.each do |view_type|
       on master, puppet("preview --view #{view_type} one two shoe"),
         {:acceptable_exit_codes => [1]} do |r|
@@ -291,30 +291,30 @@ EOS
   let(:first) {0}
   it 'should output valid json from --view diff' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment test #{node_names_cli[first]} --environmentpath #{env_path} --view diff"),
+    on master, puppet("preview --preview-environment test #{node_names_cli[first]} --environmentpath #{env_path} --view diff"),
                 {:catch_failures => true} do |r|
       expect(r.exit_code).to be_zero
       JSON.parse(r.stdout)
     end
   end
 
-  it 'should output valid json from --view overview_json' do
+  it 'should output valid json from --view overview-json' do
     env_path = File.join(testdir_simple, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path} --view overview_json"),
+    on(master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path} --view overview-json"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| JSON.parse(r.stdout) }
   end
 
-  it 'should output valid json from --view baseline_log' do
+  it 'should output valid json from --view baseline-log' do
     env_path = File.join(testdir_broken_production, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli[first]} --environmentpath #{env_path}"),
+    on(master, puppet("preview --preview-environment test #{node_names_cli[first]} --environmentpath #{env_path}"),
       :acceptable_exit_codes => [2]) { |r| }
-    on(master, puppet("preview #{node_names_cli[first]} --last --view baseline_log"),
+    on(master, puppet("preview #{node_names_cli[first]} --last --view baseline-log"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| JSON.parse(r.stdout) }
   end
 
-  it 'should output valid json from --view preview_log' do
+  it 'should output valid json from --view preview-log' do
     env_path = File.join(testdir_broken_test, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli[first]} --environmentpath #{env_path}"),
+    on(master, puppet("preview --preview-environment test #{node_names_cli[first]} --environmentpath #{env_path}"),
       :acceptable_exit_codes => [3]) { |r| }
     on(master, puppet("preview #{node_names_cli[first]} --last --view preview_log"),
       {:catch_failures => true}) { |r| JSON.parse(r.stdout) }
@@ -331,7 +331,7 @@ EOS
                /#{node_names_all[2]}/mi,
                /#{node_names_all[3]}/mi,
     ]
-    result = on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")).stdout
+    result = on(master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")).stdout
     matches.each do |match|
       assert_match(match,result,'preview output from a successful run did not match expected')
     end
@@ -350,7 +350,7 @@ EOS
                /#{node_names_all[2]}/mi,
                /#{node_names_all[3]}/mi,
     ]
-    result = on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+    result = on(master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [3]).stdout
     matches.each do |match|
       assert_match(match,result,'preview output from failed preview did not match expected')
@@ -368,14 +368,14 @@ EOS
 
   it 'should reconstruct the node list from a previous successful run when using --last' do
     env_path = File.join(testdir_simple, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"))
+    on(master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"))
     result = on(master, puppet("preview --last --view diff_nodes"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| expect(r.stdout).to match(/#{node_names_all}/) }
   end
 
   it 'should reconstruct the node list from a previous compile failure when using --last' do
     env_path = File.join(testdir_broken_test, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+    on(master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
       :acceptable_exit_codes => [3]) { |r| }
     on(master, puppet("preview --last --view failed_nodes"),
       {:catch_failures => true, :acceptable_exit_codes => [0]}) { |r| expect(r.stdout).to match(/#{node_names_all}/) }
@@ -383,7 +383,7 @@ EOS
 
   it 'should produce overview including failed nodes from --last --view overview_json' do
     env_path = File.join(testdir_broken_test, 'environments')
-    on(master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+    on(master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
       :acceptable_exit_codes => [3]) { |r| }
     on(master, puppet("preview --last --view overview_json"), {:catch_failures => true, :acceptable_exit_codes => [0]}) do |r|
       report = JSON.parse(r.stdout)
@@ -399,7 +399,7 @@ EOS
 
   it 'should --view diff_nodes' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path} --view diff_nodes"),
+    on master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path} --view diff_nodes"),
       :acceptable_exit_codes => [0] do |r|
       expect(r.stdout).to match(/#{node_names_all}/)
     end
@@ -407,7 +407,7 @@ EOS
 
   it 'should output nothing from --view failed_nodes with no failed nodes' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path} --view failed_nodes"),
+    on master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path} --view failed_nodes"),
       {:acceptable_exit_codes => [0]} do |r|
       expect(r.exit_code).to be_zero
       expect(r.stdout).to be_empty
@@ -416,7 +416,7 @@ EOS
 
   it 'should show the error and the failed nodes with --view failed_nodes' do
     env_path = File.join(testdir_broken_test, 'environments')
-    on master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path} --view failed_nodes"),
+    on master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path} --view failed_nodes"),
       :acceptable_exit_codes => [3] do |r|
       expect(r.stderr).to match(/Illegal attempt to assign to 'a Name'/)
       expect(r.stdout).to match(/#{node_names_all}/)
@@ -425,14 +425,14 @@ EOS
 
   it 'should fail to run and exit 1 if no node given' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment test --environmentpath #{env_path}"), :acceptable_exit_codes => [1] do |r|
+    on master, puppet("preview --preview-environment test --environmentpath #{env_path}"), :acceptable_exit_codes => [1] do |r|
       expect(r.stderr).not_to    be_empty
     end
   end
 
   it 'should exit with 2 when baseline compilation fails' do
     env_path = File.join(testdir_broken_production, 'environments')
-    on master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+    on master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [2] do |r|
       expect(r.stderr).not_to    be_empty
     end
@@ -440,7 +440,7 @@ EOS
 
   it 'should exit with 3 when preview compilation fails' do
     env_path = File.join(testdir_broken_test, 'environments')
-    on master, puppet("preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+    on master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [3] do |r|
       expect(r.stderr).not_to    be_empty
     end
@@ -448,70 +448,70 @@ EOS
 
   it 'should exit with 4 when -assert equal is used and catalogs are not equal' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment test --assert equal #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+    on master, puppet("preview --preview-environment test --assert equal #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [4]
   end
 
   it 'should exit with 4 when -assert equal is used and catalogs are compliant' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment compliant --assert equal #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+    on master, puppet("preview --preview-environment compliant --assert equal #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
       :acceptable_exit_codes => [4]
   end
 
   it 'should exit with 0 when -assert compliant is used and catalogs are compliant' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment compliant --assert compliant #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
+    on master, puppet("preview --preview-environment compliant --assert compliant #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
   end
 
   context 'when using --assert equal with --excludes' do
     it 'should exit with 0 when excluding attributes qualified with type, title, and attribute name' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
+      on master, puppet("preview --preview-environment compliant --assert equal --excludes #{testdir_simple}/files/excludes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
     end
 
     it 'should exit with 0 when excluding attributes qualified with type and attribute name' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_title.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
+      on master, puppet("preview --preview-environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_title.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
     end
 
     it 'should exit with 0 when excluding conflicting resources qualified with type and title' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
+      on master, puppet("preview --preview-environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
     end
 
     it 'should exit with 0 when excluding conflicting resources qualified with type' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_title_and_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
+      on master, puppet("preview --preview-environment compliant --assert equal --excludes #{testdir_simple}/files/excludes_wo_title_and_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}")
     end
 
     it 'should exit with 0 when excluding missing resources qualified with type and title' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment missing --assert equal --excludes #{testdir_simple}/files/excludes_wo_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+      on master, puppet("preview --preview-environment missing --assert equal --excludes #{testdir_simple}/files/excludes_wo_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
         :acceptable_exit_codes => [0]
     end
 
     it 'should exit with 0 when excluding missing resources qualified with type' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment missing --assert equal --excludes #{testdir_simple}/files/excludes_wo_title_and_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+      on master, puppet("preview --preview-environment missing --assert equal --excludes #{testdir_simple}/files/excludes_wo_title_and_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
         :acceptable_exit_codes => [0]
     end
 
     it 'should exit with 0 when excluding added resources qualified with type and title' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment added --assert equal --excludes #{testdir_simple}/files/excludes_wo_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+      on master, puppet("preview --preview-environment added --assert equal --excludes #{testdir_simple}/files/excludes_wo_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
         :acceptable_exit_codes => [0]
     end
 
     it 'should exit with 0 when excluding added resources qualified with type' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment added --assert equal --excludes #{testdir_simple}/files/excludes_wo_title_and_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+      on master, puppet("preview --preview-environment added --assert equal --excludes #{testdir_simple}/files/excludes_wo_title_and_attributes.json #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
         :acceptable_exit_codes => [0]
     end
   end
 
   it 'should exit with 5 when -assert compliant is used and preview is not compliant' do
     env_path = File.join(testdir_simple, 'environments')
-    on master, puppet("preview --preview_environment test --assert compliant #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+    on master, puppet("preview --preview-environment test --assert compliant #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
                 :acceptable_exit_codes => [5]
   end
 
@@ -519,13 +519,13 @@ EOS
 
     it 'accepts --migrate 3.8/4.0' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment test --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+      on master, puppet("preview --preview-environment test --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
                   { :catch_failures => true } do |r|
         expect(r.exit_code).to be_zero
       end
     end
 
-    it 'accepts --migrate 3.8/4.0 and no --preview_environment' do
+    it 'accepts --migrate 3.8/4.0 and no --preview-environment' do
       env_path = File.join(testdir_simple, 'environments')
       on master, puppet("preview --migrate 3.8/4.0 #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
          { :catch_failures => true } do |r|
@@ -533,7 +533,7 @@ EOS
       end
     end
 
-    it 'errors with exit 1 when neither --migrate nor --preview_environment is given' do
+    it 'errors with exit 1 when neither --migrate nor --preview-environment is given' do
       env_path = File.join(testdir_simple, 'environments')
       on master, puppet("preview #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"),
          :acceptable_exit_codes => [1]
@@ -542,7 +542,7 @@ EOS
 
     it 'errors with exit 1 on --migrate 3.8/4.0' do
       env_path = File.join(testdir_simple, 'environments')
-      on master, puppet("preview --preview_environment test --migrate 3.8/4.0 #{node_names_cli} --nodes #{node_names_filename} --environmentpath #{env_path}"),
+      on master, puppet("preview --preview-environment test --migrate 3.8/4.0 #{node_names_cli} --nodes #{node_names_filename} --environmentpath #{env_path}"),
                   :acceptable_exit_codes => [1]
     end
   end
@@ -551,7 +551,7 @@ EOS
     env_path = File.join(testdir_simple, 'environments')
 
     it 'should find the trusted facts' do
-      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
+      report = JSON.parse((on master, puppet("preview --preview-environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
       resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
       expect(resources[0]).to be_a(Hash)
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
@@ -559,7 +559,7 @@ EOS
     end
 
     it 'should find the trusted facts as non-root' do
-      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview_environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
+      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview-environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
       resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
       expect(resources[0]).to be_a(Hash)
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
@@ -571,7 +571,7 @@ EOS
     env_path = File.join(testdir_simple, 'environments')
 
     it 'should warn that --trusted is deprecated' do
-      err = (on master, puppet("preview --trusted --preview_environment test --environmentpath #{env_path} --view overview nonesuch")).stderr
+      err = (on master, puppet("preview --trusted --preview-environment test --environmentpath #{env_path} --view overview nonesuch")).stderr
       expect(err).to match_regex(/trusted option is deprecated/)
     end
   end
