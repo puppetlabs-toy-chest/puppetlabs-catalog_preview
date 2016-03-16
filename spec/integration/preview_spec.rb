@@ -249,7 +249,7 @@ EOS
 
     it 'as non-root, should exit with 0 and produce json logfiles' do
       env_path = File.join(testdir_simple, 'environments')
-      on(master, "#{run_as_previewser} '#{puppet_path} preview --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
+      on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview_environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
         {:catch_failures => true}) do |r|
         expect(r.exit_code).to be_zero
       end
@@ -544,6 +544,35 @@ EOS
       env_path = File.join(testdir_simple, 'environments')
       on master, puppet("preview --preview_environment test --migrate 3.8/4.0 #{node_names_cli} --nodes #{node_names_filename} --environmentpath #{env_path}"),
                   :acceptable_exit_codes => [1]
+    end
+  end
+
+  context 'when compiling with trusted facts and puppetdb' do
+    env_path = File.join(testdir_simple, 'environments')
+
+    it 'should find the trusted facts' do
+      report = JSON.parse((on master, puppet("preview --preview_environment test --environmentpath #{env_path} --view baseline nonesuch")).stdout)
+      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
+      expect(resources[0]).to be_a(Hash)
+      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
+      expect(resource_one['parameters']['message']).to eq('local')
+    end
+
+    it 'should find the trusted facts as non-root' do
+      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview_environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
+      resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
+      expect(resources[0]).to be_a(Hash)
+      resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
+      expect(resource_one['parameters']['message']).to eq('local')
+    end
+  end
+
+  context 'when using deprecated options' do
+    env_path = File.join(testdir_simple, 'environments')
+
+    it 'should warn that --trusted is deprecated' do
+      err = (on master, puppet("preview --trusted --preview_environment test --environmentpath #{env_path} --view overview nonesuch")).stderr
+      expect(err).to match_regex(/trusted option is deprecated/)
     end
   end
 end

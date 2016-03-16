@@ -166,12 +166,9 @@ class Puppet::Application::Preview < Puppet::Application
       raise UsageError, '--excludes cannot be used with --schema or --last' if options[:last] || options[:schema]
     end
 
-    if options.include?(:trusted)
-      # Issue a deprecation warning unless JSON output is expected to avoid that the warning invalidates the output
-      view_arg = options[:view]
-      unless view_arg.nil? || !%w{overview_json baseline_log preview_log}.include?(view_arg)
-        Puppet.deprecation_warning('The --trusted option is deprecated and has no effect')
-      end
+    # Issue a deprecation warning unless JSON output is expected to avoid that the warning invalidates the output
+    if options.include?(:trusted) && ![:overview_json, :baseline_log, :preview_log].include?(options[:view])
+      Puppet.deprecation_warning('The --trusted option is deprecated and has no effect')
     end
 
     if options[:schema]
