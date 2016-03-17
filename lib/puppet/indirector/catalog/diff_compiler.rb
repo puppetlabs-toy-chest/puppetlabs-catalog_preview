@@ -148,7 +148,8 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
     baseline_dest = options[:baseline_log].to_s
     preview_dest = options[:preview_log].to_s
-    parser = Puppet[:parser]
+    puppet_v3 = !(Puppet.version =~ /^3\./).nil?
+    parser = puppet_v3 ? Puppet[:parser] : nil
 
     begin
       # Baseline compilation
@@ -176,7 +177,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
             # Assert state if migration 3.8/4.0 is turned on
             if options[:migrate] == Puppet::Application::Preview::MIGRATION_3to4
-              unless Puppet.version =~ /^3\./
+              unless puppet_v3
                 raise PuppetX::Puppetlabs::Preview::GeneralError, 'Migration 3.8/4.0 is not supported with this version of Puppet'
               end
               if Puppet.future_parser?
@@ -207,7 +208,8 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
         if env.nil?
           # Preview and baseline uses the same environment and parser=future
           # must be enforced when it is compiled the second time
-          Puppet[:parser] = 'future' unless parser == :future
+          Puppet[:parser] = 'future' if puppet_v3 && parser != :future
+
           # Loose the cached environment
           node.environment = node.environment.name
         else
@@ -231,7 +233,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
           Puppet.override(overrides, 'puppet-preview-compile') do
             # Assert state if migration 3.8/4.0 is turned on
             if options[:migrate] == Puppet::Application::Preview::MIGRATION_3to4
-              unless Puppet.version =~ /^3\./
+              unless puppet_v3
                 raise PuppetX::Puppetlabs::Preview::GeneralError, 'Migration 3.8/4.0 is not supported with this version of Puppet'
               end
               unless Puppet.future_parser?
@@ -267,7 +269,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
       Puppet.err(detail.to_s) if networked?
       raise
     ensure
-      Puppet[:parser] = parser
+      Puppet[:parser] = parser if puppet_v3
       Puppet::Util::Log.close(baseline_dest)
       Puppet::Util::Log.close(preview_dest)
     end

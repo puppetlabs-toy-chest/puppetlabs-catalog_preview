@@ -3,7 +3,7 @@ require 'puppet'
 require 'puppet/pops'
 require 'puppet_x/puppetlabs/preview'
 
-describe 'PuppetX::Puppetlabs::MigrationChecker' do
+describe 'PuppetX::Puppetlabs::MigrationChecker', :if => Puppet.version =~ /^3\./ do
 
   before(:each) do
     Puppet[:strict_variables] = true
