@@ -39,7 +39,7 @@ You'll point your preview environment at a branch of the environment you want to
 
 Other scenarios are supported in the same way. For example, the module's `puppet preview` command can help in various change management and refactoring scenarios. The baseline and preview environments can be any mix of future and current parser, allowing you to compare configurations even if you're not performing a migration to the Puppet 4 language.
 
-However, the `--migrate 3.8/4.0` option---which provides the specific migration checking that is the primary purpose of this module---can be used only when this module is used with a Puppet Enterprise <= 2015.2 version, **and** when the baseline environment uses current parser (Puppet 3) and the preview environment uses future parser (Puppet 4). When no preview environment is given, the baseline environment will instead be compiled twice and the future parser will be enforced during the second compilation.
+However, the `--migrate 3.8/4.0` option---which provides the specific migration checking that is the primary purpose of this module---can be used only when this module is used with a Puppet FOSS version < 4.0.0 or Puppet Enterprise < 2015.2 version, **and** when the baseline environment uses current parser (Puppet 3) and the preview environment uses future parser (Puppet 4). When no preview environment is given, the baseline environment will instead be compiled twice and the future parser will be enforced during the second compilation.
 
 For a quick start guide on using this module to get ready to move from PE 3.8.1 to PE 2015.2, see [Preparing for Migration with catalog_preview][pe_migration] in the Puppet Enterprise docs.
 
@@ -49,14 +49,14 @@ For a quick start guide on using this module to get ready to move from PE 3.8.1 
 
 To get started, you'll need:
 
-* Puppet Enterprise, version 3.8.1 or greater, but less than version 2015.2 (if you are performing migration checking).
+* Puppet Enterprise, version 3.8.1 or greater, but less than version 2015.2 (if you are performing migration checking). If you are using Puppet FOSS, it must be version 3.8.1 or greater, but less than version 4.0.0 (for migration checking).
 * Two environments:
   * Your current production environment, using the current (or Puppet 3 language) parser.
   * A preview environment, using the future (or Puppet 4 language) parser.
 
 As mentioned above, if you're performing a migration check, your current production environment should be configured to use the current, or Puppet 3, parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or Puppet 4, parser. Configure which parser each environment uses via the [`parser`][parser_config_38] setting in each environment's `environment.conf`.
 
-Note that your PE version must be **less than** PE 2015.2 to use this tool for previewing a migration. Because starting with 2015.2, PE contains only the "future" parser, if you are running 2015.2 or later, no migration-specific check can be made.
+Note that your PE version must be **less than** PE 2015.2 to use this tool for previewing a migration. Because starting with 2015.2, PE contains only the "future" parser, if you are running 2015.2 or later, no migration-specific check can be made. If you are using the FOSS version, it must be less than 4.0.0.
  
 ###Installation
 
@@ -69,7 +69,7 @@ Install the catalog_preview module with `puppet module install puppetlabs-catalo
 Before you perform a migration preview, you should:
 
 * Address all deprecations in the production environment.
-* Ensure that `stringify_facts` in puppet.conf is 'false' on your agents. (In PE 3.8 and greater, `stringify_facts` defaults to 'false'.)
+* Ensure that `stringify_facts` in puppet.conf is 'false' on your agents. (In PE/FOSS 3.8 and greater, `stringify_facts` defaults to 'false'.)
 
 ###Evaluating environments with `puppet preview`
 
@@ -87,7 +87,7 @@ puppet preview --preview-environment future_production mynode
 
 When you run the preview compilation, you can turn on extra migration validation using `--migrate 3.8/4.0`. This turns on extra validations of future compatibility, flagging Puppet code that needs to be reviewed. This feature was introduced to help with the migration from the Puppet 3 parser to the Puppet 4 parser. The baseline environment must be configured to use the current (Puppet 3) parser and the `--preview-environment` must either reference an environment configured to use the future parser in its `environment.conf`, or it should not be given at all in which case the baseline environment will be compiled twice. Once with the Puppet 3 parser and once with the Puppet 4 parser.
 
-Note that the `--migrate 3.8/4.0` option is not available when using PE >= 2015.2.
+Note that the `--migrate 3.8/4.0` option is not available when using PE >= 2015.2 or FOSS >= 4.0.0.
 
 ~~~
 puppet preview --preview-environment future_production --migrate 3.8/4.0 mynode
@@ -228,7 +228,7 @@ puppet preview --last --view overview --nodes diff_nodes
 ####Process output
 
 All output (except reports intended for human use) is written in JSON format to allow further processing with tools like 'jq' (JSON query). The output is written to a subdirectory named after the node of the directory appointed
-by the option `--preview-outputdir` (defaults to `$vardir/preview`):
+by the setting `preview_outputdir` (defaults to `$vardir/preview`):
 
 ~~~
 |- "$preview_output_dir"
@@ -536,12 +536,5 @@ puppet preview --schema help
 
 ##Limitations
 
-The preview module requires a version of Puppet Enterprise version >= 3.8.1.
-The `--migrate 3.8/4.0` option only works with Puppet Enterprise versions >= 3.8.1 < 2015.2.
-
-###License and Copyright
-
-The content of this module is:
-
-*Copyright (c) 2015 Puppet Labs, LLC Licensed under Puppet Labs Enterprise.*
-
+The preview module requires a version of Puppet Enterprise/FOSS version >= 3.8.1.
+The `--migrate 3.8/4.0` option only works with Puppet Enterprise/FOSS versions >= 3.8.1 < PE 2015.2 and FOSS 4.0.0.
