@@ -218,6 +218,7 @@ EOS
   #   nasty.  refactor me into a method string replacement
   let(:run_as_previewser) {'su previewser --command '}
   let(:puppet_path) {on(master, 'which puppet').stdout.chomp}
+  let(:trusted_node_data) {puppet_version =~ /^3\./ ? '--trusted_node_data' : ''}
   context 'when comparing simple catalogs' do
     it 'as root, should exit with 0 and produce json logfiles' do
       env_path = File.join(testdir_simple, 'environments')
@@ -249,7 +250,7 @@ EOS
 
     it 'as non-root, should exit with 0 and produce json logfiles' do
       env_path = File.join(testdir_simple, 'environments')
-      on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
+      on(master, "#{run_as_previewser} '#{puppet_path} preview #{trusted_node_data} --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
         {:catch_failures => true}) do |r|
         expect(r.exit_code).to be_zero
       end
@@ -559,7 +560,7 @@ EOS
     end
 
     it 'should find the trusted facts as non-root' do
-      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview-environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
+      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview #{trusted_node_data} --preview-environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
       resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
       expect(resources[0]).to be_a(Hash)
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
