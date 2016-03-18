@@ -23,7 +23,6 @@ puppet preview [
     [--view summary|overview|overview-json|baseline|preview|diff|baseline-log|preview-log|none|
     failed-nodes|diff-nodes|compliant-nodes|equal-nodes]
     [-vd|--[no-]verbose-diff]
-    [--trusted]
     [--baseline-environment <ENV-NAME> | --be <ENV-NAME>]
     [--preview-environment <ENV-NAME> | --pe <ENV-NAME>]
     <NODE-NAME>+ | --nodes <FILE> <NODE_NAME>*
@@ -164,7 +163,7 @@ Note that all settings (such as 'log_level') affect both compilations.
   Note that debugging information for the startup and end of the application
   itself is sent to the console.
 
-* --\[no-]diff-string-numeric
+* --\[no-\]diff-string-numeric
   Makes a difference in type between a string and a numeric value (that are equal numerically)
   be a conflicting diff. A type difference for the `mode` attribute in `File` will always be
   reported since this is a significant change. If the option is prefixed with `no-`, then a
@@ -240,13 +239,6 @@ Note that all settings (such as 'log_level') affect both compilations.
   Ignores (skips) comparison of tags, catalogs are considered equal/compliant if they only
   differ in tags. If the option is prefixed with `no-`, then tags will be included in the
   comparison. The default is `--no-skip-tags`.
-
-* --trusted
-  Makes trusted node data obtained from a fact terminus retain its authentication
-  status of "remote", "local", or false (the authentication status the write request had).
-  If this option is not in effect, any trusted node information is kept, and the
-  authenticated key is set to false. The --trusted option is only available when running
-  as root, and should only be turned on when also trusting the facts store.
 
 * --\[no-\]verbose-diff
   Includes more information in the catalog diff such as attribute values in
