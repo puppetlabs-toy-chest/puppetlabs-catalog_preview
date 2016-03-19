@@ -217,10 +217,11 @@ def get_package_version(host, version = nil)
   end
 end
 
-def install_puppetdb(host, db, version=nil)
+def install_puppetdb(host, version=nil)
   test_url = version == '2.3.5' ? '/v4/version' : '/pdb/meta/v1/version'
 
   if version == '2.3.5'
+    db = 'embedded'
     puppetdb_manifest = <<-EOS
     class { 'puppetdb::globals':
       version => '#{get_package_version(host, version)}',
@@ -232,9 +233,7 @@ def install_puppetdb(host, db, version=nil)
     EOS
   else
     puppetdb_manifest = <<-EOS
-    class { 'puppetdb':
-      database => '#{db}',
-    }
+    class { 'puppetdb': }
     EOS
   end
   apply_manifest_on(host, puppetdb_manifest)
@@ -319,19 +318,28 @@ RSpec.configure do |c|
       puppet_version = on(master, 'puppet --version').stdout.chomp
       puppetdb_ver = puppet_version =~ /3\./ ? '2.3.5' : 'latest'
       puppetdb_terminus_ver = master.platform =~ /ubuntu/ ? puppetdb_ver + '-1puppetlabs1' : puppetdb_ver
-      install_puppetdb(master, 'embedded', puppetdb_ver)
+      install_puppetdb(master, puppetdb_ver)
       if puppet_version =~ /3\./
         on master, puppet("resource package puppetdb-terminus ensure='#{puppetdb_terminus_ver}'")
       else
         on master, puppet("resource package puppetdb-termini ensure='#{puppetdb_terminus_ver}'")
       end
       puppet_confdir = on(master, puppet('master --configprint confdir')).stdout.chomp
-      create_remote_file(master, "#{puppet_confdir}/puppetdb.conf", <<HERE
+      puppetdb_port  = '8081'
+      if puppet_version =~ /3\./
+        create_remote_file(master, "#{puppet_confdir}/puppetdb.conf", <<HERE
 [main]
 server = #{master.hostname}
-port = 8081
+port = #{puppetdb_port}
 HERE
                         )
+      else
+        create_remote_file(master, "#{puppet_confdir}/puppetdb.conf", <<HERE
+[main]
+server_urls = https://#{master.hostname}:#{puppetdb_port}
+HERE
+                        )
+      end
       stop_puppetserver(master)
       on master, puppet('config set storeconfigs         true --section master')
       on master, puppet('config set storeconfigs_backend puppetdb --section master')
