@@ -29,7 +29,7 @@
 
 ##Overview
 
-The catalog_preview module is a Puppet Enterprise-only module that provides catalog preview and migration features.
+The catalog_preview module is a module that provides catalog preview and migration features.
 
 ##Module Description
 
@@ -49,7 +49,7 @@ For a quick start guide on using this module to get ready to move from PE 3.8.1 
 
 To get started, you'll need:
 
-* Puppet Enterprise, version 3.8.1 or greater, but less than version 2015.2 (if you are performing migration checking). If you are using Puppet FOSS, it must be version 3.8.1 or greater, but less than version 4.0.0 (for migration checking).
+* Puppet Enterprise or Open-Source Puppet, version 3.8.1 or greater, but less than version PE2015.2 (if you are performing migration checking). If you are using Puppet FOSS, it must be version 3.8.1 or greater, but less than version 4.0.0 (for migration checking).
 * Two environments:
   * Your current production environment, using the current (or Puppet 3 language) parser.
   * A preview environment, using the future (or Puppet 4 language) parser.
@@ -536,5 +536,12 @@ puppet preview --schema help
 
 ##Limitations
 
-The preview module requires a version of Puppet Enterprise/FOSS version >= 3.8.1.
-The `--migrate 3.8/4.0` option only works with Puppet Enterprise/FOSS versions >= 3.8.1 < PE 2015.2 and FOSS 4.0.0.
+The preview module requires a version of Puppet or Puppet Enterprise version >= 3.8.1.
+The `--migrate 3.8/4.0` option only works with Puppet Enterprise versions >= 3.8.1 < 2015.2, or Open Source Puppet >= 3.8.1 and < 4.0.
+
+###License and Copyright
+
+The content of this module is:
+
+*Copyright (c) 2015 Puppet Labs, LLC Licensed under Apache 2.0.*
+
