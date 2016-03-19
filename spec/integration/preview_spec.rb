@@ -4,7 +4,7 @@ require 'json'
 describe 'preview subcommand' do
   it 'should be able to run --help' do
     on master, puppet('preview --help'), {:catch_failures => true} do |r|
-      expect(r.stdout).to match(/^puppet-preview\(8\).*SYNOPSIS.*USAGE.*DESCRIPTION.*OPTIONS.*COPYRIGHT/m)
+      expect(r.stdout).to match(/^puppet-preview\(8\).*SYNOPSIS.*USAGE.*OPTIONS/m)
       expect(r.exit_code).to be_zero
     end
   end
@@ -23,6 +23,7 @@ describe 'preview subcommand' do
   # Do not use parser=future in environment configurations for version >= 4.0.0 since it has been removed
   puppet_version            =  on(master, 'puppet --version').stdout.chomp
   use_future_parser         =  puppet_version =~ /^3\./ ? 'parser=future' : ''
+  trusted_node_data         =  puppet_version =~ /^3\./ ? '--trusted_node_data' : ''
 
   node_names_file = ['file_node1', 'file_node2']
   node_names_filename = "#{testdir_simple}/nodez"
@@ -249,7 +250,7 @@ EOS
 
     it 'as non-root, should exit with 0 and produce json logfiles' do
       env_path = File.join(testdir_simple, 'environments')
-      on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
+      on(master, "#{run_as_previewser} '#{puppet_path} preview #{trusted_node_data} --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
         {:catch_failures => true}) do |r|
         expect(r.exit_code).to be_zero
       end
@@ -559,7 +560,7 @@ EOS
     end
 
     it 'should find the trusted facts as non-root' do
-      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview --trusted_node_data --preview-environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
+      report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview  #{trusted_node_data} --preview-environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
       resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
       expect(resources[0]).to be_a(Hash)
       resource_one = resources.find { |res| res['title'] == 'trusted_authenticated' }
