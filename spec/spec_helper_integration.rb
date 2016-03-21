@@ -317,7 +317,11 @@ RSpec.configure do |c|
       on master, puppet("agent -t --server #{master.hostname}")
       puppet_version = on(master, 'puppet --version').stdout.chomp
       puppetdb_ver = puppet_version =~ /3\./ ? '2.3.5' : 'latest'
-      puppetdb_terminus_ver = master.platform =~ /ubuntu/ ? puppetdb_ver + '-1puppetlabs1' : puppetdb_ver
+      if puppetdb_ver == 'latest'
+        puppetdb_terminus_ver = puppetdb_ver
+      else
+        puppetdb_terminus_ver = master.platform =~ /ubuntu/ ? puppetdb_ver + '-1puppetlabs1' : puppetdb_ver
+      end
       install_puppetdb(master, puppetdb_ver)
       if puppet_version =~ /3\./
         on master, puppet("resource package puppetdb-terminus ensure='#{puppetdb_terminus_ver}'")
