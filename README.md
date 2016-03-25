@@ -545,3 +545,7 @@ The content of this module is:
 
 *Copyright (c) 2015 Puppet Labs, LLC Licensed under Apache 2.0.*
 
+## MAINTAINERS
+
+* Thomas Hallgren
+* Henrik Lindberg
