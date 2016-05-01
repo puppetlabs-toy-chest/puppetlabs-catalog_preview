@@ -1,3 +1,14 @@
+##2016-05-14 - Release 2.1.0
+### Summary
+
+This release is the first Open Source Release of Catalog Preview, and it adds one new feature.
+
+Previously a preview environment was always required for migration checking. Now catalog preview will instead
+compile a catalog twice in the baseline environment, once with the "current" 3.x parser, and once with the "future" 4.x
+parser. This is achieved by simply not specifying the `--preview-environment` flag.
+
+Errors in the documentation are also corrected in this release.
+
 ##2015-12-08 - Release 2.0.3
 ###Summary
 
