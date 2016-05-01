@@ -50,14 +50,20 @@ For a quick start guide on using this module to get ready to move from PE 3.8.1 
 To get started, you'll need:
 
 * Puppet Enterprise or Open-Source Puppet, version 3.8.1 or greater, but less than version PE2015.2 (if you are performing migration checking). If you are using Puppet FOSS, it must be version 3.8.1 or greater, but less than version 4.0.0 (for migration checking).
-* Two environments:
+* (Either) Two environments (if you want to avoid modifying the production environment while fixing problems):
   * Your current production environment, using the current (or Puppet 3 language) parser.
   * A preview environment, using the future (or Puppet 4 language) parser.
+* (Or) One environment (if you just want a quick preview, or is working in an environment where changes are ok):
+  * Your current production environment, using the current (or Puppet 3 language) parser
+  * Running preview commands with `--migrate38/4.0` without specifying `--preview-environment` 
 
 As mentioned above, if you're performing a migration check, your current production environment should be configured to use the current, or Puppet 3, parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or Puppet 4, parser. Configure which parser each environment uses via the [`parser`][parser_config_38] setting in each environment's `environment.conf`.
 
 Note that your PE version must be **less than** PE 2015.2 to use this tool for previewing a migration. Because starting with 2015.2, PE contains only the "future" parser, if you are running 2015.2 or later, no migration-specific check can be made. If you are using the FOSS version, it must be less than 4.0.0.
- 
+
+For a quick start it is possible to use the same environment for the baseline and preview compilations by letting the
+catalog preview tool do the switching to future parser for the preview compilation.
+
 ###Installation
 
 Install the catalog_preview module with `puppet module install puppetlabs-catalog_preview`.
