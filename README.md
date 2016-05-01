@@ -546,7 +546,7 @@ The `--migrate 3.8/4.0` option only works with Puppet Enterprise versions >= 3.8
 
 The content of this module is:
 
-*Copyright (c) 2015 Puppet Labs, LLC Licensed under Apache 2.0.*
+*Copyright (c) 2015-2016 Puppet, LLC Licensed under Apache 2.0.*
 
 ## MAINTAINERS
 
