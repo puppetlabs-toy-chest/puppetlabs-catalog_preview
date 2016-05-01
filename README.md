@@ -416,7 +416,7 @@ Note that `--excludes` is in effect when compiling and cannot be combined with
 
 Specifies the environment for the preview compilation. Uses facts obtained from the configured facts terminus to compile the catalog. If you're evaluating for migration from the Puppet 3 language to the Puppet 4 language, and using PE <= 2015.2, this environment's `puppet.conf` should be configured to use the future (Puppet 4) parser.
 
-Also available in short form `--be ENV-NAME`.
+Also available in short form `--pe ENV-NAME`.
 
 #####`--debug`
 
