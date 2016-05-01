@@ -422,11 +422,11 @@ Also available in short form `--be ENV-NAME`.
 
 Enables full debugging. Debugging output is sent to the respective log outputs for baseline and preview compilation. This option is for both compilations. Note that debugging information for the startup and end of the application itself is sent to the console.
 
-#####`--\[no-\]diff-string-numeric`
+#####`--[no-]diff-string-numeric`
 
 Makes a difference in type between a string and a numeric value (that are equal numerically) be a conflicting diff. A type difference for the `mode` attribute in `File` will always be reported since this is a significant change. If the option is prefixed with `no-`, then a difference in type will be ignored. This option can only be combined with `--migrate 3.8/4.0` and will then default to `--no-diff-string-numeric`. The behavior for other types of conversions is always equivalent to `--diff-string-numeric`
 
-#####`--\[no-\]diff-array-value`
+#####`--[no-]diff-array-value`
 
 A value in the baseline catalog that is compared to a one element array containing that value in the preview catalog is normally considered a conflict. Using `--no-diff-array-value` will prevent this conflict from being reported. This option can only be combined with `--migrate 3.8/4.0` and will default to `--diff-array-value`. The behavior for other types of conversions is always equivalent to `--diff-array-value`.
 
@@ -460,7 +460,7 @@ Defines the directory to which output is produced. This is a Puppet setting that
 
 Outputs the json-schema for the Puppet catalog, catalog_delta, excludes, or log. The option `help` will display the semantics of the catalog-diff schema. Can not be combined with any other option. Accepts arguments `catalog`, `catalog_delta`, `excludes`, `log`, `help`.
 
-#####`--\[no-\]skip-tags`
+#####`--[no-]skip-tags`
 
 Ignores (skips) comparison of tags, catalogs are considered equal/compliant if they only differ in tags. If the option is prefixed with `no-`, then tags will be included in the comparison. The default is `--no-skip-tags`.
 
@@ -489,7 +489,7 @@ Specifies what will be output on stdout. Must be used with one of the following 
 
 The outputs `diff`, `baseline`, `preview`, `baseline-log`, `preview-log` only works for a single node. All `--view` options may be combined with the [`--last`](#--last) option (to avoid recompilation).
 
-#####`--\[no-\]verbose-diff`
+#####`--[no-]verbose-diff`
 
 Includes more information in the catalog diff such as attribute values in missing and added resources. Does not affect whether catalogs are considered equal or compliant. The default is `--no-verbose-diff`.
 
