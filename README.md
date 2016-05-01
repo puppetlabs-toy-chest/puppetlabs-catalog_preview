@@ -440,7 +440,10 @@ Use the last result obtained for a node instead of performing new compilations a
 
 #####`--migrate 3.8/4.0`
 
-Turns on migration validation for the preview compilation. Validation result is produced to the preview log file. When compiling for a single node (or using `--last` for a single node), the logs can optionally also be viewed on stdout with `--view preview-log`. 
+Turns on migration validation for the preview compilation. Validation result is produced to the preview log file. When compiling for a single node (or using `--last` for a single node), the logs can optionally also be viewed on stdout with `--view preview-log`.
+
+If no `--preview-environment` is specified the baseline environment will be used also for the preview compilation but with the
+`--parser` setting automatically set to `future`.
 
 When `--migrate 3.8/4.0` is on, values where one value is a string and the other numeric are considered equal if they represent the same number. This can be turned off with `--diff-string-numeric`, but turning this off might result in many conflicts being reported that need no action.
 
