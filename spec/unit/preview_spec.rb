@@ -300,5 +300,15 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
       json_diff = JSON.parse(output_stream.string)
       expect(json_diff['conflicting_attribute_count']).to eql(2)
     end
+
+    it 'fails when no valid facts exist for a node' do
+      options[:preview_environment] = 'env4x'
+      options[:migrate] = '3.8/4.0'
+      options[:view] = :diff
+      options[:output_stream] = StringIO.new
+      Puppet::Node::Facts.any_instance.expects(:values).at_least_once.returns({})
+      expect{ preview.main }.to raise_error(PuppetX::Puppetlabs::Preview::GeneralError,
+        "Facts seems to be missing. No 'osfamily' fact found for node 'diff_compiler'")
+    end
   end
 end
