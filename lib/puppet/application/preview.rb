@@ -329,7 +329,7 @@ class Puppet::Application::Preview < Puppet::Application
       unless result = Puppet::Resource::Catalog.indirection.find(node, options)
         # TODO: Should always produce a result and give better error depending on what failed
         #
-        raise GeneralError, "Could not compile catalogs for #{node}"
+        raise PuppetX::Puppetlabs::Preview::GeneralError, "Could not compile catalogs for #{node}"
       end
 
       # WRITE the two catalogs to output files
