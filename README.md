@@ -496,7 +496,12 @@ Specifies what will be output on stdout. Must be used with one of the following 
 * `compliant-nodes`: Outputs a list of nodes where catalogs where equal or compliant.
 * `none`: No output.
 
-The outputs `diff`, `baseline`, `preview`, `baseline-log`, `preview-log` only works for a single node. All `--view` options may be combined with the [`--last`](#--last) option (to avoid recompilation).
+The outputs `diff`, `baseline`, `preview`, `baseline-log`, `preview-log` only works for a single node.
+The output `overview` can be combined with the option [`--[no-]report-all`](#--[no-]report-all) option.
+All `--view` options may be combined with the [`--last`](#--last) option (to avoid recompilation).
+
+#####`--[no-]report-all`
+Controls if the `overview` report will contain a list of nodes that is limited to the ten nodes with the highest number of issues or if all nodes are included in the list. The default is to only include the top ten nodes. This option can only be used together with with `--view overview`.
 
 #####`--[no-]verbose-diff`
 
