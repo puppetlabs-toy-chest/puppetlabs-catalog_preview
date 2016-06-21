@@ -16,16 +16,26 @@ module PuppetX::Puppetlabs::Migration
 
         it 'can produce a hash' do
           hash = report.to_hash
-          expect(hash).to include(:stats, :baseline, :top_ten, :changes)
+          expect(hash).to include(:stats, :baseline, :all_nodes, :changes)
           expect(hash[:changes]).to include(:resource_type_changes, :edge_changes)
         end
 
-        it 'can produce a text' do
-          text = report.to_s
+        it 'can produce a text with top ten nodes' do
+          text = report.to_text(true)
           expect(text).to match(/^Stats$/)
           expect(text).to match(/^Baseline Errors \(by manifest\)$/)
           expect(text).to match(/^Baseline Errors \(by issue\)$/)
           expect(text).to match(/^Top ten nodes with most issues$/)
+          expect(text).to match(/^Changes per Resource Type$/)
+          expect(text).to match(/^Changes of Edges$/)
+        end
+
+        it 'can produce a text with all nodes' do
+          text = report.to_text(false)
+          expect(text).to match(/^Stats$/)
+          expect(text).to match(/^Baseline Errors \(by manifest\)$/)
+          expect(text).to match(/^Baseline Errors \(by issue\)$/)
+          expect(text).to match(/^All nodes$/)
           expect(text).to match(/^Changes per Resource Type$/)
           expect(text).to match(/^Changes of Edges$/)
         end

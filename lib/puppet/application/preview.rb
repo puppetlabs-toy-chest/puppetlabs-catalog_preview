@@ -83,6 +83,8 @@ class Puppet::Application::Preview < Puppet::Application
 
   option('--[no-]diff-array-value')
 
+  option('--[no-]report-all')
+
   option('--trusted') do |_|
     options[:trusted] = true
   end
@@ -231,6 +233,15 @@ class Puppet::Application::Preview < Puppet::Application
           end
         else
           options[:diff_array_value] = true # this is the default
+        end
+
+        if options.include?(:report_all)
+          unless options[:view] == :overview
+            raise UsageError, '--report-all can only be used in combination with --view overview'
+          end
+        else
+          # Default is to just report the top ten nodes
+          options[:report_all] = false
         end
 
         compile
@@ -653,7 +664,7 @@ Output:
   #
   def display_overview(overview, as_json)
     report = OverviewModel::Report.new(overview)
-    output_stream.puts(as_json ? report.to_json : report.to_s)
+    output_stream.puts(as_json ? report.to_json : report.to_text(!options[:report_all]))
   end
 
   def read_json(node, type)

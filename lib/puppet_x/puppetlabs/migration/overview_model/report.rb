@@ -12,7 +12,7 @@ module OverviewModel
     def to_hash
       hash = {
         :stats => stats,
-        :top_ten => top_ten,
+        :all_nodes => all_nodes,
         :changes => changes
       }
       baseline = log_entries_hash(true)
@@ -28,15 +28,23 @@ module OverviewModel
       PSON::pretty_generate(to_hash, :allow_nan => true, :max_nesting => false)
     end
 
-    # Returns this report as a human readable multi-line string
+    # Returns this report as a human readable multi-line string. Only the top ten nodes with the most issues
+    # will be included in the nodes list.
     # @return [String] The textual representation of this report
     def to_s
+      to_text(true)
+    end
+
+    # Returns this report as a human readable multi-line string
+    # @param top_ten_only [Boolean] `true`to limit the list of nodes to the ten nodes with most issues. `false` to include all nodes.
+    # @return [String] The textual representation of this report
+    def to_text(top_ten_only)
       bld = StringIO.new
       stats_to_s(bld, stats)
       log_entries_hash_to_s(bld, log_entries_hash(true), true)
       log_entries_hash_to_s(bld, log_entries_hash(false), false)
       changes_to_s(bld, changes)
-      top_ten_to_s(bld, top_ten)
+      all_nodes_to_s(bld, all_nodes, top_ten_only)
       bld.string
     end
 
@@ -155,12 +163,12 @@ module OverviewModel
       location.nil? ? 'unknown location' : "#{location.file.path}:#{location.line}"
     end
 
-    # top_ten
+    # all_nodes
     #
-    def top_ten
+    def all_nodes
       nodes = @overview.of_class(Node)
       issues_map = nodes.map {|n| { :name => n.name, :issue_count => n.issues.size }}
-      issues_map.sort {|a, b| b[:issue_count] <=> a[:issue_count] }.take(10)
+      issues_map.sort {|a, b| b[:issue_count] <=> a[:issue_count] }
     end
 
     # Builds the hash that represents all catalog changes
@@ -425,10 +433,15 @@ module OverviewModel
       end
     end
 
-    def top_ten_to_s(bld, top_ten)
+    def all_nodes_to_s(bld, all_nodes, top_ten_only)
       bld.puts
-      bld.puts('Top ten nodes with most issues')
-      top_ten.each {|n| bld << '  ' << n[:name] << ' (' << n[:issue_count] << ')' << "\n" }
+      if top_ten_only
+        bld.puts('Top ten nodes with most issues')
+        all_nodes = all_nodes.take(10)
+      else
+        bld.puts('All nodes')
+      end
+      all_nodes.each {|n| bld << '  ' << n[:name] << ' (' << n[:issue_count] << ')' << "\n" }
     end
 
     def edge_changes_to_s(bld, changes)

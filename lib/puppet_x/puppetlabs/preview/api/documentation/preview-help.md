@@ -22,6 +22,7 @@ puppet preview [
     |--excludes <PATH-TO-EXCLUSIONS-FILE>]
     [--view summary|overview|overview-json|baseline|preview|diff|baseline-log|preview-log|none|
       failed-nodes|diff-nodes|compliant-nodes|equal-nodes]
+    [--[no-]report-all]
     [-vd|--[no-]verbose-diff]
     [--baseline-environment <ENV-NAME> | --be <ENV-NAME>]
     [--preview-environment <ENV-NAME> | --pe <ENV-NAME>]
@@ -40,7 +41,7 @@ Note that all settings (such as 'log_level') affect both compilations.
 * --assert equal | compliant
   Modifies the exit code to be 4 if catalogs are not equal and 5 if the preview
   catalog is not compliant instead of an exit with 0 to indicate that the preview run
-  was successful in itself. 
+  was successful in itself.
 
 * --baseline-environment <ENV-NAME> | --be <ENV-NAME>
   Makes the baseline compilation take place in the given <ENV-NAME>. This overrides
@@ -110,7 +111,7 @@ Note that all settings (such as 'log_level') affect both compilations.
 * --nodes <FILE>
   Specifies a file to read node-names from. If the file name is '-' file names are read
   from standard in. Each white-space separated sequence of characters is taken as a node name.
-  This may be combined with additional nodes given on the command line. Duplicate entries (in given  
+  This may be combined with additional nodes given on the command line. Duplicate entries (in given
   file, or on command line) are skipped.
 
 * --preview-environment <ENV-NAME> | --pe <ENV-NAME>
@@ -136,7 +137,7 @@ Note that all settings (such as 'log_level') affect both compilations.
   missing and added resources. Does not affect if catalogs are considered equal or
   compliant. The default is `--no-verbose-diff`.
 
-* --version:
+* --version
   Prints the puppet version number and exit.
 
 * --view <REPORT>
@@ -144,8 +145,8 @@ Note that all settings (such as 'log_level') affect both compilations.
 
   | REPORT          | Output
   | --------------- | ----------------------------------------------------------------------
-  | summary         | A single node diff summary, or the status per node  
-  | diff            | The catalog diff for one node in json format  
+  | summary         | A single node diff summary, or the status per node
+  | diff            | The catalog diff for one node in json format
   | baseline        | The baseline catalog for one node in json
   | preview         | The preview catalog for one node in json
   | baseline-log    | The baseline log for one node in json
@@ -175,13 +176,18 @@ Note that all settings (such as 'log_level') affect both compilations.
   commands that further process the output.
 
   The 'overview-json' is "all the data" and it is used as the basis for the 'overview' report.
-  The fact that it contains "all the data" means it can be used to produce other views of the 
+  The fact that it contains "all the data" means it can be used to produce other views of the
   results across a set of nodes without having to load and interpret the output for each node
   from the file system.
-  It is marked as experimental, and its schema is not documented in this version of catalog preview 
+  It is marked as experimental, and its schema is not documented in this version of catalog preview
   as it may need adjustments in minor version updates. The intent is to document this in a
   subsequent release and that this report can be piped to custom commands, or to visualizers
   that can slice and dice the information.
+
+* --\[no-\]report-all
+  Controls if the 'overview' report will contain a list of nodes that is limited to the
+  ten nodes with the highest number of issues or if all nodes are included in the list. The default
+  is to only include the top ten nodes. This option can only be used together with with '--view overview'.
 
 * <NODE-NAME>+
   This specifies for which node the preview should produce output. The node must
