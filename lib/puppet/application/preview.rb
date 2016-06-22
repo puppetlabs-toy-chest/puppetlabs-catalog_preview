@@ -428,7 +428,7 @@ class Puppet::Application::Preview < Puppet::Application
 
     # If the face action 'node status' exists (provided by PuppetDB), then purge inactive and non existent nodes from the list
     node_face = Puppet::Interface[:node, :current]
-    if node_face.respond_to?(:status)
+    if using_puppetdb? && node_face.respond_to?(:status)
       skip_inactive = options.include?(:skip_inactive_nodes) ? options[:skip_inactive_nodes] : true
       given_names = given_names.select do |node_name|
         status = node_face.status(node_name)[0]
@@ -778,6 +778,10 @@ Output:
     Puppet::FileSystem.open(filename, nil, 'ab') { |of| of.write(endtext) }
   end
 
+  def using_puppetdb?
+    Puppet::Node::Facts.indirection.terminus_class.to_s == 'puppetdb'
+  end
+
   def configure_indirector_routes
     # Same implementation as the base Application class, except this loads
     # routes configured for the "master" application in order to conform with
@@ -799,7 +803,7 @@ Output:
     #
     # So, if PuppetDB is in use, we swap in a copy of the 2.x terminus which
     # uses the v4 API which returns properly structured and typed facts.
-    if Puppet::Node::Facts.indirection.terminus_class.to_s == 'puppetdb'
+    if using_puppetdb?
       # Versions prior to pdb 3 uses the v3 REST API, but there is not easy
       # way to figure out which version is in use that works for both old
       # and new versions. The method 'Puppet::Util::Puppetdb.url_path' has
