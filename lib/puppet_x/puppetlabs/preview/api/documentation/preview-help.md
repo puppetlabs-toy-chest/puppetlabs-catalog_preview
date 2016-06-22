@@ -114,6 +114,10 @@ Note that all settings (such as 'log_level') affect both compilations.
   This may be combined with additional nodes given on the command line. Duplicate entries (in given
   file, or on command line) are skipped.
 
+* --\[no-\]skip-inactive-nodes
+  Skip nodes that are given and found to be inactive. This flag only have effect in a configuration that
+  is using PuppetDB. The default is `--skip-inactive-nodes`.
+
 * --preview-environment <ENV-NAME> | --pe <ENV-NAME>
   Makes the preview compilation take place in the given <ENV-NAME>.
   Uses facts obtained from the configured facts terminus to compile the catalog.
