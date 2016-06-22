@@ -461,6 +461,9 @@ For details about the migration specific warnings, see the DIAGNOSTICS section i
 
 This specifies for which node the preview should produce output. The node must have previously requested a catalog from the master to make its facts available. It is possible to give multiple node names on the command line, via a file, or piping them to the command by using the [`--nodes`](#--nodes) option.
 
+#####`--[no-]skip-inactive-nodes`
+Skip nodes that are given and found to be inactive. This flag only have effect in a configuration that is using PuppetDB. The default is `--skip-inactive-nodes`.
+
 #####`--preview-outputdir 'DIR'`
 
 Defines the directory to which output is produced. This is a Puppet setting that can be overridden on the command line (defaults to `$vardir/preview`).
