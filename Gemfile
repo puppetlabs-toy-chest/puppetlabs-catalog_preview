@@ -12,8 +12,9 @@ end
 
 group :system_tests do
   gem 'rake'
-  gem 'beaker'
+  gem 'beaker', *location_for(ENV['BEAKER_VERSION'] || '~> 2.30')
   gem 'beaker-rspec'
+  gem 'listen', '<3.1.0'
 end
 
 group :development, :unit_tests do
@@ -40,12 +41,10 @@ end
 
 local_gemfile = "#{__FILE__}.local"
 if File.exists? local_gemfile
-  puts "using #{local_gemfile}"
   eval(File.read(local_gemfile), binding)
 end
 
 user_gemfile = File.join(Dir.home,'.Gemfile')
 if File.exists? user_gemfile
-  puts "using #{user_gemfile}"
   eval(File.read(user_gemfile), binding)
 end
