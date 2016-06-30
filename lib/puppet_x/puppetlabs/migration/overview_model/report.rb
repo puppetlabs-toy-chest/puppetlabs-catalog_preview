@@ -231,7 +231,7 @@ module OverviewModel
           error[:pos] = location.pos unless location.pos.nil?
         end
         manifest_errors = (manifest_hash[:errors] ||= [])
-        manifest_errors << error
+        manifest_errors << error unless manifest_errors.include?(error)
       end
       errors.map { |_, m| m[:nodes] = m[:nodes].to_a; m }.sort { |a, b| b[:nodes].size <=> a[:nodes].size }
     end
@@ -290,6 +290,7 @@ module OverviewModel
           end
         end
       end
+      issues.each_value { |issue| issue[:manifests].each_value { |positions| positions.uniq! } }
       issues.values.sort { |a, b| b[:count] <=> a[:count] }
     end
 
