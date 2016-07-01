@@ -394,7 +394,7 @@ EOS
       expect(report['stats']['failures']['preview']['total']).to eq(node_names_all.length)
       expect(report['preview']).to be_a(Hash)
       expect(report['preview']['compilation_errors']).to be_an(Array)
-      expect(report['preview']['compilation_errors'][0]['errors'].size).to be(node_names_all.length)
+      expect(report['preview']['compilation_errors'][0]['errors'].size).to eq(1) # the error is exactly the same in all nodes. Duplicates are eliminated
     end
   end
 
