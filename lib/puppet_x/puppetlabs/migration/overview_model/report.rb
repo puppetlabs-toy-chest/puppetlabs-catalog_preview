@@ -167,8 +167,30 @@ module OverviewModel
     #
     def all_nodes
       nodes = @overview.of_class(Node)
-      issues_map = nodes.map {|n| { :name => n.name, :issue_count => n.issues.size }}
-      issues_map.sort {|a, b| b[:issue_count] <=> a[:issue_count] }
+      issues_map = nodes.map do |n|
+        logged_issue_levels = n.log_entries.message.issue.level
+        issues = n.issues
+        {
+          :name => n.name,
+          :error_count => logged_issue_levels.count { |level| level.name == 'err' },
+          :warning_count => logged_issue_levels.count { |level| level.name == 'warning' },
+          :added_resource_count => issues.of_class(ResourceAdded).size,
+          :missing_resource_count => issues.of_class(ResourceMissing).size,
+          :conflicting_resource_count => issues.of_class(ResourceConflict).size
+        }
+      end
+      issues_map.sort do |a, b|
+        cmp = b[:error_count] <=> a[:error_count]
+        if cmp == 0
+          cmp = b[:warning_count] <=> a[:warning_count]
+          cmp = diff_count(b) <=> diff_count(a) if cmp == 0
+        end
+        cmp
+      end
+    end
+
+    def diff_count(h)
+      h[:added_resource_count] + h[:missing_resource_count] + h[:conflicting_resource_count]
     end
 
     # Builds the hash that represents all catalog changes
@@ -442,7 +464,14 @@ module OverviewModel
       else
         bld.puts('All nodes')
       end
-      all_nodes.each {|n| bld << '  ' << n[:name] << ' (' << n[:issue_count] << ')' << "\n" }
+      lbl = 'node name'
+      nn_width = all_nodes.reduce(lbl.size) { |w, n| s = n[:name].size; w > s ? w : s }
+      bld << '  ' << lbl.center(nn_width) << "  errors  warnings   diffs\n"
+      bld << '  '
+      nn_width.times  { bld << '-' }
+      bld << " -------- -------- --------\n"
+      fmt = "  %-#{nn_width}s %8i %8i %8i\n"
+      all_nodes.each {|n| bld << sprintf(fmt, n[:name], n[:error_count], n[:warning_count], diff_count(n) ) }
     end
 
     def edge_changes_to_s(bld, changes)
