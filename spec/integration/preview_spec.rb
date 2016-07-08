@@ -282,7 +282,7 @@ EOS
   it 'should error if using an unsupported --view type with multiple nodes' do
     view_types = %w{baseline preview diff baseline-log preview-log}
     view_types.each do |view_type|
-      on master, puppet("preview --view #{view_type} one two shoe"),
+      on master, puppet("preview --view #{view_type} nonesuch andanother file_node1"),
         {:acceptable_exit_codes => [1]} do |r|
         expect(r.stderr).to match(/Error:.*#{view_type}.*multiple nodes/)
       end
