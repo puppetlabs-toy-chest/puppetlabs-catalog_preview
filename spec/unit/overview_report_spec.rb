@@ -11,8 +11,8 @@ module PuppetX::Puppetlabs::Migration
         <<-NODES_TABLE
         node name        errors  warnings   diffs
   --------------------- -------- -------- --------
-  failed.example.com           1        0        0
   different.example.com        1        0        0
+  failed.example.com           1        0        0
   different.example.com        0        0        3
         NODES_TABLE
       end
