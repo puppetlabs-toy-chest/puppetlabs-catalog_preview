@@ -258,7 +258,7 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
     end
   end
 
-  context 'when running with --migrate' do
+  context 'when running with --migrate', :if => Puppet.version =~ /^3\./ do
     let(:preview) {
       preview = Puppet::Application[:preview]
       preview.options[:nodes] = ['default']
@@ -277,7 +277,7 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
       end
     end
 
-    it 'can produce a diff between two environments', :if => Puppet.version =~ /^3\./ do
+    it 'can produce a diff between two environments' do
       options[:preview_environment] = 'env4x'
       options[:migrate] = '3.8/4.0'
       options[:view] = :diff
@@ -289,7 +289,7 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
       expect(json_diff['conflicting_attribute_count']).to eql(2)
     end
 
-    it 'can produce a diff by compiling the same environment twice with different parsers', :if => Puppet.version =~ /^3\./ do
+    it 'can produce a diff by compiling the same environment twice with different parsers' do
       options[:migrate] = '3.8/4.0'
       options[:view] = :diff
 
