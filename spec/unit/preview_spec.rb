@@ -304,11 +304,12 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
     it 'fails when no valid facts exist for a node' do
       options[:preview_environment] = 'env4x'
       options[:migrate] = '3.8/4.0'
-      options[:view] = :diff
-      options[:output_stream] = StringIO.new
+      options[:view] = :overview
+      output_stream = StringIO.new
+      options[:output_stream] = output_stream
       Puppet::Node::Facts.any_instance.expects(:values).at_least_once.returns({})
-      expect{ preview.main }.to raise_error(PuppetX::Puppetlabs::Preview::GeneralError,
-        "Facts seems to be missing. No 'osfamily' fact found for node 'diff_compiler'")
+      expect(preview.main).to eq(PuppetX::Puppetlabs::Migration::BASELINE_FAILED)
+      expect(output_stream.string).to match(/Facts seems to be missing. No 'osfamily' fact found for node 'diff_compiler'/)
     end
   end
 end
