@@ -184,6 +184,7 @@ module OverviewModel
         if cmp == 0
           cmp = b[:warning_count] <=> a[:warning_count]
           cmp = diff_count(b) <=> diff_count(a) if cmp == 0
+          cmp = a[:name] <=> b[:name] if cmp == 0
         end
         cmp
       end
