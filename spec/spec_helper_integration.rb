@@ -401,11 +401,11 @@ HERE
     step 'add node names to puppetdb that are used in the tests' do
       node_names_file = ['file_node1', 'file_node2']
       node_names_cli  = ['nonesuch', 'andanother']
-      node_names_all  = node_names_cli + node_names_file
+      node_names_all  = node_names_cli + node_names_file + "diff_compiler"
       curl_headers = "--silent --show-error -H 'Content-Type:application/json'   -H 'Accept:application/json'"
 
       node_names_all.each do |node_name|
-        curl_payload = "{\"certname\":\"#{node_name}\",\"environment\":\"DEV\",\"values\":{\"myfact\":\"myvalue\"},\"producer_timestamp\":\"2015-01-01\"}"
+        curl_payload = "{\"certname\":\"#{node_name}\",\"environment\":\"DEV\",\"values\":{\"osfamily\":\"myvalue\"},\"producer_timestamp\":\"2015-01-01\"}"
         on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/pdb/cmd/v1?command=replace_facts&version=4&certname=#{node_name}'"
       end
     end
