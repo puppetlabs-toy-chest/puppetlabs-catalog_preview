@@ -411,8 +411,8 @@ HERE
       ['production','test'].each do |environment|
         node_names_all.each do |node_name|
           if puppetdb_ver == 'latest'
-            curl_payload = "{\"certname\":\"#{node_name}\",\"environment\":\"#{environment}\",\"values\":{\"osfamily\":\"myvalue\"},\"producer_timestamp\":\"2015-01-01\"}"
-            on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/pdb/cmd/v1?command=replace_facts&version=4&certname=#{node_name}'"
+            curl_payload = "{\"command\":\"replace facts\",\"version\":4,\"payload\":{\"certname\":\"#{node_name}\",\"environment\":\"#{environment}\",\"values\":{\"osfamily\":\"myvalue\"},\"producer_timestamp\":\"2015-01-01\"}}"
+            on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/pdb/cmd/v1'"
           else
             curl_payload = "{\"command\":\"replace facts\",\"version\":3,\"payload\":{\"name\":\"#{node_name}\",\"environment\":\"#{environment}\",\"values\":{\"osfamily\":\"myvalue\"},\"producer-timestamp\":\"2015-01-01\"}}"
             on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/v3/commands'"
