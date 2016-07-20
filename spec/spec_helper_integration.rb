@@ -288,7 +288,10 @@ def database
 end
 
 RSpec.configure do |c|
-  unless ENV['RS_PROVISION'] == 'no' or ENV['BEAKER_provision'] == 'no'
+  if ENV['RS_PROVISION'] == 'no' or ENV['BEAKER_provision'] == 'no'
+    puppet_version = on(master, 'puppet --version').stdout.chomp
+    puppetdb_ver = puppet_version =~ /3\./ ? '2.3.5' : 'latest'
+  else
     if default[:type] =~ /(foss|git)/
       puppet_ver   = ENV['PUPPET_VER'] || ENV['SHA'] || 'nightly'
       server_ver   = ENV['SERVER_VER']               || 'nightly'
@@ -308,6 +311,9 @@ RSpec.configure do |c|
 
     on master, puppet('config set autosign          true --section master')
     on master, puppet('config set trusted_node_data true --section main')
+    puppet_version = on(master, 'puppet --version').stdout.chomp
+    puppetdb_ver = puppet_version =~ /3\./ ? '2.3.5' : 'latest'
+
     if default[:type] =~ /(foss|git)/
       step 'install/configure foss puppetdb'
       start_puppetserver(master)
@@ -315,8 +321,6 @@ RSpec.configure do |c|
       initialize_repo_on_host(master, master[:template])
       on master, puppet('module install puppetlabs/puppetdb')
       on master, puppet("agent -t --server #{master.hostname}")
-      puppet_version = on(master, 'puppet --version').stdout.chomp
-      puppetdb_ver = puppet_version =~ /3\./ ? '2.3.5' : 'latest'
       if puppetdb_ver == 'latest'
         puppetdb_terminus_ver = puppetdb_ver
       else
@@ -401,12 +405,19 @@ HERE
     step 'add node names to puppetdb that are used in the tests' do
       node_names_file = ['file_node1', 'file_node2']
       node_names_cli  = ['nonesuch', 'andanother']
-      node_names_all  = node_names_cli + node_names_file << 'diff_compiler'
+      node_names_all  = node_names_cli + node_names_file
       curl_headers = "--silent --show-error -H 'Content-Type:application/json'   -H 'Accept:application/json'"
 
-      node_names_all.each do |node_name|
-        curl_payload = "{\"certname\":\"#{node_name}\",\"environment\":\"DEV\",\"values\":{\"osfamily\":\"myvalue\"},\"producer_timestamp\":\"2015-01-01\"}"
-        on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/pdb/cmd/v1?command=replace_facts&version=4&certname=#{node_name}'"
+      ['production','test'].each do |environment|
+        node_names_all.each do |node_name|
+          if puppetdb_ver == 'latest'
+            curl_payload = "{\"certname\":\"#{node_name}\",\"environment\":\"#{environment}\",\"values\":{\"osfamily\":\"myvalue\"},\"producer_timestamp\":\"2015-01-01\"}"
+            on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/pdb/cmd/v1?command=replace_facts&version=4&certname=#{node_name}'"
+          else
+            curl_payload = "{\"command\":\"replace facts\",\"version\":3,\"payload\":{\"name\":\"#{node_name}\",\"environment\":\"#{environment}\",\"values\":{\"osfamily\":\"myvalue\"},\"producer-timestamp\":\"2015-01-01\"}}"
+            on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/v3/commands'"
+          end
+        end
       end
     end
 

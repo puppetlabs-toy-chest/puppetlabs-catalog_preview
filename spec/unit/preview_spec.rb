@@ -309,7 +309,7 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
       options[:output_stream] = output_stream
       Puppet::Node::Facts.any_instance.expects(:values).at_least_once.returns({})
       expect(preview.main).to eq(PuppetX::Puppetlabs::Migration::BASELINE_FAILED)
-      expect(output_stream.string).to match(/Facts seems to be missing. No 'osfamily' fact found for node 'diff_compiler'/)
+      expect(output_stream.string).to match(/Facts seems to be missing. No 'osfamily' fact found for node 'default'/)
     end
   end
 end
