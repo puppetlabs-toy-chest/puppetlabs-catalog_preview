@@ -112,7 +112,8 @@ Note that all settings (such as 'log_level') affect both compilations.
   Specifies a file to read node-names from. If the file name is '-' file names are read
   from standard in. Each white-space separated sequence of characters is taken as a node name.
   This may be combined with additional nodes given on the command line. Duplicate entries (in given
-  file, or on command line) are skipped.
+  file, or on command line) are skipped. Deactivated and nodes for which there are no facts available
+  are skipped.
 
 * --preview-environment <ENV-NAME> | --pe <ENV-NAME>
   Makes the preview compilation take place in the given <ENV-NAME>.
@@ -187,7 +188,9 @@ Note that all settings (such as 'log_level') affect both compilations.
 * --\[no-\]report-all
   Controls if the 'overview' report will contain a list of nodes that is limited to the
   ten nodes with the highest number of issues or if all nodes are included in the list. The default
-  is to only include the top ten nodes. This option can only be used together with with '--view overview'.
+  is to only show the top ten nodes. This option can only be used together with with '--view overview'.
+  The generated data file on which the command line output is based will always contain information
+  about all nodes.
 
 * <NODE-NAME>+
   This specifies for which node the preview should produce output. The node must
