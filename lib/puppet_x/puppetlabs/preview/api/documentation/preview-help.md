@@ -111,9 +111,8 @@ Note that all settings (such as 'log_level') affect both compilations.
 * --nodes <FILE>
   Specifies a file to read node-names from. If the file name is '-' file names are read
   from standard in. Each white-space separated sequence of characters is taken as a node name.
-  This may be combined with additional nodes given on the command line. Duplicate entries (in given
-  file, or on command line) are skipped. Deactivated and nodes for which there are no facts available
-  are skipped.
+  This can be combined with additional nodes given on the command line. Duplicated entries,
+  deactivated nodes, and nodes with no facts available are skipped.
 
 * --preview-environment <ENV-NAME> | --pe <ENV-NAME>
   Makes the preview compilation take place in the given <ENV-NAME>.
