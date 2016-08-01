@@ -1,3 +1,20 @@
+##2016-07-XX (TBD) - Release 2.2.0
+### Summary
+
+This release includes new features as well as bug fixes.
+
+The overview data model now contains more information. It used to only contain the top 10 nodes based on an issue count.
+Now, the overview data model contains information about all nodes the overview is based on and with more details per node
+in the form of number of errors, warning, and catalog differences. This information is now used to better order the output
+as well as being easier to consume by custom post-processing and presentation logic.
+
+Attempting to use a node for which there was no available fact-set caused an error that did not indicate what the real problem was.
+Now, instead, deactivated or non existing nodes will be skipped. This supports the use case when a compilation is requested
+where the list of nodes to compile for was generated from a list of certificates (which may contain deactivated nodes).
+
+There were errors in the calculation and presentation of issue counts where the same problem could be counted multiple times.
+This is now corrected.
+
 ##2016-05-14 - Release 2.1.0
 ### Summary
 
