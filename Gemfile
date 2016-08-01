@@ -25,6 +25,10 @@ group :development, :unit_tests do
   gem 'rspec-puppet',            :require => false
   gem 'mocha',                   :require => false
   gem 'json-schema',             :require => false
+  # puppet depends on hiera, which has an unbound dependency on json_pure
+  # json_pure 2 dropped support for < ruby 2.0, so bind to json_pure 1.8
+  # as long as this continues to be tested against 1.9.3
+  gem 'json_pure', '~> 1.8',     :require => false
 end
 
 group :development do
