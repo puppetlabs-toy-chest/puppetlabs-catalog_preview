@@ -1,4 +1,4 @@
-##2016-07-XX (TBD) - Release 2.2.0
+##2016-08-02 - Release 2.2.0
 ### Summary
 
 This release includes new features as well as bug fixes.
@@ -14,6 +14,8 @@ where the list of nodes to compile for was generated from a list of certificates
 
 There were errors in the calculation and presentation of issue counts where the same problem could be counted multiple times.
 This is now corrected.
+
+Catalog preview could not compute the difference between resources that used an Integer as resource title. This is now fixed.
 
 ##2016-05-14 - Release 2.1.0
 ### Summary
