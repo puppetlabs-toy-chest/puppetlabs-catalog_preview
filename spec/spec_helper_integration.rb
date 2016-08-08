@@ -10,6 +10,18 @@ require 'beaker-rspec/helpers/serverspec'
 
 # below methods copy pasted from puppetdb acceptance
 
+def add_node_to_puppetdb(node_name, environment, puppetdb_ver='latest')
+  today = Time.new.strftime("%Y-%m-%d")
+  curl_headers = "--silent --show-error -H 'Content-Type:application/json'   -H 'Accept:application/json'"
+  if puppetdb_ver == 'latest'
+    curl_payload = "{\"command\":\"replace facts\",\"version\":4,\"payload\":{\"certname\":\"#{node_name}\",\"environment\":\"#{environment}\",\"values\":{\"osfamily\":\"myvalue\"},\"producer_timestamp\":\"#{today}\"}}"
+    on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/pdb/cmd/v1'"
+  else
+    curl_payload = "{\"command\":\"replace facts\",\"version\":3,\"payload\":{\"name\":\"#{node_name}\",\"environment\":\"#{environment}\",\"values\":{\"osfamily\":\"myvalue\"},\"producer-timestamp\":\"#{today}\"}}"
+    on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/v3/commands'"
+  end
+end
+
 def initialize_repo_on_host(host, os)
   case os
   when /(debian|ubuntu)/
@@ -410,13 +422,7 @@ HERE
 
       ['production','test'].each do |environment|
         node_names_all.each do |node_name|
-          if puppetdb_ver == 'latest'
-            curl_payload = "{\"command\":\"replace facts\",\"version\":4,\"payload\":{\"certname\":\"#{node_name}\",\"environment\":\"#{environment}\",\"values\":{\"osfamily\":\"myvalue\"},\"producer_timestamp\":\"2015-01-01\"}}"
-            on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/pdb/cmd/v1'"
-          else
-            curl_payload = "{\"command\":\"replace facts\",\"version\":3,\"payload\":{\"name\":\"#{node_name}\",\"environment\":\"#{environment}\",\"values\":{\"osfamily\":\"myvalue\"},\"producer-timestamp\":\"2015-01-01\"}}"
-            on master, "curl -X POST #{curl_headers} -d '#{curl_payload}' 'http://localhost:8080/v3/commands'"
-          end
+          add_node_to_puppetdb(node_name, environment, puppetdb_ver)
         end
       end
     end

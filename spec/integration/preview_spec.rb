@@ -579,4 +579,43 @@ EOS
       expect(err).to match_regex(/trusted option is deprecated/)
     end
   end
+
+  context 'when using --skip-inactive-nodes' do
+    env_path = File.join(testdir_simple, 'environments')
+    # create active and inactive node
+    test_node_inactive = "pl-inactive-node-#{rand(999999).to_i}"
+    test_node_active = "pl-active-node-#{rand(999999).to_i}"
+    test_nodes = [ test_node_inactive, test_node_active ]
+    node_names_file = "#{testdir_simple}/skip-inactive-nodes#{rand(999999).to_i}"
+    create_remote_file(master, node_names_file, test_nodes.join(' '))
+    test_nodes.each do |test_node|
+      add_node_to_puppetdb(test_node, 'production')
+    end
+    on master, puppet('node', 'deactivate', test_node_inactive)
+
+    it 'should skip inactive nodes by default' do
+      result = on(master, puppet("preview --preview-environment test --environmentpath #{env_path} --view baseline --nodes #{node_names_file}"),
+        :acceptable_exit_codes => [0])
+      assert_match(/Skipping inactive node.*#{test_node_inactive}/,result.stdout,'preview output from failed preview did not match expected')
+    end
+
+    it 'should skip inactive nodes when using --skip-inactive-nodes flag' do
+      result = on(master, puppet("preview --preview-environment test --environmentpath #{env_path} --view baseline --nodes #{node_names_file}"),
+        :acceptable_exit_codes => [0])
+      assert_match(/Skipping inactive node.*#{test_node_inactive}/,result.stdout,'preview output from failed preview did not match expected')
+    end
+
+    it 'should error when skip inactive nodes results in no active nodes' do
+      result = on(master, puppet("preview --skip-inactive-nodes --preview-environment test --environmentpath #{env_path} --view baseline #{test_node_inactive}"),
+        :acceptable_exit_codes => [1])
+      assert_match(/none of the given node\(s\) are active/,result.stderr,'preview output from failed preview did not match expected')
+    end
+
+    it 'should include inactive nodes when using --no-skip-inactive-nodes' do
+      pending('PRE-115 - facts are not retrieved for inactive nodes')
+      result = on(master, puppet("preview --no-skip-inactive-nodes --preview-environment test --environmentpath #{env_path} --view baseline #{test_node_inactive}"))
+      assert_match(/"name": "#{test_node_inactive}"/,result.stdout,'preview output from failed preview did not match expected')
+    end
+  end
+
 end
