@@ -177,6 +177,17 @@ def start_puppetdb(host, version)
   end
 end
 
+def stop_puppetdb(host)
+
+  step "Stopping PuppetDB" do
+    if host.is_pe?
+      on host, "service pe-puppetdb stop"
+    else
+      on host, "service puppetdb stop"
+    end
+  end
+end
+
 # Sleep until PuppetDB is completely started
 #
 # @param host Hostname to test for PuppetDB availability
@@ -427,5 +438,24 @@ HERE
       end
     end
 
+    step 'setup previewser non-root user' do
+      puppet_confdir = on(master, puppet('master --configprint confdir')).stdout.chomp
+      user_confdir = on(master, 'su - previewser --command "puppet agent --configprint confdir"').stdout.chomp
+      on master, "mkdir #{user_confdir} && cp #{puppet_confdir}/puppetdb.conf #{user_confdir}/"
+      create_remote_file master, "#{user_confdir}/puppet.conf", <<-CONF.gsub(' '*8, '')
+        certname       = previewser.#{master.hostname}
+        ca             = false
+        facts_terminus = puppetdb
+        [agent]
+        server         = #{master.hostname}
+      CONF
+      on master, "chown -R previewser:previewser #{user_confdir} && chmod -R 0777 #{user_confdir}"
+      on(master, "echo previewser.#{master.hostname} >> #{puppet_confdir}/../puppetdb/certificate-whitelist")
+      stop_puppetdb(master)
+      start_puppetdb(master, puppetdb_ver)
+      on(master, 'su - previewser --command "puppet agent -t"',     :accept_all_exit_codes => true)
+      on(master, puppet("cert sign previewser.#{master.hostname}"), :accept_all_exit_codes => true)
+      on(master, 'su - previewser --command "puppet agent -t"',     :accept_all_exit_codes => true)
+    end
   end
 end
