@@ -597,18 +597,21 @@ EOS
     end
 
     it 'should skip inactive nodes by default' do
+      pending('PRE-122 - --skip-inactive-nodes attempts to retrieve facts for inactive nodes')
       result = on(master, puppet("preview --preview-environment test --environmentpath #{@env_path} --view none --nodes #{@node_names_file}"),
         :acceptable_exit_codes => [0])
       assert_match(/Skipping inactive node.*#{@test_node_inactive}/,result.stdout,'preview output from failed preview did not match expected')
     end
 
     it 'should skip inactive nodes when using --skip-inactive-nodes flag' do
+      pending('PRE-122 - --skip-inactive-nodes attempts to retrieve facts for inactive nodes')
       result = on(master, puppet("preview --preview-environment test --environmentpath #{@env_path} --view none --nodes #{@node_names_file}"),
         :acceptable_exit_codes => [0])
       assert_match(/Skipping inactive node.*#{@test_node_inactive}/,result.stdout,'preview output from failed preview did not match expected')
     end
 
     it 'should error when skip inactive nodes results in no active nodes' do
+      pending('PRE-122 - --skip-inactive-nodes attempts to retrieve facts for inactive nodes')
       result = on(master, puppet("preview --skip-inactive-nodes --preview-environment test --environmentpath #{@env_path} --view baseline #{@test_node_inactive}"),
         :acceptable_exit_codes => [1])
       assert_match(/none of the given node\(s\) are active/,result.stderr,'preview output from failed preview did not match expected')
