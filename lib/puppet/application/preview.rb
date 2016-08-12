@@ -779,7 +779,8 @@ Output:
   end
 
   def using_puppetdb?
-    Puppet::Node::Facts.indirection.terminus_class.to_s == 'puppetdb'
+    # Need to cache this since the terminus is subsequently replaced
+    @using_puppetdb ||= Puppet::Node::Facts.indirection.terminus_class.to_s == 'puppetdb'
   end
 
   def configure_indirector_routes
