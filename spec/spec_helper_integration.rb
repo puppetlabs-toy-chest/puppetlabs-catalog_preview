@@ -449,7 +449,7 @@ HERE
         [agent]
         server         = #{master.hostname}
       CONF
-      on master, "chown -R previewser:previewser #{user_confdir} && chmod -R 0777 #{user_confdir}"
+      on master, "chmod -R 0777 #{user_confdir}"
       on(master, "echo previewser.#{master.hostname} >> #{puppet_confdir}/../puppetdb/certificate-whitelist")
       stop_puppetdb(master)
       start_puppetdb(master, puppetdb_ver)
