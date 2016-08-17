@@ -249,8 +249,6 @@ EOS
     end
 
     it 'as non-root, should exit with 0 and produce json logfiles' do
-      pending('The Non-root config does provide access to PuppetDB. That must be fixed for this test to run properly')
-
       env_path = File.join(testdir_simple, 'environments')
       on(master, "#{run_as_previewser} '#{puppet_path} preview #{trusted_node_data} --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}'",
         {:catch_failures => true}) do |r|
@@ -562,7 +560,6 @@ EOS
     end
 
     it 'should find the trusted facts as non-root' do
-      pending('The Non-root config does provide access to PuppetDB. That must be fixed for this test to run properly')
       report = JSON.parse(on(master, "#{run_as_previewser} '#{puppet_path} preview  #{trusted_node_data} --preview-environment test --environmentpath #{env_path} --view baseline nonesuch'").stdout)
       resources = puppet_version =~ /^3\./ ? report['data']['resources'] : report['resources']
       expect(resources[0]).to be_a(Hash)
