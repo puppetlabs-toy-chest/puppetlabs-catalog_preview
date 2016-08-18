@@ -169,9 +169,9 @@ def start_puppetdb(host, version)
 
   step "Starting PuppetDB" do
     if host.is_pe?
-      on host, "service pe-puppetdb start"
+      on host, "puppet resource service pe-puppetdb ensure=running"
     else
-      on host, "service puppetdb start"
+      on host, "puppet resource service puppetdb ensure=running"
     end
     sleep_until_started(host, test_url)
   end
@@ -181,9 +181,9 @@ def stop_puppetdb(host)
 
   step "Stopping PuppetDB" do
     if host.is_pe?
-      on host, "service pe-puppetdb stop"
+      on host, "puppet resource service pe-puppetdb ensure=stopped"
     else
-      on host, "service puppetdb stop"
+      on host, "puppet resource service puppetdb ensure=stopped"
     end
   end
 end
@@ -195,15 +195,16 @@ end
 # @api public
 def sleep_until_started(host, test_url="/pdb/meta/v1/version")
   # Hit an actual endpoint to ensure PuppetDB is up and not just the webserver.
-  # Retry until an HTTP response code of 200 is received.
   desired_exit_code = 0
   max_retries = 120
   retry_interval = 1
   curl_with_retries("start puppetdb", host,
                     "-s -w '%{http_code}' http://localhost:8080#{test_url} -o /dev/null",
-                    desired_exit_code, max_retries, retry_interval, /200/)
+                    desired_exit_code, max_retries, retry_interval)
+  desired_exit_code = [35, 60]
   curl_with_retries("start puppetdb (ssl)", host,
-                    "https://#{host.node_name}:8081#{test_url}", [35, 60])
+                    "https://#{host.node_name}:8081#{test_url}",
+                    desired_exit_code)
 rescue RuntimeError => e
   display_last_logs(host)
   raise
@@ -261,43 +262,6 @@ def install_puppetdb(host, version=nil)
   end
   apply_manifest_on(host, puppetdb_manifest)
   sleep_until_started(host, test_url)
-end
-
-# Keep curling until the required condition is met
-#
-# Condition can be a desired_exit code, and/or expected_output, and it will
-# keep executing the curl command until one of these conditions are met
-# or the max_retries is reached.
-#
-# @param desc [String] descriptive name for this cycling
-# @param host [String] host to execute retry on
-# @param curl_args [String] the curl_args to use for testing
-# @param desired_exit_codes [Number,Array<Number>] a desired exit code, or array of exist codes
-# @param max_retries [Number] maximum number of retries before failing
-# @param retry_interval [Number] time in secs to wait before next try
-# @param expected_output [Regexp] a regexp to use for matching the output
-# @return [void]
-def curl_with_retries(desc, host, curl_args, desired_exit_codes, max_retries = 60, retry_interval = 1, expected_output = /.*/)
-  command = "curl --tlsv1 #{curl_args}"
-  log_prefix = host.log_prefix
-  logger.debug "\n#{log_prefix} #{Time.new.strftime('%H:%M:%S')}$ #{command}"
-  logger.debug "  Trying command #{max_retries} times."
-  logger.debug ".", add_newline=false
-
-  desired_exit_codes = [desired_exit_codes].flatten
-  result = on host, command, :acceptable_exit_codes => (0...127), :silent => true
-  num_retries = 0
-  until desired_exit_codes.include?(exit_code) and (result.stdout =~ expected_output)
-    sleep retry_interval
-    result = on host, command, :acceptable_exit_codes => (0...127), :silent => true
-    num_retries += 1
-    logger.debug ".", add_newline=false
-    if (num_retries > max_retries)
-      logger.debug "  Command \`#{command}\` failed."
-      fail("Command \`#{command}\` failed. Unable to #{desc}.")
-    end
-  end
-  logger.debug "\n#{log_prefix} #{Time.new.strftime('%H:%M:%S')}$ #{command} ostensibly successful."
 end
 
 def databases
