@@ -600,7 +600,7 @@ EOS
     end
 
     it 'should skip inactive nodes when using --skip-inactive-nodes flag' do
-      result = on(master, puppet("preview --preview-environment test --environmentpath #{@env_path} --view none --nodes #{@node_names_file}"),
+      result = on(master, puppet("preview --skip-inactive-nodes --preview-environment test --environmentpath #{@env_path} --view none --nodes #{@node_names_file}"),
         :acceptable_exit_codes => [0])
       assert_match(/Skipping inactive node.*#{@test_node_inactive}/,result.stdout,'preview output from failed preview did not match expected')
     end
