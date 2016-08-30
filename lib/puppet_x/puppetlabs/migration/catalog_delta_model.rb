@@ -1,4 +1,4 @@
-require_relative 'model_object'
+require 'puppet_x/puppetlabs/migration/model_object'
 
 module PuppetX::Puppetlabs::Migration
 module CatalogDeltaModel
