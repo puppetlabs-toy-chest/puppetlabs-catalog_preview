@@ -1,7 +1,7 @@
-require_relative 'model_object'
-require_relative 'overview_model/query'
-require_relative 'overview_model/factory'
-require_relative 'overview_model/report'
+require 'puppet_x/puppetlabs/migration/model_object'
+require 'puppet_x/puppetlabs/migration/overview_model/query'
+require 'puppet_x/puppetlabs/migration/overview_model/factory'
+require 'puppet_x/puppetlabs/migration/overview_model/report'
 
 module PuppetX::Puppetlabs::Migration
   module OverviewModel
