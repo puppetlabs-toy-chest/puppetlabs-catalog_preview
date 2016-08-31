@@ -38,7 +38,9 @@ group :development do
   # required by puppet-blacksmith
   gem 'rest-client', '~> 1.8.0' # for ruby 1.9 compatibility
   gem 'guard-rake'
-  gem 'rubocop',                 :require => false
+  gem 'rubocop', '0.41.2' if RUBY_VERSION < '2.0.0'
+  gem 'rubocop' if RUBY_VERSION >= '2.0.0'
+  gem 'rubocop-rspec', '~> 1.6' if RUBY_VERSION >= '2.3.0'
 end
 
 local_gemfile = "#{__FILE__}.local"
