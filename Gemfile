@@ -40,7 +40,10 @@ group :development do
   gem 'guard-rake'
   gem 'rubocop', '0.41.2' if RUBY_VERSION < '2.0.0'
   gem 'rubocop' if RUBY_VERSION >= '2.0.0'
-  gem 'rubocop-rspec', '~> 1.6' if RUBY_VERSION >= '2.3.0'
+  if RUBY_VERSION >= '2.3.0'
+    gem 'rubocop-rspec', '~> 1.6'
+    gem 'safe_yaml', '~> 1.0.4'
+  end
 end
 
 local_gemfile = "#{__FILE__}.local"
