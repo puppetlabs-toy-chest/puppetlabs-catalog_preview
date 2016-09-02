@@ -34,6 +34,9 @@ group :development do
   gem 'travis'
   gem 'travis-lint'
   gem 'puppet-blacksmith'
+  if RUBY_VERSION < '2.2.3'
+    gem 'listen', '<3.1.0'
+  end
   gem 'guard-rake'
   gem 'rubocop',                 :require => false
 end
