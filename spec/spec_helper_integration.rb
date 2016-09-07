@@ -281,13 +281,29 @@ RSpec.configure do |c|
   else
     if default[:type] =~ /(foss|git)/
       puppet_ver   = ENV['PUPPET_VER'] || ENV['SHA'] || 'nightly'
-      server_ver   = ENV['SERVER_VER']               || 'nightly'
       step 'install foss puppet'
       if puppet_ver =~ /3\./
         install_puppet_on(master, {:version => puppet_ver})
+        server_ver   = ENV['SERVER_VER']               || '1.2.0'
       else
         install_repos_on(master, 'puppet-agent', puppet_ver)
         master.add_env_var('PATH', '/opt/puppetlabs/puppet/bin/')
+        server_ver   = ENV['SERVER_VER']               || 'nightly'
+      end
+      step "Upgrade nss to version that is hopefully compatible with jdk version puppetserver will use." do
+        nss_package=nil
+        variant, _, _, _ = master['platform'].to_array
+        case variant
+        when /^(debian|ubuntu)$/
+          nss_package_name="libnss3"
+        when /^(redhat|el|centos)$/
+          nss_package_name="nss"
+        end
+        if nss_package_name
+          master.upgrade_package(nss_package_name)
+        else
+          logger.warn("Don't know what nss package to use for #{variant} so not installing one")
+        end
       end
       install_repos_on(master, 'puppetserver', server_ver)
       install_package(master,  'puppetserver')
