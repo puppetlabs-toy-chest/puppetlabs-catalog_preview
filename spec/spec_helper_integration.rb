@@ -165,7 +165,7 @@ end
 
 # TODO: remove this once beaker has it merged in
 def start_puppetdb(host, version)
-  test_url = version == '2.3.5' ? '/v4/version' : '/pdb/meta/v1/version'
+  test_url = version =~ /^2\./ ? '/v4/version' : '/pdb/meta/v1/version'
 
   step "Starting PuppetDB" do
     if host.is_pe?
@@ -205,9 +205,6 @@ def sleep_until_started(host, test_url="/pdb/meta/v1/version")
   curl_with_retries("start puppetdb (ssl)", host,
                     "https://#{host.node_name}:8081#{test_url}",
                     desired_exit_code)
-rescue RuntimeError => e
-  display_last_logs(host)
-  raise
 end
 
 def get_package_version(host, version = nil)
@@ -277,12 +274,12 @@ end
 RSpec.configure do |c|
   if ENV['RS_PROVISION'] == 'no' or ENV['BEAKER_provision'] == 'no'
     puppet_version = on(master, 'puppet --version').stdout.chomp
-    puppetdb_ver = puppet_version =~ /3\./ ? '2.3.5' : 'latest'
+    puppetdb_ver = puppet_version =~ /^3\./ ? '2.3.8' : 'latest'
   else
     if default[:type] =~ /(foss|git)/
       puppet_ver   = ENV['PUPPET_VER'] || ENV['SHA'] || 'nightly'
       step 'install foss puppet'
-      if puppet_ver =~ /3\./
+      if puppet_ver =~ /^3\./
         install_puppet_on(master, {:version => puppet_ver})
         server_ver   = ENV['SERVER_VER']               || '1.2.0'
       else
@@ -315,7 +312,7 @@ RSpec.configure do |c|
     on master, puppet('config set autosign          true --section master')
     on master, puppet('config set trusted_node_data true --section main')
     puppet_version = on(master, 'puppet --version').stdout.chomp
-    puppetdb_ver = puppet_version =~ /3\./ ? '2.3.5' : 'latest'
+    puppetdb_ver = puppet_version =~ /^3\./ ? '2.3.8' : 'latest'
 
     if default[:type] =~ /(foss|git)/
       step 'install/configure foss puppetdb'
@@ -355,14 +352,15 @@ HERE
       on master, puppet('config set storeconfigs         true --section master')
       on master, puppet('config set storeconfigs_backend puppetdb --section master')
       route_file = on(master, puppet('master --configprint route_file')).stdout.chomp
-      create_remote_file(master, route_file, <<HERE
+      create_remote_file(master, route_file, <<HERE)
 ---
 master:
   facts:
     terminus: puppetdb
     cache: yaml
 HERE
-                        )
+
+      puppet_confdir = master.puppet['confdir']
       on master, "chown -R puppet:puppet #{puppet_confdir}"
       start_puppetdb(master, puppetdb_ver)
       start_puppetserver(master)
@@ -419,7 +417,7 @@ HERE
     end
 
     step 'setup previewser non-root user' do
-      puppet_confdir = on(master, puppet('master --configprint confdir')).stdout.chomp
+      puppet_confdir = master.puppet['confdir']
       user_confdir = on(master, 'su - previewser --command "puppet agent --configprint confdir"').stdout.chomp
       on master, "mkdir #{user_confdir} && cp #{puppet_confdir}/puppetdb.conf #{user_confdir}/"
       create_remote_file master, "#{user_confdir}/puppet.conf", <<-CONF.gsub(' '*8, '')
