@@ -239,26 +239,24 @@ def get_package_version(host, version = nil)
 end
 
 def install_puppetdb(host, version=nil)
-  test_url = version == '2.3.5' ? '/v4/version' : '/pdb/meta/v1/version'
-
-  if version == '2.3.5'
-    db = 'embedded'
-    puppetdb_manifest = <<-EOS
+  puppetdb_manifest = ''
+  if version && version != 'latest'
+    puppetdb_manifest += <<-EOS
     class { 'puppetdb::globals':
       version => '#{get_package_version(host, version)}',
     }
-    class { 'puppetdb::server':
-      database               => '#{db}',
-      manage_firewall        => false,
-    }
-    EOS
-  else
-    puppetdb_manifest = <<-EOS
-    class { 'puppetdb': }
     EOS
   end
+  puppetdb_manifest += <<-EOS
+    class { 'puppetdb': }
+    class { 'puppetdb::master::config': }
+  EOS
   apply_manifest_on(host, puppetdb_manifest)
-  sleep_until_started(host, test_url)
+  # yes, the puppetdb module is suposed to do this
+  if version =~ /^2\./
+    on(master, 'puppetdb ssl-setup')
+    apply_manifest_on(host, puppetdb_manifest)
+  end
 end
 
 def databases
@@ -318,35 +316,16 @@ RSpec.configure do |c|
       step 'install/configure foss puppetdb'
       start_puppetserver(master)
 
-      initialize_repo_on_host(master, master[:template])
+      initialize_repo_on_host(master, master[:template]) unless puppet_version =~ /^3\./
       on master, puppet('module install puppetlabs/puppetdb')
+      # workaround PDB-3045
+      on(master, 'sed -i"" -r "s/puppetmasterd?/puppetserver/" /etc/puppet/modules/puppetdb/manifests/params.pp') if puppet_version =~ /^3\./
       on master, puppet("agent -t --server #{master.hostname}")
-      if puppetdb_ver == 'latest'
-        puppetdb_terminus_ver = puppetdb_ver
-      else
-        puppetdb_terminus_ver = master.platform =~ /ubuntu/ ? puppetdb_ver + '-1puppetlabs1' : puppetdb_ver
-      end
-      install_puppetdb(master, puppetdb_ver)
-      if puppet_version =~ /3\./
+      puppetdb_terminus_ver = puppetdb_ver
+      if puppet_version =~ /^3\./
         on master, puppet("resource package puppetdb-terminus ensure='#{puppetdb_terminus_ver}'")
       else
         on master, puppet("resource package puppetdb-termini ensure='#{puppetdb_terminus_ver}'")
-      end
-      puppet_confdir = on(master, puppet('master --configprint confdir')).stdout.chomp
-      puppetdb_port  = '8081'
-      if puppet_version =~ /3\./
-        create_remote_file(master, "#{puppet_confdir}/puppetdb.conf", <<HERE
-[main]
-server = #{master.hostname}
-port = #{puppetdb_port}
-HERE
-                        )
-      else
-        create_remote_file(master, "#{puppet_confdir}/puppetdb.conf", <<HERE
-[main]
-server_urls = https://#{master.hostname}:#{puppetdb_port}
-HERE
-                        )
       end
       stop_puppetserver(master)
       on master, puppet('config set storeconfigs         true --section master')
@@ -362,8 +341,7 @@ HERE
 
       puppet_confdir = master.puppet['confdir']
       on master, "chown -R puppet:puppet #{puppet_confdir}"
-      start_puppetdb(master, puppetdb_ver)
-      start_puppetserver(master)
+      install_puppetdb(master, puppetdb_ver)
 
       on master, puppet("agent -t --server #{master.hostname}")
     else
