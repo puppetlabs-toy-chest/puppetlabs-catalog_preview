@@ -165,7 +165,7 @@ end
 
 # TODO: remove this once beaker has it merged in
 def start_puppetdb(host, version)
-  test_url = version == '2.3.5' ? '/v4/version' : '/pdb/meta/v1/version'
+  test_url = version =~ /^2\./ ? '/v4/version' : '/pdb/meta/v1/version'
 
   step "Starting PuppetDB" do
     if host.is_pe?
@@ -205,9 +205,6 @@ def sleep_until_started(host, test_url="/pdb/meta/v1/version")
   curl_with_retries("start puppetdb (ssl)", host,
                     "https://#{host.node_name}:8081#{test_url}",
                     desired_exit_code)
-rescue RuntimeError => e
-  display_last_logs(host)
-  raise
 end
 
 def get_package_version(host, version = nil)
@@ -242,26 +239,24 @@ def get_package_version(host, version = nil)
 end
 
 def install_puppetdb(host, version=nil)
-  test_url = version == '2.3.5' ? '/v4/version' : '/pdb/meta/v1/version'
-
-  if version == '2.3.5'
-    db = 'embedded'
-    puppetdb_manifest = <<-EOS
+  puppetdb_manifest = ''
+  if version && version != 'latest'
+    puppetdb_manifest += <<-EOS
     class { 'puppetdb::globals':
       version => '#{get_package_version(host, version)}',
     }
-    class { 'puppetdb::server':
-      database               => '#{db}',
-      manage_firewall        => false,
-    }
-    EOS
-  else
-    puppetdb_manifest = <<-EOS
-    class { 'puppetdb': }
     EOS
   end
+  puppetdb_manifest += <<-EOS
+    class { 'puppetdb': }
+    class { 'puppetdb::master::config': }
+  EOS
   apply_manifest_on(host, puppetdb_manifest)
-  sleep_until_started(host, test_url)
+  # yes, the puppetdb module is suposed to do this
+  if version =~ /^2\./
+    on(master, 'puppetdb ssl-setup')
+    apply_manifest_on(host, puppetdb_manifest)
+  end
 end
 
 def databases
@@ -277,17 +272,33 @@ end
 RSpec.configure do |c|
   if ENV['RS_PROVISION'] == 'no' or ENV['BEAKER_provision'] == 'no'
     puppet_version = on(master, 'puppet --version').stdout.chomp
-    puppetdb_ver = puppet_version =~ /3\./ ? '2.3.5' : 'latest'
+    puppetdb_ver = puppet_version =~ /^3\./ ? '2.3.8' : 'latest'
   else
     if default[:type] =~ /(foss|git)/
       puppet_ver   = ENV['PUPPET_VER'] || ENV['SHA'] || 'nightly'
-      server_ver   = ENV['SERVER_VER']               || 'nightly'
       step 'install foss puppet'
-      if puppet_ver =~ /3\./
+      if puppet_ver =~ /^3\./
         install_puppet_on(master, {:version => puppet_ver})
+        server_ver   = ENV['SERVER_VER']               || '1.2.0'
       else
         install_repos_on(master, 'puppet-agent', puppet_ver)
         master.add_env_var('PATH', '/opt/puppetlabs/puppet/bin/')
+        server_ver   = ENV['SERVER_VER']               || 'nightly'
+      end
+      step "Upgrade nss to version that is hopefully compatible with jdk version puppetserver will use." do
+        nss_package=nil
+        variant, _, _, _ = master['platform'].to_array
+        case variant
+        when /^(debian|ubuntu)$/
+          nss_package_name="libnss3"
+        when /^(redhat|el|centos)$/
+          nss_package_name="nss"
+        end
+        if nss_package_name
+          master.upgrade_package(nss_package_name)
+        else
+          logger.warn("Don't know what nss package to use for #{variant} so not installing one")
+        end
       end
       install_repos_on(master, 'puppetserver', server_ver)
       install_package(master,  'puppetserver')
@@ -299,57 +310,38 @@ RSpec.configure do |c|
     on master, puppet('config set autosign          true --section master')
     on master, puppet('config set trusted_node_data true --section main')
     puppet_version = on(master, 'puppet --version').stdout.chomp
-    puppetdb_ver = puppet_version =~ /3\./ ? '2.3.5' : 'latest'
+    puppetdb_ver = puppet_version =~ /^3\./ ? '2.3.8' : 'latest'
 
     if default[:type] =~ /(foss|git)/
       step 'install/configure foss puppetdb'
       start_puppetserver(master)
 
-      initialize_repo_on_host(master, master[:template])
+      initialize_repo_on_host(master, master[:template]) unless puppet_version =~ /^3\./
       on master, puppet('module install puppetlabs/puppetdb')
+      # workaround PDB-3045
+      on(master, 'sed -i"" -r "s/puppetmasterd?/puppetserver/" /etc/puppet/modules/puppetdb/manifests/params.pp') if puppet_version =~ /^3\./
       on master, puppet("agent -t --server #{master.hostname}")
-      if puppetdb_ver == 'latest'
-        puppetdb_terminus_ver = puppetdb_ver
-      else
-        puppetdb_terminus_ver = master.platform =~ /ubuntu/ ? puppetdb_ver + '-1puppetlabs1' : puppetdb_ver
-      end
-      install_puppetdb(master, puppetdb_ver)
-      if puppet_version =~ /3\./
+      puppetdb_terminus_ver = puppetdb_ver
+      if puppet_version =~ /^3\./
         on master, puppet("resource package puppetdb-terminus ensure='#{puppetdb_terminus_ver}'")
       else
         on master, puppet("resource package puppetdb-termini ensure='#{puppetdb_terminus_ver}'")
-      end
-      puppet_confdir = on(master, puppet('master --configprint confdir')).stdout.chomp
-      puppetdb_port  = '8081'
-      if puppet_version =~ /3\./
-        create_remote_file(master, "#{puppet_confdir}/puppetdb.conf", <<HERE
-[main]
-server = #{master.hostname}
-port = #{puppetdb_port}
-HERE
-                        )
-      else
-        create_remote_file(master, "#{puppet_confdir}/puppetdb.conf", <<HERE
-[main]
-server_urls = https://#{master.hostname}:#{puppetdb_port}
-HERE
-                        )
       end
       stop_puppetserver(master)
       on master, puppet('config set storeconfigs         true --section master')
       on master, puppet('config set storeconfigs_backend puppetdb --section master')
       route_file = on(master, puppet('master --configprint route_file')).stdout.chomp
-      create_remote_file(master, route_file, <<HERE
+      create_remote_file(master, route_file, <<HERE)
 ---
 master:
   facts:
     terminus: puppetdb
     cache: yaml
 HERE
-                        )
+
+      puppet_confdir = master.puppet['confdir']
       on master, "chown -R puppet:puppet #{puppet_confdir}"
-      start_puppetdb(master, puppetdb_ver)
-      start_puppetserver(master)
+      install_puppetdb(master, puppetdb_ver)
 
       on master, puppet("agent -t --server #{master.hostname}")
     else
@@ -403,7 +395,7 @@ HERE
     end
 
     step 'setup previewser non-root user' do
-      puppet_confdir = on(master, puppet('master --configprint confdir')).stdout.chomp
+      puppet_confdir = master.puppet['confdir']
       user_confdir = on(master, 'su - previewser --command "puppet agent --configprint confdir"').stdout.chomp
       on master, "mkdir #{user_confdir} && cp #{puppet_confdir}/puppetdb.conf #{user_confdir}/"
       create_remote_file master, "#{user_confdir}/puppet.conf", <<-CONF.gsub(' '*8, '')
