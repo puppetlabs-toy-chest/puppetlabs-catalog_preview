@@ -13,6 +13,7 @@ HOSTS:
     - master
     - database
 CONFIG:
+  type: foss
   nfs_server: none
   consoleport: 443
   pooling_api: http://vmpooler.delivery.puppetlabs.net/
