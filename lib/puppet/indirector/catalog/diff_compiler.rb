@@ -173,6 +173,8 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
         end
         options[:back_channel][:baseline_environment] = node.environment
 
+        node.classes.delete_if {|k,v| k =~ /^(puppet_enterprise|pe_)/ }
+
         Puppet::Util::Profiler.profile(baseline_dest, [:diff_compiler, :compile_baseline, node.environment, node.name]) do
           Puppet.override({:current_environment => node.environment}, 'puppet-preview-baseline-compile') do
 
