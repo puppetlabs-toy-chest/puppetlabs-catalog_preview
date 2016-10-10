@@ -36,7 +36,8 @@ group :development do
   gem 'travis-lint'
   gem 'puppet-blacksmith'
   gem 'guard-rake'
-  gem 'rubocop',                 :require => false
+  gem 'rubocop', '0.41.2' if RUBY_VERSION < '2.0.0'
+  gem 'rubocop' if RUBY_VERSION >= '2.0.0'
 end
 
 local_gemfile = "#{__FILE__}.local"
