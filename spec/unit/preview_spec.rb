@@ -258,7 +258,7 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
     end
   end
 
-  context 'when running with --migrate' do
+  context 'when running with --migrate', :if => Puppet.version =~ /^3\./ do
     let(:preview) {
       preview = Puppet::Application[:preview]
       preview.options[:nodes] = ['default']
@@ -277,7 +277,7 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
       end
     end
 
-    it 'can produce a diff between two environments', :if => Puppet.version =~ /^3\./ do
+    it 'can produce a diff between two environments' do
       options[:preview_environment] = 'env4x'
       options[:migrate] = '3.8/4.0'
       options[:view] = :diff
@@ -289,7 +289,7 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
       expect(json_diff['conflicting_attribute_count']).to eql(2)
     end
 
-    it 'can produce a diff by compiling the same environment twice with different parsers', :if => Puppet.version =~ /^3\./ do
+    it 'can produce a diff by compiling the same environment twice with different parsers' do
       options[:migrate] = '3.8/4.0'
       options[:view] = :diff
 
@@ -299,6 +299,17 @@ Catalogs for 'compliant.example.com' are not equal but compliant.
 
       json_diff = JSON.parse(output_stream.string)
       expect(json_diff['conflicting_attribute_count']).to eql(2)
+    end
+
+    it 'fails when no valid facts exist for a node' do
+      options[:preview_environment] = 'env4x'
+      options[:migrate] = '3.8/4.0'
+      options[:view] = :overview
+      output_stream = StringIO.new
+      options[:output_stream] = output_stream
+      Puppet::Node::Facts.any_instance.expects(:values).at_least_once.returns({})
+      expect(preview.main).to eq(PuppetX::Puppetlabs::Migration::BASELINE_FAILED)
+      expect(output_stream.string).to match(/Facts seems to be missing. No 'osfamily' fact found for node 'default'/)
     end
   end
 end

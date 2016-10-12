@@ -699,6 +699,41 @@ describe 'CatalogDelta' do
     end
   end
 
+  it 'allows titles to have integer value' do
+    pv = preview_hash
+    pv['resources'][1] = {
+      'type' => 'File',
+      'title' => 42,
+      'tags' => ['file', 'class'],
+      'file' => '/etc/puppet/environments/production/manifests/site.pp',
+      'line' => 2,
+      'exported' => false,
+      'parameters' => {
+        'ensure' => 'purged',
+        'added' => 'Just arrived'
+      }
+    }
+    pv['resources'].pop
+    pv['resources'].push(
+      {
+        'type' => 'File',
+        'title' => '/tmp/baztest',
+        'tags' => ['file', 'class'],
+        'file' => '/etc/puppet/environments/production/manifests/site.pp',
+        'line' => 4,
+      }
+    )
+    pv['edges'].pop
+    pv['edges'].push(
+      {
+        'source' => 'Class[main]',
+        'target' => 'File[42]'
+      }
+    )
+
+    expect { CatalogDelta.new(baseline_hash, pv, options, timestamp) }.to_not raise_error()
+  end
+
   it 'can be created from a hash' do
     pv = preview_hash
     pv['resources'][1] = {

@@ -35,6 +35,8 @@ group :development do
   gem 'travis'
   gem 'travis-lint'
   gem 'puppet-blacksmith'
+  # required by puppet-blacksmith
+  gem 'rest-client', '~> 1.8.0' # for ruby 1.9 compatibility
   gem 'guard-rake'
   gem 'rubocop',                 :require => false
 end

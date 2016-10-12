@@ -44,6 +44,23 @@ module PuppetX::Puppetlabs::Migration
     end
     private :assert_type
 
+    # Asserts that _value_ is one of the classes in _expected_types_ and raises an ArgumentError when that's not the case
+    #
+    # @param expected_types [Array<Class>]
+    # @param value [Object]
+    # @param default [Object]
+    # @return [Object] the _value_ argument or _default_ argument when _value_ is nil
+    #
+    # @api private
+    def assert_one_of_type(expected_types, value, default = nil)
+      value = default if value.nil?
+      unless value.nil? || expected_types.any? {|t| value.is_a?(t) }
+        raise ArgumentError, "Expected an instance of one of #{expected_types.map {|t| t.name}.join(', ')}. Got #{value.class.name}"
+      end
+      value
+    end
+    private :assert_type
+
     # Asserts that _value_ is a boolean and raises an ArgumentError when that's not the case
     #
     # @param value [Object]

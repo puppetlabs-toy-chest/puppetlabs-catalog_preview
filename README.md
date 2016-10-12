@@ -50,14 +50,20 @@ For a quick start guide on using this module to get ready to move from PE 3.8.1 
 To get started, you'll need:
 
 * Puppet Enterprise or Open-Source Puppet, version 3.8.1 or greater, but less than version PE2015.2 (if you are performing migration checking). If you are using Puppet FOSS, it must be version 3.8.1 or greater, but less than version 4.0.0 (for migration checking).
-* Two environments:
+* (Either) Two environments (if you want to avoid modifying the production environment while fixing problems):
   * Your current production environment, using the current (or Puppet 3 language) parser.
   * A preview environment, using the future (or Puppet 4 language) parser.
+* (Or) One environment (if you just want a quick preview, or is working in an environment where changes are ok):
+  * Your current production environment, using the current (or Puppet 3 language) parser
+  * Running preview commands with `--migrate38/4.0` without specifying `--preview-environment` 
 
 As mentioned above, if you're performing a migration check, your current production environment should be configured to use the current, or Puppet 3, parser. Your preview environment should be pointed at a branch of your current environment and configured to use the future, or Puppet 4, parser. Configure which parser each environment uses via the [`parser`][parser_config_38] setting in each environment's `environment.conf`.
 
 Note that your PE version must be **less than** PE 2015.2 to use this tool for previewing a migration. Because starting with 2015.2, PE contains only the "future" parser, if you are running 2015.2 or later, no migration-specific check can be made. If you are using the FOSS version, it must be less than 4.0.0.
- 
+
+For a quick start it is possible to use the same environment for the baseline and preview compilations by letting the
+catalog preview tool do the switching to future parser for the preview compilation.
+
 ###Installation
 
 Install the catalog_preview module with `puppet module install puppetlabs-catalog_preview`.
@@ -416,17 +422,17 @@ Note that `--excludes` is in effect when compiling and cannot be combined with
 
 Specifies the environment for the preview compilation. Uses facts obtained from the configured facts terminus to compile the catalog. If you're evaluating for migration from the Puppet 3 language to the Puppet 4 language, and using PE <= 2015.2, this environment's `puppet.conf` should be configured to use the future (Puppet 4) parser.
 
-Also available in short form `--be ENV-NAME`.
+Also available in short form `--pe ENV-NAME`.
 
 #####`--debug`
 
 Enables full debugging. Debugging output is sent to the respective log outputs for baseline and preview compilation. This option is for both compilations. Note that debugging information for the startup and end of the application itself is sent to the console.
 
-#####`--\[no-\]diff-string-numeric`
+#####`--[no-]diff-string-numeric`
 
 Makes a difference in type between a string and a numeric value (that are equal numerically) be a conflicting diff. A type difference for the `mode` attribute in `File` will always be reported since this is a significant change. If the option is prefixed with `no-`, then a difference in type will be ignored. This option can only be combined with `--migrate 3.8/4.0` and will then default to `--no-diff-string-numeric`. The behavior for other types of conversions is always equivalent to `--diff-string-numeric`
 
-#####`--\[no-\]diff-array-value`
+#####`--[no-]diff-array-value`
 
 A value in the baseline catalog that is compared to a one element array containing that value in the preview catalog is normally considered a conflict. Using `--no-diff-array-value` will prevent this conflict from being reported. This option can only be combined with `--migrate 3.8/4.0` and will default to `--diff-array-value`. The behavior for other types of conversions is always equivalent to `--diff-array-value`.
 
@@ -440,7 +446,10 @@ Use the last result obtained for a node instead of performing new compilations a
 
 #####`--migrate 3.8/4.0`
 
-Turns on migration validation for the preview compilation. Validation result is produced to the preview log file. When compiling for a single node (or using `--last` for a single node), the logs can optionally also be viewed on stdout with `--view preview-log`. 
+Turns on migration validation for the preview compilation. Validation result is produced to the preview log file. When compiling for a single node (or using `--last` for a single node), the logs can optionally also be viewed on stdout with `--view preview-log`.
+
+If no `--preview-environment` is specified the baseline environment will be used also for the preview compilation but with the
+`--parser` setting automatically set to `future`.
 
 When `--migrate 3.8/4.0` is on, values where one value is a string and the other numeric are considered equal if they represent the same number. This can be turned off with `--diff-string-numeric`, but turning this off might result in many conflicts being reported that need no action.
 
@@ -460,7 +469,7 @@ Defines the directory to which output is produced. This is a Puppet setting that
 
 Outputs the json-schema for the Puppet catalog, catalog_delta, excludes, or log. The option `help` will display the semantics of the catalog-diff schema. Can not be combined with any other option. Accepts arguments `catalog`, `catalog_delta`, `excludes`, `log`, `help`.
 
-#####`--\[no-\]skip-tags`
+#####`--[no-]skip-tags`
 
 Ignores (skips) comparison of tags, catalogs are considered equal/compliant if they only differ in tags. If the option is prefixed with `no-`, then tags will be included in the comparison. The default is `--no-skip-tags`.
 
@@ -487,9 +496,14 @@ Specifies what will be output on stdout. Must be used with one of the following 
 * `compliant-nodes`: Outputs a list of nodes where catalogs where equal or compliant.
 * `none`: No output.
 
-The outputs `diff`, `baseline`, `preview`, `baseline-log`, `preview-log` only works for a single node. All `--view` options may be combined with the [`--last`](#--last) option (to avoid recompilation).
+The outputs `diff`, `baseline`, `preview`, `baseline-log`, `preview-log` only works for a single node.
+The output `overview` can be combined with the option [`--[no-]report-all`](#--[no-]report-all) option.
+All `--view` options may be combined with the [`--last`](#--last) option (to avoid recompilation).
 
-#####`--\[no-\]verbose-diff`
+#####`--[no-]report-all`
+Controls if the `overview` report will contain a list of nodes that is limited to the ten nodes with the highest number of issues or if all nodes are included in the list. The default is to only include the top ten nodes. This option can only be used together with with `--view overview`.
+
+#####`--[no-]verbose-diff`
 
 Includes more information in the catalog diff such as attribute values in missing and added resources. Does not affect whether catalogs are considered equal or compliant. The default is `--no-verbose-diff`.
 
@@ -543,5 +557,9 @@ The `--migrate 3.8/4.0` option only works with Puppet Enterprise versions >= 3.8
 
 The content of this module is:
 
-*Copyright (c) 2015 Puppet Labs, LLC Licensed under Apache 2.0.*
+*Copyright (c) 2015-2016 Puppet, LLC Licensed under Apache 2.0.*
 
+## MAINTAINERS
+
+* Thomas Hallgren
+* Henrik Lindberg

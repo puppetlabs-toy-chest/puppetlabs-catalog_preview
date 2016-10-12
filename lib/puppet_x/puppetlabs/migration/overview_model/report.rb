@@ -12,7 +12,7 @@ module OverviewModel
     def to_hash
       hash = {
         :stats => stats,
-        :top_ten => top_ten,
+        :all_nodes => all_nodes,
         :changes => changes
       }
       baseline = log_entries_hash(true)
@@ -28,15 +28,23 @@ module OverviewModel
       PSON::pretty_generate(to_hash, :allow_nan => true, :max_nesting => false)
     end
 
-    # Returns this report as a human readable multi-line string
+    # Returns this report as a human readable multi-line string. Only the top ten nodes with the most issues
+    # will be included in the nodes list.
     # @return [String] The textual representation of this report
     def to_s
+      to_text(true)
+    end
+
+    # Returns this report as a human readable multi-line string
+    # @param top_ten_only [Boolean] `true`to limit the list of nodes to the ten nodes with most issues. `false` to include all nodes.
+    # @return [String] The textual representation of this report
+    def to_text(top_ten_only)
       bld = StringIO.new
       stats_to_s(bld, stats)
       log_entries_hash_to_s(bld, log_entries_hash(true), true)
       log_entries_hash_to_s(bld, log_entries_hash(false), false)
       changes_to_s(bld, changes)
-      top_ten_to_s(bld, top_ten)
+      all_nodes_to_s(bld, all_nodes, top_ten_only)
       bld.string
     end
 
@@ -155,12 +163,35 @@ module OverviewModel
       location.nil? ? 'unknown location' : "#{location.file.path}:#{location.line}"
     end
 
-    # top_ten
+    # all_nodes
     #
-    def top_ten
+    def all_nodes
       nodes = @overview.of_class(Node)
-      issues_map = nodes.map {|n| { :name => n.name, :issue_count => n.issues.size }}
-      issues_map.sort {|a, b| b[:issue_count] <=> a[:issue_count] }.take(10)
+      issues_map = nodes.map do |n|
+        logged_issue_levels = n.log_entries.message.issue.level
+        issues = n.issues
+        {
+          :name => n.name,
+          :error_count => logged_issue_levels.count { |level| level.name == 'err' },
+          :warning_count => logged_issue_levels.count { |level| level.name == 'warning' },
+          :added_resource_count => issues.of_class(ResourceAdded).size,
+          :missing_resource_count => issues.of_class(ResourceMissing).size,
+          :conflicting_resource_count => issues.of_class(ResourceConflict).size
+        }
+      end
+      issues_map.sort do |a, b|
+        cmp = b[:error_count] <=> a[:error_count]
+        if cmp == 0
+          cmp = b[:warning_count] <=> a[:warning_count]
+          cmp = diff_count(b) <=> diff_count(a) if cmp == 0
+          cmp = a[:name] <=> b[:name] if cmp == 0
+        end
+        cmp
+      end
+    end
+
+    def diff_count(h)
+      h[:added_resource_count] + h[:missing_resource_count] + h[:conflicting_resource_count]
     end
 
     # Builds the hash that represents all catalog changes
@@ -223,7 +254,7 @@ module OverviewModel
           error[:pos] = location.pos unless location.pos.nil?
         end
         manifest_errors = (manifest_hash[:errors] ||= [])
-        manifest_errors << error
+        manifest_errors << error unless manifest_errors.include?(error)
       end
       errors.map { |_, m| m[:nodes] = m[:nodes].to_a; m }.sort { |a, b| b[:nodes].size <=> a[:nodes].size }
     end
@@ -282,6 +313,7 @@ module OverviewModel
           end
         end
       end
+      issues.each_value { |issue| issue[:manifests].each_value { |positions| positions.uniq! } }
       issues.values.sort { |a, b| b[:count] <=> a[:count] }
     end
 
@@ -425,10 +457,22 @@ module OverviewModel
       end
     end
 
-    def top_ten_to_s(bld, top_ten)
+    def all_nodes_to_s(bld, all_nodes, top_ten_only)
       bld.puts
-      bld.puts('Top ten nodes with most issues')
-      top_ten.each {|n| bld << '  ' << n[:name] << ' (' << n[:issue_count] << ')' << "\n" }
+      if top_ten_only
+        bld.puts('Top ten nodes with most issues')
+        all_nodes = all_nodes.take(10)
+      else
+        bld.puts('All nodes')
+      end
+      lbl = 'node name'
+      nn_width = all_nodes.reduce(lbl.size) { |w, n| s = n[:name].size; w > s ? w : s }
+      bld << '  ' << lbl.center(nn_width) << "  errors  warnings   diffs\n"
+      bld << '  '
+      nn_width.times  { bld << '-' }
+      bld << " -------- -------- --------\n"
+      fmt = "  %-#{nn_width}s %8i %8i %8i\n"
+      all_nodes.each {|n| bld << sprintf(fmt, n[:name], n[:error_count], n[:warning_count], diff_count(n) ) }
     end
 
     def edge_changes_to_s(bld, changes)

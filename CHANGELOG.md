@@ -1,3 +1,33 @@
+##2016-08-02 - Release 2.2.0
+### Summary
+
+This release includes new features as well as bug fixes.
+
+The overview data model now contains more information. It used to only contain the top 10 nodes based on an issue count.
+Now, the overview data model contains information about all nodes the overview is based on and with more details per node
+in the form of number of errors, warning, and catalog differences. This information is now used to better order the output
+as well as being easier to consume by custom post-processing and presentation logic.
+
+Attempting to use a node for which there was no available fact-set caused an error that did not indicate what the real problem was.
+Now, instead, deactivated or non existing nodes will be skipped. This supports the use case when a compilation is requested
+where the list of nodes to compile for was generated from a list of certificates (which may contain deactivated nodes).
+
+There were errors in the calculation and presentation of issue counts where the same problem could be counted multiple times.
+This is now corrected.
+
+Catalog preview could not compute the difference between resources that used an Integer as resource title. This is now fixed.
+
+##2016-05-14 - Release 2.1.0
+### Summary
+
+This release is the first Open Source Release of Catalog Preview, and it adds one new feature.
+
+Previously a preview environment was always required for migration checking. Now catalog preview will instead
+compile a catalog twice in the baseline environment, once with the "current" 3.x parser, and once with the "future" 4.x
+parser. This is achieved by simply not specifying the `--preview-environment` flag.
+
+Errors in the documentation are also corrected in this release.
+
 ##2015-12-08 - Release 2.0.3
 ###Summary
 

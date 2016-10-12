@@ -19,7 +19,7 @@ module CatalogDeltaModel
 
     def initialize(type, title, attributes)
       @type = assert_type(String, type)
-      @title = assert_type(String, title)
+      @title = assert_one_of_type([String, Fixnum], title)
       @attributes = assert_type(Array, attributes)
     end
 
@@ -240,7 +240,7 @@ module CatalogDeltaModel
     def initialize(location, type, title, attributes)
       @location = location
       @type = assert_type(String, type)
-      @title = assert_type(String, title)
+      @title = assert_one_of_type([String, Fixnum], title)
       @attributes = attributes
     end
 

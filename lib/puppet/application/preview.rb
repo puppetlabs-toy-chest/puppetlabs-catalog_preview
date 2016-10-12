@@ -3,6 +3,7 @@ require 'puppet/file_system'
 require 'puppet_x/puppetlabs/preview'
 require 'puppet/util/colors'
 require 'puppet/pops'
+require 'puppet/interface'
 
 class Puppet::Application::Preview < Puppet::Application
 
@@ -82,6 +83,10 @@ class Puppet::Application::Preview < Puppet::Application
   option('--[no-]diff-string-numeric', '--diff_string_numeric')
 
   option('--[no-]diff-array-value')
+
+  option('--[no-]report-all')
+
+  option('--[no-]skip-inactive-nodes')
 
   option('--trusted') do |_|
     options[:trusted] = true
@@ -199,9 +204,7 @@ class Puppet::Application::Preview < Puppet::Application
       end
       @exit_code = 0
     else
-      if options[:nodes].nil? || options[:nodes].empty? && !options[:last]
-        raise UsageError, 'No node(s) given to perform preview compilation for'
-      end
+      init_node_names_for_compile unless options[:last]
 
       if node_names.size > 1 && [:diff, :baseline, :preview, :baseline_log, :preview_log].include?(options[:view])
         raise UsageError, "The --view option '#{options[:view].to_s.gsub(/_/, '-')}' is not supported for multiple nodes"
@@ -233,6 +236,15 @@ class Puppet::Application::Preview < Puppet::Application
           options[:diff_array_value] = true # this is the default
         end
 
+        if options.include?(:report_all)
+          unless options[:view] == :overview
+            raise UsageError, '--report-all can only be used in combination with --view overview'
+          end
+        else
+          # Default is to just report the top ten nodes
+          options[:report_all] = false
+        end
+
         compile
 
         view
@@ -244,7 +256,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   def assert_and_set_exit_code
-    nodes = @overview.of_class(OverviewModel::Node)
+    nodes = @overview.nil? ? [] : @overview.of_class(OverviewModel::Node)
     @exit_code =  nodes.reduce(0) do |result, node|
       exit_code = node.exit_code
       break exit_code if exit_code == BASELINE_FAILED
@@ -329,7 +341,7 @@ class Puppet::Application::Preview < Puppet::Application
       unless result = Puppet::Resource::Catalog.indirection.find(node, options)
         # TODO: Should always produce a result and give better error depending on what failed
         #
-        raise GeneralError, "Could not compile catalogs for #{node}"
+        raise PuppetX::Puppetlabs::Preview::GeneralError, "Could not compile catalogs for #{node}"
       end
 
       # WRITE the two catalogs to output files
@@ -408,6 +420,32 @@ class Puppet::Application::Preview < Puppet::Application
     output_dir = Puppet[:preview_outputdir]
     node_names.each { |node| FileUtils.remove_entry_secure(File.join(output_dir, node)) }
     @exit_code = 0
+  end
+
+  def init_node_names_for_compile
+    given_names = options[:nodes]
+    raise UsageError, 'No node(s) given to perform preview compilation for' if given_names.nil? || given_names.empty?
+
+    # If the face action 'node status' exists (provided by PuppetDB), then purge inactive and non existent nodes from the list
+    node_face = Puppet::Interface[:node, :current]
+    if using_puppetdb? && node_face.respond_to?(:status)
+      skip_inactive = options.include?(:skip_inactive_nodes) ? options[:skip_inactive_nodes] : true
+      given_names = given_names.select do |node_name|
+        status = node_face.status(node_name)[0]
+        if status.nil? || status.size < 1
+          # An error has been output by the status action
+          false
+        elsif skip_inactive && !status['deactivated'].nil?
+          # Notice unless JSON output is expected.
+          Puppet.notice("Skipping inactive node '#{node_name}'") unless options[:view] == :overview_json
+          false
+        else
+          true
+        end
+      end
+      raise UsageError, 'No compilation can be performed since none of the given node(s) are active' if given_names.empty?
+    end
+    @node_names = given_names
   end
 
   def node_names
@@ -653,7 +691,7 @@ Output:
   #
   def display_overview(overview, as_json)
     report = OverviewModel::Report.new(overview)
-    output_stream.puts(as_json ? report.to_json : report.to_s)
+    output_stream.puts(as_json ? report.to_json : report.to_text(!options[:report_all]))
   end
 
   def read_json(node, type)
@@ -691,6 +729,7 @@ Output:
   end
 
   def display_status
+    return if @overview.nil?
 
     node = @overview.of_class(OverviewModel::Node)[0]
     out = output_stream
@@ -739,6 +778,10 @@ Output:
     Puppet::FileSystem.open(filename, nil, 'ab') { |of| of.write(endtext) }
   end
 
+  def using_puppetdb?
+    Puppet::Node::Facts.indirection.terminus_class.to_s == 'puppetdb'
+  end
+
   def configure_indirector_routes
     # Same implementation as the base Application class, except this loads
     # routes configured for the "master" application in order to conform with
@@ -760,7 +803,7 @@ Output:
     #
     # So, if PuppetDB is in use, we swap in a copy of the 2.x terminus which
     # uses the v4 API which returns properly structured and typed facts.
-    if Puppet::Node::Facts.indirection.terminus_class.to_s == 'puppetdb'
+    if using_puppetdb?
       # Versions prior to pdb 3 uses the v3 REST API, but there is not easy
       # way to figure out which version is in use that works for both old
       # and new versions. The method 'Puppet::Util::Puppetdb.url_path' has

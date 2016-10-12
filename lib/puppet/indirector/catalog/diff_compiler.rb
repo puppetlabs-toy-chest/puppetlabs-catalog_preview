@@ -143,6 +143,7 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
   # Compile baseline and preview catalogs
   #
   def compile(node, options)
+
     baseline_catalog = nil
     preview_catalog = nil
 
@@ -188,6 +189,14 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
             # Do the compilation
             begin
               baseline_catalog = Puppet::Parser::Compiler.compile(node)
+              if node.facts.nil? || node.facts.values.nil? || node.facts.values['osfamily'].nil?
+                # Node does not have a valid factset.
+                raise PuppetX::Puppetlabs::Preview::GeneralError, "Facts seems to be missing. No 'osfamily' fact found for node '#{node.name}'"
+              end
+            rescue Puppet::Error
+              # Already logged
+              raise PuppetX::Puppetlabs::Preview::BaselineCompileError, 'Error while compiling the baseline catalog'
+
             rescue StandardError => e
               # Log it (ends up in baseline_log)
               Puppet.err(e.to_s)
@@ -243,7 +252,12 @@ class Puppet::Resource::Catalog::DiffCompiler < Puppet::Indirector::Code
 
             begin
               preview_catalog = Puppet::Parser::Compiler.compile(node)
+               if node.facts.nil? || node.facts.values.nil? || node.facts.values['osfamily'].nil?
+                # Node does not have a valid factset.
+                raise PuppetX::Puppetlabs::Preview::GeneralError, "Facts seems to be missing. No 'osfamily' fact found for node '#{node.name}'"
+              end
             rescue Puppet::Error
+              # Already logged
               raise PuppetX::Puppetlabs::Preview::PreviewCompileError, 'Error while compiling the preview catalog'
 
             rescue StandardError => e
