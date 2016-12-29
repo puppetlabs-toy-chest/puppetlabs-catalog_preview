@@ -413,6 +413,34 @@ Preview always excludes one PE-specific File resource that has random content; o
 This option can be used to exclude additional resources that are expected to change in each compilation (e.g. if they have random or time-based content). Exclusions can be
 per resource type, type and title, or combined with one or more attributes.
 
+For example, the following JSON would ignore all Augeas resources, all attributes of Service['pe-mcollective'], any File resource's "source" attribute, and Class['Puppet_enterprise::Mcollective::Server'] attributes "activemq_brokers" and "collectives".
+
+````json
+[
+  {
+    "type": "Augeas"
+  },
+  {
+    "type": "Service",
+    "title": "pe-mcollective"
+  },
+  {
+    "type": "File",
+    "attributes": [
+                    "source"
+                  ]
+  },
+  {
+    "type": "Class",
+    "title": "Puppet_enterprise::Mcollective::Server",
+    "attributes": [
+                    "activemq_brokers",
+                    "collectives"
+                  ]
+  }
+]
+````
+
 An exclusion that isn't combined with any attributes will exclude matching resources completely together with all edges where the resource is either the source or the target.
 
 Note that `--excludes` is in effect when compiling and cannot be combined with
