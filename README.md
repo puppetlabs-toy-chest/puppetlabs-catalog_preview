@@ -68,6 +68,8 @@ catalog preview tool do the switching to future parser for the preview compilati
 
 Install the catalog_preview module with `puppet module install puppetlabs-catalog_preview`.
 
+If you have installed catalog_preview on a compile master (a system not acting as a Puppet CA) then you need to ensure that the `ca` parameter in puppet.conf is set to 'false' on the compile master where you are running catalog_preview.
+
 ##Usage
 
 ###Prerequisites
