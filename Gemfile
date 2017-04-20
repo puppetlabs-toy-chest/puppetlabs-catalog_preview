@@ -14,6 +14,8 @@ group :system_tests do
   gem 'rake'
   gem 'beaker-rspec', *location_for(ENV['BEAKER_RSPEC_VERSION'] || '~> 6.0')
   gem 'beaker-pe', *location_for(ENV['BEAKER_PE_VERSION'] || '~> 1.1')
+  gem 'beaker-hostgenerator', *location_for(ENV['BEAKER_HOSTGENERATOR_VERSION'])
+  gem "beaker-abs", *location_for(ENV['BEAKER_ABS_VERSION'] || '~> 0.2') 
   gem 'listen', '<3.1.0'
 end
 
