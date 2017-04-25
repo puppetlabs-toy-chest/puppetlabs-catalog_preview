@@ -367,6 +367,36 @@ EOS
     end
   end
 
+  it 'should produce a report for a successful run with --view overview' do
+    env_path = File.join(testdir_simple, 'environments')
+    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path}"),
+       :acceptable_exit_codes => [0]) { |r| }
+  end
+
+  it 'should produce a report for a successful run with --view overview --nodes filename' do
+  end
+
+  it 'should produce a report for a failed run with --view overview' do
+    env_path = File.join(testdir_broken_test, 'environments')
+    on(master, puppet("preview #{node_name} --preview_environment test --environmentpath #{env_path}"),
+       :acceptable_exit_codes => [3]) { |r| r.stdout }
+  end
+
+  it 'should produce a report for a failed run with --view overview --nodes filename' do
+  end
+
+  it 'should produce a report for a previous successful run with --view overview' do
+  end
+
+  it 'should produce a report for a previous successful run with --view overview --nodes filename' do
+  end
+
+  it 'should produce a report for a previous failed run with --view overview' do
+  end
+
+  it 'should produce a report for a previous failed run with --view overview --nodes filename' do
+  end
+
   it 'should reconstruct the node list from a previous successful run when using --last' do
     env_path = File.join(testdir_simple, 'environments')
     on(master, puppet("preview --preview-environment test #{node_names_cli.join(' ')} --nodes #{node_names_filename} --environmentpath #{env_path}"))
