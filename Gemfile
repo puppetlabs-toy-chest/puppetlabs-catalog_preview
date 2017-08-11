@@ -47,6 +47,7 @@ group :development do
   gem 'travis-lint'              if current_ruby_version >= ruby_1_9_3
   gem 'puppet-blacksmith'        if current_ruby_version >= ruby_1_9_3
   gem 'guard-rake'               if current_ruby_version >= ruby_1_9_3
+  gem 'listen',                   '~> 3.0.0'
   gem 'rubocop'                  if current_ruby_version >= ruby_1_9_3
   if current_ruby_version >= Gem::Version.new('2.3.0')
     gem 'rubocop-rspec',         '~> 1.6'
