@@ -111,7 +111,7 @@ class Puppet::Application::Preview < Puppet::Application
   end
 
   # Sets up the 'node_cache_terminus' default to use the Write Only Yaml terminus :write_only_yaml.
-  # If this is not wanted, the setting ´node_cache_terminus´ should be set to nil.
+  # If this is not wanted, the setting `node_cache_terminus` should be set to nil.
   # @see Puppet::Node::WriteOnlyYaml
   # @see #setup_node_cache
   # @see puppet issue 16753
