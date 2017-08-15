@@ -148,14 +148,14 @@ Note that all settings (such as 'log_level') affect both compilations.
   | summary         | A single node diff summary, or the status per node
   | diff            | The catalog diff for one node in json format
   | baseline        | The baseline catalog for one node in json
-  | preview         | The preview catalog for one node in json
+  | preview         | The preview catalog for one node in json
   | baseline-log    | The baseline log for one node in json
-  | preview-log     | The preview log for one node in json
-  | status          | Short compliance status output for one or multiple nodes
+  | preview-log     | The preview log for one node in json
+  | status          | Short compliance status output for one or multiple nodes
   | none            | No output, useful when using preview as a test of exit code in a script
   | overview        | Aggregated & correlated report of errors/warnings/diffs across nodes
-  | overview-json   | (Experimental) The overview output in json format
-  | failed-nodes    | A list of nodes where compilation of the two catalogs failed
+  | overview-json   | (Experimental) The overview output in json format
+  | failed-nodes    | A list of nodes where compilation of the two catalogs failed
   | diff-nodes      | A list of nodes where there are diffs in the two catalogs
   | compliant-nodes | A list of nodes that have catalogs that are equal, or with compliant diffs
   | equal-nodes     | A list of nodes where catalogs where equal
